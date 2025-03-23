@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -219,7 +220,7 @@ const Profile = () => {
                     <form className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-1" htmlFor="farmName">
-                          Nom de l'exploitation
+                          Nom de l&apos;exploitation
                         </label>
                         <Input id="farmName" defaultValue="Ferme El Baraka" />
                       </div>
@@ -233,7 +234,7 @@ const Profile = () => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1" htmlFor="farmType">
-                            Type d'exploitation
+                            Type d&apos;exploitation
                           </label>
                           <Input id="farmType" defaultValue="Mixte (Oliviers et Palmiers)" />
                         </div>
@@ -252,7 +253,7 @@ const Profile = () => {
                       
                       <div>
                         <label className="block text-sm font-medium mb-1" htmlFor="irrigationMethod">
-                          Méthode d'irrigation
+                          Méthode d&apos;irrigation
                         </label>
                         <Input id="irrigationMethod" defaultValue="Goutte-à-goutte" />
                       </div>
@@ -286,8 +287,8 @@ const Profile = () => {
                             { label: 'Alertes météo', defaultChecked: true },
                             { label: 'Rappels de tâches', defaultChecked: true },
                             { label: 'Recommandations agricoles', defaultChecked: true },
-                            { label: 'Alertes d'irrigation', defaultChecked: true },
-                            { label: 'Bulletins d'information', defaultChecked: false },
+                            { label: 'Alertes d&apos;irrigation', defaultChecked: true },
+                            { label: 'Bulletins d&apos;information', defaultChecked: false },
                           ].map((item, index) => (
                             <div key={index} className="flex items-center justify-between">
                               <div className="text-sm">{item.label}</div>
@@ -298,13 +299,13 @@ const Profile = () => {
                       </div>
                       
                       <div>
-                        <h3 className="font-semibold mb-3">Notifications sur l'application</h3>
+                        <h3 className="font-semibold mb-3">Notifications sur l&apos;application</h3>
                         <div className="space-y-3">
                           {[
                             { label: 'Alertes météo', defaultChecked: true },
                             { label: 'Rappels de tâches', defaultChecked: true },
                             { label: 'Recommandations agricoles', defaultChecked: true },
-                            { label: 'Alertes d'irrigation', defaultChecked: true },
+                            { label: 'Alertes d&apos;irrigation', defaultChecked: true },
                             { label: 'Messages des fournisseurs', defaultChecked: true },
                           ].map((item, index) => (
                             <div key={index} className="flex items-center justify-between">
@@ -424,19 +425,19 @@ const Profile = () => {
                     {activeTab === 'help' && <HelpCircle className="h-8 w-8 text-gray-500" />}
                   </div>
                   <h3 className="font-display text-lg font-semibold mb-2">
-                    {activeTab === 'language' && 'Paramètres de langue'}
-                    {activeTab === 'settings' && 'Paramètres du compte'}
-                    {activeTab === 'help' && 'Centre d\'aide'}
+                    {activeTab === 'language' && "Paramètres de langue"}
+                    {activeTab === 'settings' && "Paramètres du compte"}
+                    {activeTab === 'help' && "Centre d&apos;aide"}
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    {activeTab === 'language' && 'Cette fonctionnalité sera bientôt disponible.'}
-                    {activeTab === 'settings' && 'Les paramètres avancés du compte seront disponibles prochainement.'}
-                    {activeTab === 'help' && 'Notre centre d\'aide est en cours de construction.'}
+                    {activeTab === 'language' && "Cette fonctionnalité sera bientôt disponible."}
+                    {activeTab === 'settings' && "Les paramètres avancés du compte seront disponibles prochainement."}
+                    {activeTab === 'help' && "Notre centre d&apos;aide est en cours de construction."}
                   </p>
                   <Button>
-                    {activeTab === 'language' && 'Explorer les langues'}
-                    {activeTab === 'settings' && 'Voir les options de base'}
-                    {activeTab === 'help' && 'Contacter le support'}
+                    {activeTab === 'language' && "Explorer les langues"}
+                    {activeTab === 'settings' && "Voir les options de base"}
+                    {activeTab === 'help' && "Contacter le support"}
                   </Button>
                 </Card>
               </div>
