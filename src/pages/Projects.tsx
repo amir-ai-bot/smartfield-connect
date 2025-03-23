@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Filter, SlidersHorizontal } from 'lucide-react';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import AuthDialog from '@/components/auth/AuthDialog';
+import { toast } from 'sonner';
 
 const projectsData = [
   {
@@ -78,11 +82,15 @@ const projectsData = [
 ];
 
 const Projects = () => {
+  const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [cropFilter, setCropFilter] = useState('all');
+  const [projects, setProjects] = useState(projectsData);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   
-  const filteredProjects = projectsData.filter(project => {
+  const filteredProjects = projects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.crop.toLowerCase().includes(searchQuery.toLowerCase());
@@ -93,7 +101,19 @@ const Projects = () => {
     return matchesSearch && matchesStatus && matchesCrop;
   });
   
-  const uniqueCrops = Array.from(new Set(projectsData.map(project => project.crop)));
+  const uniqueCrops = Array.from(new Set(projects.map(project => project.crop)));
+  
+  const handleAddProject = () => {
+    if (isAuthenticated) {
+      setCreateDialogOpen(true);
+    } else {
+      setAuthDialogOpen(true);
+    }
+  };
+
+  const handleProjectCreated = (newProject: any) => {
+    setProjects(prev => [newProject, ...prev]);
+  };
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,6 +128,7 @@ const Projects = () => {
           
           <Button 
             className="mt-4 md:mt-0 bg-agri-green-500 hover:bg-agri-green-600 text-white flex items-center"
+            onClick={handleAddProject}
           >
             <Plus className="h-4 w-4 mr-2" />
             Nouveau projet
@@ -197,6 +218,18 @@ const Projects = () => {
           </div>
         )}
       </main>
+      
+      <CreateProjectDialog 
+        open={createDialogOpen} 
+        onOpenChange={setCreateDialogOpen}
+        onProjectCreated={handleProjectCreated}
+      />
+      
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen}
+        initialView="login"
+      />
       
       <Footer />
     </div>

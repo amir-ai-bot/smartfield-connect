@@ -13,11 +13,14 @@ import {
   CloudSun, 
   User
 } from 'lucide-react';
+import UserProfileButton from '@/components/auth/UserProfileButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navbar = () => {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,12 +36,17 @@ const Navbar = () => {
 
   const navItems = [
     { path: '/', name: 'Accueil', icon: <Home className="h-4 w-4" /> },
-    { path: '/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { path: '/projects', name: 'Projets', icon: <Sprout className="h-4 w-4" /> },
+    { path: '/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard className="h-4 w-4" />, requireAuth: true },
+    { path: '/projects', name: 'Projets', icon: <Sprout className="h-4 w-4" />, requireAuth: true },
     { path: '/suppliers', name: 'Fournisseurs', icon: <Users className="h-4 w-4" /> },
     { path: '/weather', name: 'Météo', icon: <CloudSun className="h-4 w-4" /> },
-    { path: '/profile', name: 'Profil', icon: <User className="h-4 w-4" /> },
+    { path: '/profile', name: 'Profil', icon: <User className="h-4 w-4" />, requireAuth: true },
   ];
+
+  // Filter nav items based on authentication status
+  const filteredNavItems = navItems.filter(
+    item => !item.requireAuth || (item.requireAuth && isAuthenticated)
+  );
 
   return (
     <header 
@@ -59,7 +67,7 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex space-x-1">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -76,22 +84,27 @@ const Navbar = () => {
           ))}
         </nav>
 
-        {/* Mobile menu button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X /> : <Menu />}
-        </Button>
+        {/* User profile or login button */}
+        <div className="flex items-center">
+          <UserProfileButton />
+          
+          {/* Mobile menu button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="ml-2 md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="glass animate-fade-in md:hidden absolute w-full py-3 px-4 border-t border-gray-100">
           <nav className="flex flex-col space-y-1">
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
