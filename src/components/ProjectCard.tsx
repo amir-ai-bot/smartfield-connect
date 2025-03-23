@@ -4,7 +4,7 @@ import { MoreHorizontal, Calendar, Sprout, MapPin, Droplet } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 
-type ProjectCardProps = {
+export type ProjectCardProps = {
   id: string;
   title: string;
   crop: string;
