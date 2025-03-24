@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, LogIn, LogOut } from 'lucide-react';
+import { User, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import AuthDialog from '@/components/auth/AuthDialog';
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 
 const UserProfileButton = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogView, setAuthDialogView] = useState<'login' | 'signup'>('login');
 
@@ -95,6 +95,11 @@ const UserProfileButton = () => {
             <div className="flex flex-col space-y-1">
               <span className="font-medium">{user?.name}</span>
               <span className="text-xs text-muted-foreground">{user?.email}</span>
+              {isAdmin() && (
+                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 mt-1 inline-block w-fit">
+                  Administrateur
+                </span>
+              )}
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -104,6 +109,14 @@ const UserProfileButton = () => {
               <span>Profil</span>
             </Link>
           </DropdownMenuItem>
+          {isAdmin() && (
+            <DropdownMenuItem asChild>
+              <Link to="/admin" className="cursor-pointer">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Administration</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
             <LogOut className="mr-2 h-4 w-4" />

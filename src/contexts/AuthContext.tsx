@@ -83,11 +83,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success('Déconnexion réussie');
   };
 
+  // Check if user is an admin
+  const isAdmin = () => {
+    return state.user?.role === 'admin';
+  };
+
   const value = {
     ...state,
     login,
     signup,
     logout,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

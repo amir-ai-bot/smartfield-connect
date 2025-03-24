@@ -17,6 +17,7 @@ export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   signup: (name: string, email: string, password: string) => Promise<void>;
+  isAdmin: () => boolean;
 }
 
 export interface LoginFormData {

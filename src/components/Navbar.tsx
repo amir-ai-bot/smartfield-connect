@@ -11,7 +11,8 @@ import {
   Sprout, 
   Users, 
   CloudSun, 
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react';
 import UserProfileButton from '@/components/auth/UserProfileButton';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +21,7 @@ const Navbar = () => {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,12 +41,15 @@ const Navbar = () => {
     { path: '/projects', name: 'Projets', icon: <Sprout className="h-4 w-4" />, requireAuth: true },
     { path: '/suppliers', name: 'Fournisseurs', icon: <Users className="h-4 w-4" /> },
     { path: '/weather', name: 'Météo', icon: <CloudSun className="h-4 w-4" /> },
+    { path: '/admin', name: 'Administration', icon: <ShieldCheck className="h-4 w-4" />, requireAdmin: true },
     { path: '/profile', name: 'Profil', icon: <User className="h-4 w-4" />, requireAuth: true },
   ];
 
-  // Filter nav items based on authentication status
+  // Filter nav items based on authentication status and admin status
   const filteredNavItems = navItems.filter(
-    item => !item.requireAuth || (item.requireAuth && isAuthenticated)
+    item => 
+      (!item.requireAuth || (item.requireAuth && isAuthenticated)) && 
+      (!item.requireAdmin || (item.requireAdmin && isAdmin()))
   );
 
   return (

@@ -6,8 +6,8 @@ const mockUsers = [
   {
     id: '1',
     name: 'Ahmed Ben Ali',
-    email: 'ahmed@example.com',
-    password: 'password123',
+    email: 'admin@agrismart.com',
+    password: 'admin123',
     avatar: '/assets/avatars/ahmed.jpg',
     role: 'admin'
   },
@@ -16,6 +16,14 @@ const mockUsers = [
     name: 'Leila Sfar',
     email: 'leila@example.com',
     password: 'password123',
+    role: 'user'
+  },
+  {
+    id: '3',
+    name: 'Ahmed Ben Ali',
+    email: 'ahmed@example.com',
+    password: 'password123',
+    avatar: '/assets/avatars/ahmed.jpg',
     role: 'user'
   }
 ] as const;
@@ -91,4 +99,10 @@ export const logout = (): void => {
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
   return !!getCurrentUser();
+};
+
+// Check if user is an admin
+export const isAdmin = (): boolean => {
+  const user = getCurrentUser();
+  return !!user && user.role === 'admin';
 };
