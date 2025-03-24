@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { SignupFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, User, Mail, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type SignupFormProps = {
   onSuccess?: () => void;
@@ -15,12 +16,14 @@ type SignupFormProps = {
 
 const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) => {
   const { signup } = useAuth();
+  const navigate = useNavigate();
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SignupFormData>();
 
   const onSubmit = async (data: SignupFormData) => {
     try {
       await signup(data.name, data.email, data.password);
       if (onSuccess) onSuccess();
+      navigate('/dashboard');
     } catch (error) {
       // Error is handled in the auth context
       console.error('Signup form error:', error);

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { LoginFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Mail, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type LoginFormProps = {
   onSuccess?: () => void;
@@ -15,12 +15,14 @@ type LoginFormProps = {
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup }) => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password);
       if (onSuccess) onSuccess();
+      navigate('/dashboard');
     } catch (error) {
       // Error is handled in the auth context
       console.error('Login form error:', error);
