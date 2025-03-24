@@ -94,6 +94,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    padding-bottom: 4rem; /* Add padding to accommodate bottom navbar on mobile */
   }
 }
 
@@ -106,6 +107,13 @@
 @media (max-width: 640px) {
   .container {
     @apply px-4;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 0; /* Remove padding on desktop */
   }
 }
 

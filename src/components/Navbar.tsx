@@ -51,7 +51,7 @@ const Navbar = () => {
   return (
     <header 
       className={cn(
-        "fixed top-0 left-0 w-full z-50 transition-all duration-300",
+        "fixed top-0 left-0 w-full z-50 transition-all duration-300 hidden md:block",
         isScrolled ? "glass py-2" : "bg-transparent py-4"
       )}
     >
@@ -66,7 +66,7 @@ const Navbar = () => {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex space-x-1">
+        <nav className="flex space-x-1">
           {filteredNavItems.map((item) => (
             <Link
               key={item.path}
@@ -87,41 +87,8 @@ const Navbar = () => {
         {/* User profile or login button */}
         <div className="flex items-center">
           <UserProfileButton />
-          
-          {/* Mobile menu button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="ml-2 md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X /> : <Menu />}
-          </Button>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="glass animate-fade-in md:hidden absolute w-full py-3 px-4 border-t border-gray-100">
-          <nav className="flex flex-col space-y-1">
-            {filteredNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "px-4 py-3 rounded-lg font-medium flex items-center transition-all",
-                  location.pathname === item.path 
-                    ? "text-agri-green-600 bg-agri-green-50" 
-                    : "text-gray-700 hover:text-agri-green-500 hover:bg-gray-50"
-                )}
-              >
-                <span className="mr-3">{item.icon}</span>
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
     </header>
   );
 };

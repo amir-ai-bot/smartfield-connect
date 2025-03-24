@@ -12,6 +12,7 @@ import Suppliers from "./pages/Suppliers";
 import Weather from "./pages/Weather";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import BottomNavbar from "./components/BottomNavbar";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <BottomNavbar />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
