@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import WeatherCard from '@/components/WeatherCard';
@@ -14,71 +13,18 @@ import {
   Sunset, 
   Wind, 
   Thermometer, 
-  Droplets
+  Droplets,
+  Loader2
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  fetchCurrentWeather, 
+  fetchWeatherForecast, 
+  CurrentWeather, 
+  WeatherForecast 
+} from '@/services/weatherService';
+import { toast } from 'sonner';
 
-// Sample data for weather forecast
-const forecastData = [
-  {
-    date: "17 Juin",
-    day: "Lundi",
-    temp: 32,
-    humidity: 25,
-    windSpeed: 12,
-    condition: "sunny" as const
-  },
-  {
-    date: "18 Juin",
-    day: "Mardi",
-    temp: 30,
-    humidity: 30,
-    windSpeed: 14,
-    condition: "partly-cloudy" as const
-  },
-  {
-    date: "19 Juin",
-    day: "Mercredi",
-    temp: 29,
-    humidity: 45,
-    windSpeed: 10,
-    condition: "cloudy" as const
-  },
-  {
-    date: "20 Juin",
-    day: "Jeudi",
-    temp: 28,
-    humidity: 60,
-    windSpeed: 8,
-    condition: "rainy" as const
-  },
-  {
-    date: "21 Juin",
-    day: "Vendredi",
-    temp: 31,
-    humidity: 40,
-    windSpeed: 9,
-    condition: "partly-cloudy" as const
-  },
-  {
-    date: "22 Juin",
-    day: "Samedi",
-    temp: 33,
-    humidity: 30,
-    windSpeed: 11,
-    condition: "sunny" as const
-  },
-  {
-    date: "23 Juin",
-    day: "Dimanche",
-    temp: 34,
-    humidity: 25,
-    windSpeed: 13,
-    condition: "sunny" as const
-  }
-];
-
-// Sample data for weather alerts
 const weatherAlerts = [
   {
     id: 1,
@@ -106,13 +52,120 @@ const weatherAlerts = [
 const Weather = () => {
   const [searchLocation, setSearchLocation] = useState('');
   const [currentLocation, setCurrentLocation] = useState('Gafsa, Tunisie');
+  const [currentWeather, setCurrentWeather] = useState<CurrentWeather | null>(null);
+  const [forecastData, setForecastData] = useState<WeatherForecast[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const handleLocationSearch = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchWeatherData = async () => {
+      setIsLoading(true);
+      try {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude } = position.coords;
+              const locationString = `${latitude},${longitude}`;
+              
+              const [current, forecast] = await Promise.all([
+                fetchCurrentWeather(locationString),
+                fetchWeatherForecast(locationString)
+              ]);
+              
+              setCurrentWeather(current);
+              setForecastData(forecast);
+              setCurrentLocation(current.location);
+            },
+            async (error) => {
+              console.error("Geolocation error:", error);
+              const [current, forecast] = await Promise.all([
+                fetchCurrentWeather(),
+                fetchWeatherForecast()
+              ]);
+              
+              setCurrentWeather(current);
+              setForecastData(forecast);
+            }
+          );
+        } else {
+          const [current, forecast] = await Promise.all([
+            fetchCurrentWeather(),
+            fetchWeatherForecast()
+          ]);
+          
+          setCurrentWeather(current);
+          setForecastData(forecast);
+        }
+      } catch (error) {
+        console.error("Error fetching weather data:", error);
+        toast.error("Erreur lors de la récupération des données météo", {
+          description: "Veuillez réessayer plus tard"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchWeatherData();
+    
+    const intervalId = setInterval(() => {
+      fetchWeatherData();
+      toast.info("Données météo mises à jour", {
+        description: `Dernière mise à jour: ${new Date().toLocaleTimeString()}`
+      });
+    }, 30 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  const handleLocationSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchLocation.trim()) {
-      setCurrentLocation(searchLocation);
-      setSearchLocation('');
+      setIsLoading(true);
+      try {
+        const [current, forecast] = await Promise.all([
+          fetchCurrentWeather(searchLocation),
+          fetchWeatherForecast(searchLocation)
+        ]);
+        
+        setCurrentWeather(current);
+        setForecastData(forecast);
+        setCurrentLocation(current.location);
+        setSearchLocation('');
+        
+        toast.success("Localisation mise à jour", {
+          description: `Données météo pour ${current.location}`
+        });
+      } catch (error) {
+        console.error("Error in location search:", error);
+        toast.error("Localisation non trouvée", {
+          description: "Veuillez essayer un autre lieu"
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
+  };
+  
+  const getWeatherIcon = () => {
+    if (!currentWeather) return <CloudSun className="h-12 w-12" />;
+    
+    if (currentWeather.condition.toLowerCase().includes('soleil') || 
+        currentWeather.condition.toLowerCase().includes('sunny') ||
+        currentWeather.condition.toLowerCase().includes('clear')) {
+      return <CloudSun className="h-12 w-12" />;
+    }
+    
+    if (currentWeather.condition.toLowerCase().includes('pluie') || 
+        currentWeather.condition.toLowerCase().includes('rain')) {
+      return <Droplets className="h-12 w-12" />;
+    }
+    
+    if (currentWeather.condition.toLowerCase().includes('nuage') || 
+        currentWeather.condition.toLowerCase().includes('cloud')) {
+      return <CloudSun className="h-12 w-12" />;
+    }
+    
+    return <CloudSun className="h-12 w-12" />;
   };
   
   return (
@@ -136,77 +189,83 @@ const Weather = () => {
                 className="pl-10 border-gray-200 pr-4 flex-grow"
               />
             </div>
-            <Button type="submit" variant="outline">
-              <Search className="h-4 w-4" />
+            <Button type="submit" variant="outline" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </form>
         </div>
         
-        {/* Current weather */}
         <Card className="shadow-card mb-8 overflow-hidden animate-slide-up">
-          <div className="bg-gradient-to-r from-agri-blue-400 to-agri-blue-600 text-white p-6">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-              <div>
-                <div className="flex items-center mb-2">
-                  <MapPin className="h-5 w-5 mr-2" />
-                  <h2 className="font-display text-xl font-semibold">{currentLocation}</h2>
-                </div>
-                <p className="text-blue-100">Aujourd'hui, 17 Juin 2023</p>
-              </div>
-              
-              <div className="flex items-center mt-4 md:mt-0">
-                <div className="bg-white/20 backdrop-blur-md rounded-full p-4 mr-6">
-                  <CloudSun className="h-12 w-12" />
-                </div>
-                
-                <div className="text-center">
-                  <p className="text-5xl font-semibold mb-1">32°C</p>
-                  <p className="text-blue-100">Ensoleillé</p>
-                </div>
-              </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-agri-blue-500" />
             </div>
-          </div>
-          
-          <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="flex items-center">
-                <Thermometer className="h-8 w-8 p-1.5 bg-red-100 text-red-500 rounded-lg mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Ressenti</p>
-                  <p className="font-medium">34°C</p>
+          ) : (
+            <>
+              <div className="bg-gradient-to-r from-agri-blue-400 to-agri-blue-600 text-white p-6">
+                <div className="flex flex-col md:flex-row justify-between items-center">
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <MapPin className="h-5 w-5 mr-2" />
+                      <h2 className="font-display text-xl font-semibold">{currentLocation}</h2>
+                    </div>
+                    <p className="text-blue-100">Aujourd'hui, {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  </div>
+                  
+                  <div className="flex items-center mt-4 md:mt-0">
+                    <div className="bg-white/20 backdrop-blur-md rounded-full p-4 mr-6">
+                      {getWeatherIcon()}
+                    </div>
+                    
+                    <div className="text-center">
+                      <p className="text-5xl font-semibold mb-1">{currentWeather?.temperature}°C</p>
+                      <p className="text-blue-100">{currentWeather?.condition}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <Wind className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Vent</p>
-                  <p className="font-medium">12 km/h</p>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center">
+                    <Thermometer className="h-8 w-8 p-1.5 bg-red-100 text-red-500 rounded-lg mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Ressenti</p>
+                      <p className="font-medium">{currentWeather?.feelsLike}°C</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Wind className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Vent</p>
+                      <p className="font-medium">{currentWeather?.windSpeed} km/h</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Droplets className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Humidité</p>
+                      <p className="font-medium">{currentWeather?.humidity}%</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <div className="flex">
+                      <Sunrise className="h-8 w-8 p-1.5 bg-yellow-100 text-yellow-500 rounded-lg mr-3" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Lever/Coucher</p>
+                      <p className="font-medium">{currentWeather?.sunrise} / {currentWeather?.sunset}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center">
-                <Droplets className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Humidité</p>
-                  <p className="font-medium">25%</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center">
-                <div className="flex">
-                  <Sunrise className="h-8 w-8 p-1.5 bg-yellow-100 text-yellow-500 rounded-lg mr-3" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Lever/Coucher</p>
-                  <p className="font-medium">05:42 / 19:28</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+              </CardContent>
+            </>
+          )}
         </Card>
         
-        {/* Weather and irrigation tabs */}
         <Tabs defaultValue="forecast" className="mb-8 animate-slide-up">
           <TabsList className="w-full sm:w-80 mb-6">
             <TabsTrigger value="forecast" className="flex-1">Prévisions</TabsTrigger>
@@ -215,17 +274,23 @@ const Weather = () => {
           </TabsList>
           
           <TabsContent value="forecast">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {forecastData.map((day, index) => (
-                <div 
-                  key={index} 
-                  className="animate-slide-up" 
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <WeatherCard {...day} />
-                </div>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex justify-center items-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-agri-blue-500" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {forecastData.map((day, index) => (
+                  <div 
+                    key={index} 
+                    className="animate-slide-up" 
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <WeatherCard {...day} />
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="alerts">
@@ -341,7 +406,7 @@ const Weather = () => {
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">2</span>
-                        <p className="text-gray-700">Des vents de 12 km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
+                        <p className="text-gray-700">Des vents de {currentWeather?.windSpeed || 12} km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">3</span>
@@ -355,7 +420,6 @@ const Weather = () => {
           </TabsContent>
         </Tabs>
         
-        {/* Weather impact */}
         <Card className="shadow-card animate-slide-up">
           <CardHeader>
             <CardTitle className="text-xl font-display">Impact météorologique sur vos cultures</CardTitle>
@@ -372,7 +436,7 @@ const Weather = () => {
                     <div>
                       <h4 className="font-medium mb-1">Température</h4>
                       <p className="text-sm text-gray-600">
-                        Tendance au réchauffement avec des températures moyennes de 30-35°C pour les 2 prochaines semaines.
+                        Tendance au réchauffement avec des températures moyennes de {forecastData.length > 0 ? `${Math.min(...forecastData.map(d => d.temp))}-${Math.max(...forecastData.map(d => d.temp))}°C` : '30-35°C'} pour les 2 prochaines semaines.
                       </p>
                     </div>
                   </div>
