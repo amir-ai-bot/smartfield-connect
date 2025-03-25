@@ -1,8 +1,11 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { ArrowRight, Award, BadgeCheck, BarChart3, CloudSun } from 'lucide-react';
+
+interface WelcomeSectionProps {
+  id?: string;
+}
 
 const benefits = [
   {
@@ -27,7 +30,7 @@ const benefits = [
   }
 ];
 
-const WelcomeSection = () => {
+const WelcomeSection: React.FC<WelcomeSectionProps> = ({ id }) => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [initialView, setInitialView] = useState<'login' | 'signup'>('login');
 
@@ -42,7 +45,7 @@ const WelcomeSection = () => {
   };
 
   return (
-    <section className="pt-20 pb-16">
+    <section id={id} className="pt-20 pb-16">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto mb-12 animate-slide-up">
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-6">

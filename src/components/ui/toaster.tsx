@@ -15,7 +15,7 @@ export function Toaster() {
   const isMobile = useIsMobile()
 
   return (
-    <ToastProvider>
+    <ToastProvider duration={1500}>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props} className={isMobile ? "max-w-[90vw] z-50" : ""}>

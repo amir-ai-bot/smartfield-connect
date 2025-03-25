@@ -17,6 +17,28 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogView, setAuthDialogView] = useState<'login' | 'signup'>('login');
+  const [showMobileAuth, setShowMobileAuth] = useState(true);
+
+  // Handle scroll position to hide/show the mobile auth buttons
+  useEffect(() => {
+    if (isMobile && !isAuthenticated) {
+      const handleScroll = () => {
+        // Hide the buttons when scrolled to WelcomeSection area (which already has auth buttons)
+        const welcomeSection = document.getElementById('welcome-section');
+        if (welcomeSection) {
+          const rect = welcomeSection.getBoundingClientRect();
+          const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
+          setShowMobileAuth(!isVisible);
+        }
+      };
+
+      window.addEventListener('scroll', handleScroll);
+      // Initial check
+      handleScroll();
+      
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+  }, [isMobile, isAuthenticated]);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -53,10 +75,10 @@ const Index = () => {
       ) : (
         // First-time or logged-out users see the welcome section
         <>
-          <WelcomeSection />
+          <WelcomeSection id="welcome-section" />
           
           {/* Add mobile-specific auth buttons */}
-          {isMobile && (
+          {isMobile && showMobileAuth && (
             <div className="fixed bottom-20 left-0 right-0 flex justify-center gap-4 p-4 z-40">
               <Button 
                 onClick={openLoginDialog}
