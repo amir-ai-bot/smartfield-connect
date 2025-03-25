@@ -26,25 +26,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Auth state changed:', event, session);
         
         if (event === 'SIGNED_IN' && session) {
-          // Get user data and update state
-          const user: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
-            role: session.user.user_metadata?.role || 'user',
-            avatar: session.user.user_metadata?.avatar_url
-          };
-          
-          localStorage.setItem('agrismart_user', JSON.stringify(user));
-          
-          setState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          
-          if (event === 'SIGNED_IN') {
-            toast.success('Connexion réussie');
+          try {
+            // Get user profile data from profiles table
+            const profile = await authService.fetchUserProfile(session.user.id);
+            
+            if (profile) {
+              setState({
+                user: profile,
+                isAuthenticated: true,
+                isLoading: false,
+              });
+              
+              localStorage.setItem('agrismart_user', JSON.stringify(profile));
+              
+              if (event === 'SIGNED_IN') {
+                toast.success('Connexion réussie');
+              }
+            } else {
+              console.error('Profile not found after sign in');
+              setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching profile:', error);
+            setState({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
           }
         } else if (event === 'SIGNED_OUT') {
           localStorage.removeItem('agrismart_user');
@@ -64,22 +76,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          // Get user data from session
-          const user: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
-            role: session.user.user_metadata?.role || 'user',
-            avatar: session.user.user_metadata?.avatar_url
-          };
+          // Get user profile data from profiles table
+          const profile = await authService.fetchUserProfile(session.user.id);
           
-          localStorage.setItem('agrismart_user', JSON.stringify(user));
-          
-          setState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          if (profile) {
+            setState({
+              user: profile,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            
+            localStorage.setItem('agrismart_user', JSON.stringify(profile));
+          } else {
+            // No profile found, user might be new
+            setState({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
+          }
         } else {
           // No active session
           setState({
@@ -152,6 +167,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Update profile function
+  const updateProfile = async (updates: Partial<User>) => {
+    try {
+      if (!state.user) throw new Error('Not authenticated');
+      
+      const updatedUser = await authService.updateUserProfile(state.user.id, updates);
+      
+      setState(prev => ({
+        ...prev,
+        user: updatedUser
+      }));
+      
+      toast.success('Profil mis à jour avec succès');
+      return updatedUser;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la mise à jour du profil');
+      throw error;
+    }
+  };
+
   // Check if user is an admin
   const isAdmin = () => {
     return state.user?.role === 'admin';
@@ -163,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     isAdmin,
+    updateProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

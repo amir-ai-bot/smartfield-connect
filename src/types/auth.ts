@@ -18,6 +18,7 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   signup: (name: string, email: string, password: string) => Promise<void>;
   isAdmin: () => boolean;
+  updateProfile: (updates: Partial<User>) => Promise<User>;
 }
 
 export interface LoginFormData {
