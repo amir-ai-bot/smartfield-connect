@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from "@/lib/utils";
@@ -7,7 +6,6 @@ import {
   Menu, 
   X, 
   Home, 
-  LayoutDashboard, 
   Sprout, 
   Users, 
   CloudSun, 
@@ -37,7 +35,6 @@ const Navbar = () => {
 
   const navItems = [
     { path: '/', name: 'Accueil', icon: <Home className="h-4 w-4" /> },
-    { path: '/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard className="h-4 w-4" />, requireAuth: true },
     { path: '/projects', name: 'Projets', icon: <Sprout className="h-4 w-4" />, requireAuth: true },
     { path: '/suppliers', name: 'Fournisseurs', icon: <Users className="h-4 w-4" /> },
     { path: '/weather', name: 'Météo', icon: <CloudSun className="h-4 w-4" /> },

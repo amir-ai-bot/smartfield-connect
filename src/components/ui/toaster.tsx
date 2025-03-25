@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -7,15 +8,17 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export function Toaster() {
   const { toasts } = useToast()
+  const isMobile = useIsMobile()
 
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
-          <Toast key={id} {...props}>
+          <Toast key={id} {...props} className={isMobile ? "max-w-[90vw]" : ""}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
@@ -27,7 +30,7 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport />
+      <ToastViewport className={isMobile ? "bottom-20" : ""} />
     </ToastProvider>
   )
 }

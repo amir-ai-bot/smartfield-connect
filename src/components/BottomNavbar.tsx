@@ -4,7 +4,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from "@/lib/utils";
 import { 
   Home,
-  LayoutDashboard, 
   Sprout, 
   Users, 
   CloudSun,
@@ -14,6 +13,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AuthDialog from '@/components/auth/AuthDialog';
+import { useToast } from "@/hooks/use-toast";
 
 // Define an interface for navigation items to fix TypeScript errors
 interface NavItem {
@@ -31,15 +31,20 @@ const BottomNavbar = () => {
   const isMobile = useIsMobile();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogView, setAuthDialogView] = useState<'login' | 'signup'>('login');
+  const { toast } = useToast();
 
   const openLoginDialog = () => {
     setAuthDialogView('login');
     setAuthDialogOpen(true);
+    toast({
+      title: "Connexion requise",
+      description: "Veuillez vous connecter pour accéder à toutes les fonctionnalités.",
+      duration: 3000,
+    });
   };
 
   const navItems: NavItem[] = [
     { path: '/', name: 'Accueil', icon: <Home className="h-6 w-6" /> },
-    { path: '/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard className="h-6 w-6" />, requireAuth: true },
     { path: '/projects', name: 'Projets', icon: <Sprout className="h-6 w-6" />, requireAuth: true },
     { path: '/suppliers', name: 'Fournisseurs', icon: <Users className="h-6 w-6" /> },
     { path: '/weather', name: 'Météo', icon: <CloudSun className="h-6 w-6" /> },
