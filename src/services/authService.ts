@@ -1,38 +1,9 @@
 
+import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types/auth';
-
-// Mock users for demo purposes
-const mockUsers = [
-  {
-    id: '1',
-    name: 'Ahmed Ben Ali',
-    email: 'admin@agrismart.com',
-    password: 'admin123',
-    avatar: '/assets/avatars/ahmed.jpg',
-    role: 'admin'
-  },
-  {
-    id: '2',
-    name: 'Leila Sfar',
-    email: 'leila@example.com',
-    password: 'password123',
-    role: 'user'
-  },
-  {
-    id: '3',
-    name: 'Ahmed Ben Ali',
-    email: 'ahmed@example.com',
-    password: 'password123',
-    avatar: '/assets/avatars/ahmed.jpg',
-    role: 'user'
-  }
-] as const;
 
 // Local storage key
 const USER_STORAGE_KEY = 'agrismart_user';
-
-// Helper to simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Get user from local storage
 export const getCurrentUser = (): User | null => {
@@ -45,54 +16,72 @@ export const getCurrentUser = (): User | null => {
 
 // Login function
 export const login = async (email: string, password: string): Promise<User> => {
-  // Simulate API call delay
-  await delay(1000);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
   
-  // Find user with matching credentials
-  const user = mockUsers.find(u => 
-    u.email.toLowerCase() === email.toLowerCase() && 
-    u.password === password
-  );
-  
-  if (!user) {
-    throw new Error('Invalid email or password');
+  if (error) {
+    throw new Error(error.message);
   }
   
-  // Remove password before storing and returning
-  const { password: _, ...userWithoutPassword } = user;
+  if (!data.user) {
+    throw new Error('User not found');
+  }
+  
+  // Create a User object from the Supabase user
+  const user: User = {
+    id: data.user.id,
+    email: data.user.email || '',
+    name: data.user.user_metadata?.name || email.split('@')[0],
+    role: data.user.user_metadata?.role || 'user',
+    avatar: data.user.user_metadata?.avatar_url
+  };
   
   // Store in local storage
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userWithoutPassword));
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   
-  return userWithoutPassword as User;
+  return user;
 };
 
 // Signup function
 export const signup = async (name: string, email: string, password: string): Promise<User> => {
-  // Simulate API call delay
-  await delay(1000);
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        name,
+        role: 'user',
+      }
+    }
+  });
   
-  // Check if email already exists
-  if (mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-    throw new Error('Email already in use');
+  if (error) {
+    throw new Error(error.message);
   }
   
-  // Create new user
-  const newUser: User = {
-    id: Math.random().toString(36).substring(2, 9),
-    name,
-    email,
-    role: 'user',
+  if (!data.user) {
+    throw new Error('Failed to create user');
+  }
+  
+  // Create a User object from the Supabase user
+  const user: User = {
+    id: data.user.id,
+    email: data.user.email || '',
+    name: name,
+    role: 'user'
   };
   
   // Store in local storage
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   
-  return newUser;
+  return user;
 };
 
 // Logout function
-export const logout = (): void => {
+export const logout = async (): Promise<void> => {
+  await supabase.auth.signOut();
   localStorage.removeItem(USER_STORAGE_KEY);
 };
 
