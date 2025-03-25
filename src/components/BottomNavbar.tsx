@@ -15,6 +15,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AuthDialog from '@/components/auth/AuthDialog';
 
+// Define an interface for navigation items to fix TypeScript errors
+interface NavItem {
+  path: string;
+  name: string;
+  icon: React.ReactNode;
+  requireAuth?: boolean;
+  requireAdmin?: boolean;
+  onClick?: () => void;
+}
+
 const BottomNavbar = () => {
   const location = useLocation();
   const { isAuthenticated, isAdmin } = useAuth();
@@ -27,7 +37,7 @@ const BottomNavbar = () => {
     setAuthDialogOpen(true);
   };
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: '/', name: 'Accueil', icon: <Home className="h-6 w-6" /> },
     { path: '/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard className="h-6 w-6" />, requireAuth: true },
     { path: '/projects', name: 'Projets', icon: <Sprout className="h-6 w-6" />, requireAuth: true },
@@ -36,15 +46,15 @@ const BottomNavbar = () => {
   ];
 
   // Add profile for authenticated users or login for unauthenticated users
-  const authItem = isAuthenticated
+  const authItem: NavItem = isAuthenticated
     ? { path: '/profile', name: 'Profil', icon: <User className="h-6 w-6" /> }
     : { path: '#', name: 'Connexion', icon: <User className="h-6 w-6" />, onClick: openLoginDialog };
 
   // Add admin option if user is admin
-  const adminItem = { path: '/admin', name: 'Admin', icon: <ShieldCheck className="h-6 w-6" />, requireAdmin: true };
+  const adminItem: NavItem = { path: '/admin', name: 'Admin', icon: <ShieldCheck className="h-6 w-6" />, requireAdmin: true };
 
   // Combine all items
-  const allItems = [...navItems];
+  const allItems: NavItem[] = [...navItems];
   
   // Add auth item
   allItems.push(authItem);
