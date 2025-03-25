@@ -6,22 +6,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SignupFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, User, Mail, Lock } from 'lucide-react';
+import { Loader2, User, Mail, Lock, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 type SignupFormProps = {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
+  onSwitchToForgotPassword?: () => void;
 };
 
-const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) => {
+const SignupForm: React.FC<SignupFormProps> = ({ 
+  onSuccess, 
+  onSwitchToLogin,
+  onSwitchToForgotPassword
+}) => {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SignupFormData>();
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      await signup(data.name, data.email, data.password);
+      await signup(data.name, data.email, data.password, data.phone_number);
       if (onSuccess) onSuccess();
       navigate('/dashboard');
     } catch (error) {
@@ -72,6 +77,25 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSuccess, onSwitchToLogin }) =
         </div>
         {errors.email && (
           <p className="text-destructive text-sm">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone_number">Numéro de téléphone</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            id="phone_number"
+            type="tel"
+            className="pl-10"
+            placeholder="+33 6 12 34 56 78"
+            {...register('phone_number', { 
+              required: 'Le numéro de téléphone est requis'
+            })}
+          />
+        </div>
+        {errors.phone_number && (
+          <p className="text-destructive text-sm">{errors.phone_number.message}</p>
         )}
       </div>
 

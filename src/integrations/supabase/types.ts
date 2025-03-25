@@ -16,6 +16,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          phone_number: string | null
           role: string
           updated_at: string
         }
@@ -25,6 +26,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          phone_number?: string | null
           role?: string
           updated_at?: string
         }
@@ -34,6 +36,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          phone_number?: string | null
           role?: string
           updated_at?: string
         }
@@ -62,6 +65,36 @@ export type Database = {
           id?: string
           title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      verification_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          type: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          type: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type?: string
+          used?: boolean
           user_id?: string
         }
         Relationships: []

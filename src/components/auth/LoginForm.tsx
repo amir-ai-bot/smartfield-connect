@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,14 @@ import { useNavigate } from 'react-router-dom';
 type LoginFormProps = {
   onSuccess?: () => void;
   onSwitchToSignup?: () => void;
+  onSwitchToForgotPassword?: () => void;
 };
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ 
+  onSuccess, 
+  onSwitchToSignup,
+  onSwitchToForgotPassword
+}) => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>();
@@ -55,7 +61,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToSignup }) =>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Mot de passe</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="password">Mot de passe</Label>
+          <Button
+            type="button"
+            variant="link"
+            onClick={onSwitchToForgotPassword}
+            className="p-0 h-auto font-normal text-xs"
+          >
+            Mot de passe oublié?
+          </Button>
+        </div>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input

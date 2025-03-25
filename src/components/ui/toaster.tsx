@@ -30,7 +30,7 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport className={isMobile ? "bottom-24 z-50" : ""} />
+      <ToastViewport className={`top-4 ${isMobile ? "z-50" : ""}`} />
     </ToastProvider>
   )
 }

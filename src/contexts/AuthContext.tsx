@@ -135,16 +135,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Signup function
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string, phone_number?: string) => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
-      const user = await authService.signup(name, email, password);
+      const user = await authService.signup(name, email, password, phone_number);
       setState({
         user,
         isAuthenticated: true,
         isLoading: false,
       });
-      toast.success('Inscription réussie');
+      toast.success('Inscription réussie! Un code de vérification a été envoyé à votre email.');
     } catch (error) {
       setState(prev => ({ ...prev, isLoading: false }));
       toast.error(error instanceof Error ? error.message : 'Erreur d\'inscription');
@@ -187,6 +187,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Verify email function
+  const verifyEmail = async (email: string, code: string) => {
+    try {
+      if (!state.user) throw new Error('Not authenticated');
+      
+      await authService.verifyEmail(state.user.id, code);
+      
+      setState(prev => ({
+        ...prev,
+        user: {
+          ...prev.user!,
+          email_verified: true
+        }
+      }));
+      
+      toast.success('Email vérifié avec succès');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la vérification de l\'email');
+      throw error;
+    }
+  };
+
+  // Request password reset function
+  const requestPasswordReset = async (email: string) => {
+    try {
+      await authService.requestPasswordReset(email);
+      toast.success('Un code de réinitialisation a été envoyé à votre email');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la demande de réinitialisation');
+      throw error;
+    }
+  };
+
+  // Confirm password reset function
+  const confirmPasswordReset = async (code: string, password: string) => {
+    try {
+      if (!state.user?.email) throw new Error('Email not found');
+      
+      await authService.confirmPasswordReset(state.user.email, code, password);
+      toast.success('Mot de passe réinitialisé avec succès');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la réinitialisation du mot de passe');
+      throw error;
+    }
+  };
+
   // Check if user is an admin
   const isAdmin = () => {
     return state.user?.role === 'admin';
@@ -198,7 +244,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     isAdmin,
-    updateProfile
+    updateProfile,
+    verifyEmail,
+    requestPasswordReset,
+    confirmPasswordReset
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
