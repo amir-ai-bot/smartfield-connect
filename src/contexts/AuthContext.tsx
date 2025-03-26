@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, AuthState, User } from '@/types/auth';
 import * as authService from '@/services/authService';
@@ -17,41 +18,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session);
         
-        if (event === 'SIGNED_IN' && session) {
-          try {
-            const profile = await authService.fetchUserProfile(session.user.id);
-            
-            if (profile) {
-              setState({
-                user: profile,
-                isAuthenticated: true,
-                isLoading: false,
-              });
+        if (session) {
+          // Defer profile fetch to avoid auth deadlock
+          setTimeout(async () => {
+            try {
+              const profile = await authService.fetchUserProfile(session.user.id);
               
-              localStorage.setItem('agrismart_user', JSON.stringify(profile));
-              
-              if (event === 'SIGNED_IN') {
-                toast.success('Connexion réussie');
+              if (profile) {
+                setState({
+                  user: profile,
+                  isAuthenticated: true,
+                  isLoading: false,
+                });
+                
+                localStorage.setItem('agrismart_user', JSON.stringify(profile));
+                
+                if (event === 'SIGNED_IN') {
+                  toast.success('Connexion réussie');
+                }
+              } else {
+                setState({
+                  user: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                });
               }
-            } else {
-              console.error('Profile not found after sign in');
+            } catch (error) {
+              console.error('Error fetching profile:', error);
               setState({
                 user: null,
                 isAuthenticated: false,
                 isLoading: false,
               });
             }
-          } catch (error) {
-            console.error('Error fetching profile:', error);
-            setState({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-            });
-          }
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           localStorage.removeItem('agrismart_user');
           setState({
@@ -174,17 +177,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyEmail = async (email: string, code: string) => {
     try {
-      if (!state.user) throw new Error('Not authenticated');
+      await authService.verifyEmail(email, code);
       
-      await authService.verifyEmail(state.user.id, code);
-      
-      setState(prev => ({
-        ...prev,
-        user: {
-          ...prev.user!,
-          email_verified: true
-        }
-      }));
+      if (state.user) {
+        setState(prev => ({
+          ...prev,
+          user: {
+            ...prev.user!,
+            email_verified: true
+          }
+        }));
+      }
       
       toast.success('Email vérifié avec succès');
     } catch (error) {
@@ -205,9 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const confirmPasswordReset = async (code: string, password: string) => {
     try {
-      if (!state.user?.email) throw new Error('Email not found');
-      
-      await authService.confirmPasswordReset(state.user.email, code, password);
+      await authService.confirmPasswordReset(code, password);
       toast.success('Mot de passe réinitialisé avec succès');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erreur lors de la réinitialisation du mot de passe');

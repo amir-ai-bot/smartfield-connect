@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,11 @@ import { Label } from '@/components/ui/label';
 import { NewPasswordFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Lock, ArrowLeft } from 'lucide-react';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 type ResetPasswordFormProps = {
   onSuccess?: () => void;
@@ -18,7 +23,8 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   onBackToLogin
 }) => {
   const { confirmPasswordReset } = useAuth();
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
+  const [code, setCode] = useState('');
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
@@ -28,6 +34,11 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
       // Error is handled in the auth context
       console.error('Password reset error:', error);
     }
+  };
+
+  const handleOTPChange = (value: string) => {
+    setCode(value);
+    setValue('code', value);
   };
 
   return (
@@ -41,21 +52,33 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="code">Code de réinitialisation</Label>
-          <Input
-            id="code"
-            type="text"
-            placeholder="Code à 6 chiffres"
-            {...register('code', { 
-              required: 'Le code est requis',
-              pattern: {
-                value: /^\d{6}$/,
-                message: 'Le code doit contenir 6 chiffres'
-              }
-            })}
-          />
+          <Label htmlFor="code" className="block text-center">Code de réinitialisation</Label>
+          <div className="flex justify-center">
+            <InputOTP
+              maxLength={6}
+              value={code}
+              onChange={handleOTPChange}
+              render={({ slots }) => (
+                <InputOTPGroup className="gap-2">
+                  {slots.map((slot, index) => (
+                    <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
+                  ))}
+                </InputOTPGroup>
+              )}
+            />
+            <input 
+              type="hidden" 
+              {...register('code', { 
+                required: 'Le code est requis',
+                pattern: {
+                  value: /^\d{6}$/,
+                  message: 'Le code doit contenir 6 chiffres'
+                }
+              })} 
+            />
+          </div>
           {errors.code && (
-            <p className="text-destructive text-sm">{errors.code.message}</p>
+            <p className="text-destructive text-sm text-center mt-2">{errors.code.message}</p>
           )}
         </div>
 

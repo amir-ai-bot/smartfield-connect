@@ -1,4 +1,3 @@
-
 // Import only what we need from the existing file, then we'll add our new methods
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -193,25 +192,17 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
 // Function to request password reset
 export const requestPasswordReset = async (email: string): Promise<void> => {
   // Check if user exists
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/reset-password',
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  // Generate and store a random code
-  const { data: userData, error: userError } = await supabase
+  const { data: userData } = await supabase
     .from('profiles')
     .select('id')
     .eq('email', email)
     .single();
 
-  if (userError || !userData) {
+  if (!userData) {
     throw new Error('User not found');
   }
 
+  // Generate and store a random code
   const code = generateRandomCode(6);
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 1); // Code expires in 1 hour
@@ -234,22 +225,14 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 };
 
 // Function to confirm password reset
-export const confirmPasswordReset = async (email: string, code: string, newPassword: string): Promise<void> => {
+export const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
+  // Get the session (user must be logged in or have started password reset flow)
+  const { data: sessionData } = await supabase.auth.getSession();
+  
   // Verify the code
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  if (userError || !userData) {
-    throw new Error('User not found');
-  }
-
   const { data: codeData, error: codeError } = await supabase
     .from('verification_codes')
     .select('*')
-    .eq('user_id', userData.id)
     .eq('code', code)
     .eq('type', 'password_reset')
     .eq('used', false)
@@ -279,12 +262,23 @@ export const confirmPasswordReset = async (email: string, code: string, newPassw
 };
 
 // Function to verify email
-export const verifyEmail = async (userId: string, code: string): Promise<void> => {
+export const verifyEmail = async (email: string, code: string): Promise<void> => {
+  // Get user by email
+  const { data: userData, error: userError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (userError || !userData) {
+    throw new Error('User not found');
+  }
+
   // Verify the code
   const { data, error } = await supabase
     .from('verification_codes')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', userData.id)
     .eq('code', code)
     .eq('type', 'email_verification')
     .eq('used', false)
@@ -303,11 +297,14 @@ export const verifyEmail = async (userId: string, code: string): Promise<void> =
     .update({ used: true })
     .eq('id', data.id);
 
-  // In a real implementation, you would update a field in your profiles table
-  // or call an email verification endpoint in your auth provider
+  // Mark email as verified in auth
+  const { error: updateError } = await supabase.auth.updateUser({
+    data: { email_verified: true }
+  });
 
-  // For Supabase, email verification is handled automatically when users
-  // click the link in their verification email
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 };
 
 // Helper function to generate and store email verification code
@@ -335,68 +332,57 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
   return code;
 };
 
-// Function to submit a support message
-export const submitSupportMessage = async (userId: string, message: string): Promise<void> => {
-  const { error } = await supabase
-    .from('support_messages' as any)
-    .insert({
-      user_id: userId,
-      message,
-      resolved: false
+// Function to create an admin account
+export const createAdminAccount = async (
+  name: string,
+  email: string,
+  password: string
+): Promise<User> => {
+  try {
+    // Create user with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: 'admin'
+        },
+      },
     });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.user) {
+      throw new Error('Failed to create admin user');
+    }
+
+    // Wait for the trigger to create a profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Update the user's role to admin
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('id', data.user.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    // Fetch the updated profile
+    const profile = await fetchUserProfile(data.user.id);
+    
+    return profile;
+  } catch (error: any) {
+    console.error('Error creating admin account:', error);
+    throw error;
   }
 };
 
-// Function to rate a fournisseur
-export const rateFournisseur = async (
-  userId: string, 
-  fournisseurId: string, 
-  rating: number, 
-  comment?: string
-): Promise<void> => {
-  const { error } = await supabase
-    .from('fournisseur_ratings' as any)
-    .insert({
-      user_id: userId,
-      fournisseur_id: fournisseurId,
-      rating,
-      comment
-    });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-// Function to get fournisseur ratings
-export const getFournisseurRatings = async (fournisseurId: string) => {
-  const { data, error } = await supabase
-    .from('fournisseur_ratings' as any)
-    .select('*')
-    .eq('fournisseur_id', fournisseurId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data || [];
-};
-
-// Function to get average fournisseur rating
-export const getFournisseurAverageRating = async (fournisseurId: string): Promise<number> => {
-  const ratings = await getFournisseurRatings(fournisseurId);
-  
-  if (ratings.length === 0) return 0;
-  
-  // Type assertion to ensure TypeScript recognizes the 'rating' property
-  const sum = ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0);
-  return sum / ratings.length;
-};
-
-// Let's add a function to create a project
+// Function to create a project
 export const createProject = async (
   userId: string,
   title: string,
@@ -683,52 +669,48 @@ export const getUnreadMessageCount = async (userId: string): Promise<number> => 
   }
 };
 
-// Function to create an admin account
-export const createAdminAccount = async (
-  name: string,
-  email: string,
-  password: string
-): Promise<User> => {
-  try {
-    // Create user with Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role: 'admin'
-        },
-      },
+// Function to rate a fournisseur
+export const rateFournisseur = async (
+  userId: string, 
+  fournisseurId: string, 
+  rating: number, 
+  comment?: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('fournisseur_ratings' as any)
+    .insert({
+      user_id: userId,
+      fournisseur_id: fournisseurId,
+      rating,
+      comment
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!data?.user) {
-      throw new Error('Failed to create admin user');
-    }
-
-    // Wait for the trigger to create a profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Update the user's role to admin
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ role: 'admin' })
-      .eq('id', data.user.id);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
-    // Fetch the updated profile
-    const profile = await fetchUserProfile(data.user.id);
-    
-    return profile;
-  } catch (error: any) {
-    console.error('Error creating admin account:', error);
-    throw error;
+  if (error) {
+    throw new Error(error.message);
   }
+};
+
+// Function to get fournisseur ratings
+export const getFournisseurRatings = async (fournisseurId: string) => {
+  const { data, error } = await supabase
+    .from('fournisseur_ratings' as any)
+    .select('*')
+    .eq('fournisseur_id', fournisseurId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data || [];
+};
+
+// Function to get average fournisseur rating
+export const getFournisseurAverageRating = async (fournisseurId: string): Promise<number> => {
+  const ratings = await getFournisseurRatings(fournisseurId);
+  
+  if (ratings.length === 0) return 0;
+  
+  // Type assertion to ensure TypeScript recognizes the 'rating' property
+  const sum = ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0);
+  return sum / ratings.length;
 };
