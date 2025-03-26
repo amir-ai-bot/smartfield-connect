@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { timeAgo } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConversationListProps {
   currentUser: User;
@@ -37,7 +38,8 @@ const ConversationList = ({ currentUser }: ConversationListProps) => {
     const fetchConversations = async () => {
       try {
         const data = await getUserConversations(currentUser.id);
-        setConversations(data as Conversation[]);
+        // Cast the data to the correct type to avoid type errors
+        setConversations(data as unknown as Conversation[]);
       } catch (error) {
         console.error('Error fetching conversations:', error);
       } finally {

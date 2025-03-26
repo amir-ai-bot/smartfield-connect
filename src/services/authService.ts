@@ -1,4 +1,3 @@
-
 // Import only what we need from the existing file, then we'll add our new methods
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -651,23 +650,35 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
 
 // Function to get unread message count
 export const getUnreadMessageCount = async (userId: string): Promise<number> => {
-  // Using a raw count query works better here
-  const { count, error } = await supabase
-    .from('messages' as any)
-    .select('id', { count: 'exact' })
-    .neq('sender_id', userId)
-    .eq('read', false)
-    .in('conversation_id', 
-      // Get all conversation IDs where the user is part of
-      supabase
-        .from('conversations' as any)
-        .select('id')
-        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
-    );
+  try {
+    const { data: conversations } = await supabase
+      .from('conversations' as any)
+      .select('id')
+      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
+    
+    if (!conversations || conversations.length === 0) {
+      return 0;
+    }
+    
+    const conversationIds = conversations.map(c => c.id);
+    
+    const { count, error } = await supabase
+      .from('messages' as any)
+      .select('id', { count: 'exact' })
+      .neq('sender_id', userId)
+      .eq('read', false)
+      .in('conversation_id', conversationIds);
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error getting unread message count:', error);
+    return 0;
   }
-
-  return count || 0;
 };
+
+// Create
+

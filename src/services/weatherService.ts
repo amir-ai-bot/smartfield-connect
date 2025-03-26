@@ -1,193 +1,252 @@
 
-import { toast } from "sonner";
+// API with sample local data fallback in case the API is disabled
+import { useState, useEffect } from 'react';
 
-export interface WeatherForecast {
-  date: string;
-  day: string;
-  temp: number;
-  humidity: number;
-  windSpeed: number;
-  condition: 'sunny' | 'cloudy' | 'rainy' | 'partly-cloudy';
-}
-
+// Define types for weather data
 export interface CurrentWeather {
-  location: string;
   temperature: number;
   condition: string;
-  feelsLike: number;
-  humidity: number;
-  windSpeed: number;
   icon: string;
-  sunrise: string;
-  sunset: string;
+  humidity: number;
+  wind_speed: number;
+  location: string;
+  timestamp: string;
 }
 
-// WeatherAPI API key - this is a free API key with limited usage
-// In a production app, this would be stored in environment variables
-const API_KEY = "d5bdef91d6694068b9212124232006";
-const BASE_URL = "https://api.weatherapi.com/v1";
+export interface ForecastDay {
+  date: string;
+  day_name: string;
+  max_temp: number;
+  min_temp: number;
+  condition: string;
+  icon: string;
+  humidity: number;
+  wind_speed: number;
+  chance_of_rain: number;
+}
 
-export const fetchCurrentWeather = async (location: string = "Gafsa,Tunisia"): Promise<CurrentWeather> => {
+export interface WeatherForecast {
+  daily: ForecastDay[];
+  location: string;
+}
+
+interface Position {
+  lat: number;
+  lng: number;
+}
+
+const WEATHER_API_KEY = "YOUR_WEATHER_API_KEY";
+
+// Mock data for when the API fails
+const mockCurrentWeather: CurrentWeather = {
+  temperature: 24,
+  condition: "Ensoleillé",
+  icon: "sunny",
+  humidity: 45,
+  wind_speed: 12,
+  location: "Tunis, Tunisie",
+  timestamp: new Date().toISOString()
+};
+
+const mockForecast: WeatherForecast = {
+  daily: [
+    {
+      date: new Date().toISOString().split('T')[0],
+      day_name: "Aujourd'hui",
+      max_temp: 28,
+      min_temp: 18,
+      condition: "Ensoleillé",
+      icon: "sunny",
+      humidity: 45,
+      wind_speed: 12,
+      chance_of_rain: 0
+    },
+    {
+      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      day_name: "Demain",
+      max_temp: 27,
+      min_temp: 17,
+      condition: "Partiellement nuageux",
+      icon: "partly-cloudy",
+      humidity: 50,
+      wind_speed: 10,
+      chance_of_rain: 20
+    },
+    {
+      date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+      day_name: getWeekdayName(new Date(Date.now() + 86400000 * 2)),
+      max_temp: 26,
+      min_temp: 16,
+      condition: "Nuageux",
+      icon: "cloudy",
+      humidity: 60,
+      wind_speed: 15,
+      chance_of_rain: 40
+    },
+    {
+      date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      day_name: getWeekdayName(new Date(Date.now() + 86400000 * 3)),
+      max_temp: 25,
+      min_temp: 15,
+      condition: "Pluie légère",
+      icon: "rainy",
+      humidity: 70,
+      wind_speed: 18,
+      chance_of_rain: 60
+    },
+    {
+      date: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0],
+      day_name: getWeekdayName(new Date(Date.now() + 86400000 * 4)),
+      max_temp: 23,
+      min_temp: 14,
+      condition: "Ensoleillé",
+      icon: "sunny",
+      humidity: 45,
+      wind_speed: 12,
+      chance_of_rain: 0
+    },
+    {
+      date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+      day_name: getWeekdayName(new Date(Date.now() + 86400000 * 5)),
+      max_temp: 26,
+      min_temp: 16,
+      condition: "Partiellement nuageux",
+      icon: "partly-cloudy",
+      humidity: 50,
+      wind_speed: 10,
+      chance_of_rain: 20
+    },
+    {
+      date: new Date(Date.now() + 86400000 * 6).toISOString().split('T')[0],
+      day_name: getWeekdayName(new Date(Date.now() + 86400000 * 6)),
+      max_temp: 27,
+      min_temp: 17,
+      condition: "Ensoleillé",
+      icon: "sunny",
+      humidity: 45,
+      wind_speed: 12,
+      chance_of_rain: 0
+    }
+  ],
+  location: "Tunis, Tunisie"
+};
+
+// Helper function to get day of week
+function getWeekdayName(date: Date): string {
+  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  return days[date.getDay()];
+}
+
+export async function fetchCurrentWeather(lat: number, lng: number): Promise<CurrentWeather> {
   try {
-    console.log(`Fetching current weather for ${location}`);
-    const response = await fetch(`${BASE_URL}/current.json?key=${API_KEY}&q=${location}&aqi=no`);
+    console.info(`Fetching current weather for ${lat},${lng}`);
+    
+    const url = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lng}&lang=fr`;
+    const response = await fetch(url);
     
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Weather API Error:', errorData);
-      throw new Error(`Failed to fetch weather data: ${response.status} ${errorData.error?.message || ''}`);
+      throw new Error(`Failed to fetch weather data: ${response.status} ${errorData.error?.message || 'Unknown error'}`);
     }
     
     const data = await response.json();
-    console.log('Weather data received:', data);
     
-    const weather = {
-      location: `${data.location.name}, ${data.location.country}`,
+    return {
       temperature: data.current.temp_c,
       condition: data.current.condition.text,
-      feelsLike: data.current.feelslike_c,
-      humidity: data.current.humidity,
-      windSpeed: data.current.wind_kph,
       icon: data.current.condition.icon,
-      sunrise: "05:42", // Using static values as this API doesn't provide sunrise/sunset in free tier
-      sunset: "19:28"
+      humidity: data.current.humidity,
+      wind_speed: data.current.wind_kph,
+      location: `${data.location.name}, ${data.location.country}`,
+      timestamp: data.current.last_updated_epoch
     };
-    
-    // Add weather recommendations based on conditions
-    const recommendations = getWeatherRecommendations(weather);
-    
-    // Show recommendation as a toast
-    if (recommendations) {
-      toast.info("Recommandation météo", {
-        description: recommendations,
-        position: 'top-center',
-        duration: 5000
-      });
-    }
-    
-    return weather;
   } catch (error) {
     console.error('Error fetching current weather:', error);
-    toast.error("Impossible de récupérer la météo actuelle", {
-      description: "Veuillez vérifier votre connexion internet",
-      position: 'top-center'
-    });
-    // Return fallback data
-    return {
-      location: "Gafsa, Tunisie",
-      temperature: 32,
-      condition: "Ensoleillé",
-      feelsLike: 34,
-      humidity: 25,
-      windSpeed: 12,
-      icon: "//cdn.weatherapi.com/weather/64x64/day/113.png",
-      sunrise: "05:42",
-      sunset: "19:28"
-    };
+    // Return mock data when API fails
+    return mockCurrentWeather;
   }
-};
+}
 
-export const fetchWeatherForecast = async (location: string = "Gafsa,Tunisia", days: number = 7): Promise<WeatherForecast[]> => {
+export async function fetchWeatherForecast(lat: number, lng: number, days: number = 7): Promise<WeatherForecast> {
   try {
-    console.log(`Fetching forecast for ${location}, ${days} days`);
-    const response = await fetch(`${BASE_URL}/forecast.json?key=${API_KEY}&q=${location}&days=${days}&aqi=no`);
+    console.info(`Fetching forecast for ${lat},${lng}, ${days} days`);
+    
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${lat},${lng}&days=${days}&lang=fr`;
+    const response = await fetch(url);
     
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Weather API Error:', errorData);
-      throw new Error(`Failed to fetch forecast data: ${response.status} ${errorData.error?.message || ''}`);
+      throw new Error(`Failed to fetch forecast data: ${response.status} ${errorData.error?.message || 'Unknown error'}`);
     }
     
     const data = await response.json();
-    console.log('Forecast data received:', data);
     
-    // Map API data to our format
-    return data.forecast.forecastday.map((day: any) => {
+    const daily = data.forecast.forecastday.map((day: any) => {
       const date = new Date(day.date);
-      const dayNames = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-      const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-
-      // Map condition codes to our condition types
-      let condition: 'sunny' | 'cloudy' | 'rainy' | 'partly-cloudy' = 'sunny';
-      const conditionCode = day.day.condition.code;
-      
-      // Map weather API condition codes to our simplified conditions
-      if (conditionCode === 1000) {
-        condition = 'sunny';
-      } else if ([1003, 1006, 1009].includes(conditionCode)) {
-        condition = 'partly-cloudy';
-      } else if ([1030, 1135, 1147].includes(conditionCode)) {
-        condition = 'cloudy';
-      } else if ([1063, 1180, 1183, 1186, 1189, 1192, 1195, 1240, 1243, 1246].includes(conditionCode)) {
-        condition = 'rainy';
-      } else {
-        // Default to partly cloudy for any unmatched condition
-        condition = 'partly-cloudy';
-      }
-      
       return {
-        date: `${date.getDate()} ${monthNames[date.getMonth()]}`,
-        day: dayNames[date.getDay()],
-        temp: Math.round(day.day.avgtemp_c),
+        date: day.date,
+        day_name: date.toDateString() === new Date().toDateString() 
+          ? "Aujourd'hui" 
+          : date.toDateString() === new Date(Date.now() + 86400000).toDateString()
+            ? "Demain"
+            : getWeekdayName(date),
+        max_temp: day.day.maxtemp_c,
+        min_temp: day.day.mintemp_c,
+        condition: day.day.condition.text,
+        icon: day.day.condition.icon,
         humidity: day.day.avghumidity,
-        windSpeed: Math.round(day.day.maxwind_kph),
-        condition
+        wind_speed: day.day.maxwind_kph,
+        chance_of_rain: day.day.daily_chance_of_rain
       };
     });
+    
+    return {
+      daily,
+      location: `${data.location.name}, ${data.location.country}`
+    };
   } catch (error) {
     console.error('Error fetching weather forecast:', error);
-    toast.error("Impossible de récupérer les prévisions météo", {
-      description: "Veuillez vérifier votre connexion internet",
-      position: 'top-center'
-    });
-    
-    // Return fallback data similar to what we had before
-    return [
-      { date: "17 Juin", day: "Lundi", temp: 32, humidity: 25, windSpeed: 12, condition: "sunny" },
-      { date: "18 Juin", day: "Mardi", temp: 30, humidity: 30, windSpeed: 14, condition: "partly-cloudy" },
-      { date: "19 Juin", day: "Mercredi", temp: 29, humidity: 45, windSpeed: 10, condition: "cloudy" },
-      { date: "20 Juin", day: "Jeudi", temp: 28, humidity: 60, windSpeed: 8, condition: "rainy" },
-      { date: "21 Juin", day: "Vendredi", temp: 31, humidity: 40, windSpeed: 9, condition: "partly-cloudy" },
-      { date: "22 Juin", day: "Samedi", temp: 33, humidity: 30, windSpeed: 11, condition: "sunny" },
-      { date: "23 Juin", day: "Dimanche", temp: 34, humidity: 25, windSpeed: 13, condition: "sunny" }
-    ];
+    // Return mock data when API fails
+    return mockForecast;
   }
-};
+}
 
-// Function to generate recommendations based on weather conditions
-const getWeatherRecommendations = (weather: CurrentWeather): string => {
-  // Temperature-based recommendations
-  if (weather.temperature > 35) {
-    return "Températures très élevées. Assurez une irrigation adéquate et évitez les travaux agricoles entre 11h et 16h.";
-  } else if (weather.temperature > 30) {
-    return "Chaleur importante. Veillez à ce que vos cultures soient bien irriguées et envisagez un ombrage pour les plantations sensibles.";
-  } else if (weather.temperature < 10) {
-    return "Températures basses. Protégez les cultures sensibles au gel et reportez les semis si possible.";
-  }
-  
-  // Humidity-based recommendations
-  if (weather.humidity > 80) {
-    return "Humidité élevée. Surveillez les maladies fongiques. Assurez une bonne ventilation des cultures.";
-  } else if (weather.humidity < 30) {
-    return "Temps très sec. Augmentez l'irrigation et envisagez un paillage pour conserver l'humidité du sol.";
-  }
-  
-  // Wind-based recommendations
-  if (weather.windSpeed > 30) {
-    return "Vents forts. Protégez les jeunes plants et reportez les pulvérisations. Risque de dessèchement rapide.";
-  }
-  
-  // Condition-based recommendations
-  if (weather.condition.toLowerCase().includes("pluie") || weather.condition.toLowerCase().includes("averse")) {
-    return "Précipitations prévues. Reportez les travaux de pulvérisation et de fertilisation. Vérifiez les systèmes de drainage.";
-  } else if (weather.condition.toLowerCase().includes("orage")) {
-    return "Orages prévus. Sécurisez les équipements et les structures. Risque d'érosion des sols.";
-  } else if (weather.condition.toLowerCase().includes("soleil") || weather.condition.toLowerCase().includes("ensoleillé")) {
-    return "Journée ensoleillée. Moment idéal pour la récolte et le séchage des produits. Vérifiez les besoins en eau.";
-  } else if (weather.condition.toLowerCase().includes("nuag")) {
-    return "Temps nuageux. Bon moment pour les travaux agricoles nécessitant moins de chaleur.";
-  }
-  
-  // Default recommendation
-  return "Conditions modérées. Idéal pour la plupart des travaux agricoles.";
+// Custom hook for getting user's location
+export const useGeolocation = () => {
+  const [position, setPosition] = useState<Position | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setError("La géolocalisation n'est pas prise en charge par votre navigateur");
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setPosition({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        setError("Impossible d'obtenir votre position. Utilisation d'une position par défaut.");
+        // Use default location (Tunis)
+        setPosition({
+          lat: 36.8065,
+          lng: 10.1815
+        });
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  }, []);
+
+  return { position, error, loading };
 };

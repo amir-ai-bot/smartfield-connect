@@ -1,14 +1,11 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, AuthState, User } from '@/types/auth';
 import * as authService from '@/services/authService';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-// Create context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initial auth state
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -18,16 +15,13 @@ const initialState: AuthState = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(initialState);
 
-  // Check for existing user session on mount and set up auth state listener
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session);
         
         if (event === 'SIGNED_IN' && session) {
           try {
-            // Get user profile data from profiles table
             const profile = await authService.fetchUserProfile(session.user.id);
             
             if (profile) {
@@ -70,13 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // THEN check for existing session
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          // Get user profile data from profiles table
           const profile = await authService.fetchUserProfile(session.user.id);
           
           if (profile) {
@@ -88,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             localStorage.setItem('agrismart_user', JSON.stringify(profile));
           } else {
-            // No profile found, user might be new
             setState({
               user: null,
               isAuthenticated: false,
@@ -96,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           }
         } else {
-          // No active session
           setState({
             user: null,
             isAuthenticated: false,
@@ -111,13 +101,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Cleanup the subscription when the component unmounts
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  // Login function
   const login = async (email: string, password: string) => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
@@ -134,7 +122,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Signup function
   const signup = async (name: string, email: string, password: string, phone_number?: string) => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
@@ -152,7 +139,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Logout function
   const logout = async () => {
     try {
       await authService.logout();
@@ -167,7 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Update profile function
   const updateProfile = async (updates: Partial<User>) => {
     try {
       if (!state.user) throw new Error('Not authenticated');
@@ -187,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Verify email function
   const verifyEmail = async (email: string, code: string) => {
     try {
       if (!state.user) throw new Error('Not authenticated');
@@ -209,7 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Request password reset function
   const requestPasswordReset = async (email: string) => {
     try {
       await authService.requestPasswordReset(email);
@@ -220,7 +203,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Confirm password reset function
   const confirmPasswordReset = async (code: string, password: string) => {
     try {
       if (!state.user?.email) throw new Error('Email not found');
@@ -233,13 +215,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Reset password function (wrapper for requestPasswordReset for compatibility)
   const resetPassword = async (email: string) => {
     return requestPasswordReset(email);
   };
 
-  // Become fournisseur function
-  const becomeFournisseur = async () => {
+  const becomeFournisseur = async (): Promise<void> => {
     try {
       if (!state.user) throw new Error('Not authenticated');
       
@@ -251,19 +231,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
       
       toast.success('Vous êtes maintenant un fournisseur!');
-      return updatedUser;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erreur lors du changement de rôle');
       throw error;
     }
   };
 
-  // Check if user is an admin
   const isAdmin = () => {
     return state.user?.role === 'admin';
   };
 
-  // Check if user is a fournisseur
   const isFournisseur = () => {
     return state.user?.role === 'fournisseur';
   };
@@ -286,7 +263,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

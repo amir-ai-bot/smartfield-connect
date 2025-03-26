@@ -10,14 +10,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { setupAdminAccount } from '@/scripts/createAdminAccount';
 
 const Index = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup'>('login');
+  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'verify-email'>('login');
   const [showMobileAuth, setShowMobileAuth] = useState(true);
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+
+  // Create admin account function
+  const createAdminAccount = async () => {
+    setIsCreatingAdmin(true);
+    try {
+      await setupAdminAccount();
+      // After creating admin account, open the login dialog
+      setAuthDialogView('login');
+      setShowAuthDialog(true);
+    } catch (error) {
+      console.error('Failed to create admin account:', error);
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  };
 
   // Handle scroll position to hide/show the mobile auth buttons
   useEffect(() => {
@@ -76,6 +93,19 @@ const Index = () => {
         // First-time or logged-out users see the welcome section
         <>
           <WelcomeSection id="welcome-section" />
+          
+          {/* Admin account creation button */}
+          <div className="fixed top-20 right-4 z-50">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createAdminAccount}
+              disabled={isCreatingAdmin}
+              className="text-xs"
+            >
+              {isCreatingAdmin ? 'Création en cours...' : 'Créer compte admin'}
+            </Button>
+          </div>
           
           {/* Add mobile-specific auth buttons */}
           {isMobile && showMobileAuth && (

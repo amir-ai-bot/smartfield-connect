@@ -47,18 +47,21 @@ const ConversationDetail = () => {
           return;
         }
 
+        // Cast data to the correct type to avoid TS errors
+        const conversationData = data as any;
+
         // Check if the current user is part of this conversation
-        if (data.user_id !== user.id && data.fournisseur_id !== user.id) {
+        if (conversationData.user_id !== user.id && conversationData.fournisseur_id !== user.id) {
           toast.error('Vous n\'avez pas accès à cette conversation');
           navigate('/conversations');
           return;
         }
 
         // Determine the other user
-        if (data.user_id === user.id) {
-          setOtherUser(data.fournisseur);
+        if (conversationData.user_id === user.id) {
+          setOtherUser(conversationData.fournisseur);
         } else {
-          setOtherUser(data.user);
+          setOtherUser(conversationData.user);
         }
       } catch (error) {
         console.error('Error fetching conversation:', error);
