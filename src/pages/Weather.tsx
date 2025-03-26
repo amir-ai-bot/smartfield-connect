@@ -19,10 +19,9 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  fetchCurrentWeather, 
-  fetchWeatherForecast, 
+  getCurrentWeather, 
+  getWeatherForecast,
   CurrentWeather, 
-  WeatherForecast,
   ForecastDay
 } from '@/services/weatherService';
 import { toast } from 'sonner';
@@ -68,34 +67,36 @@ const Weather = () => {
               const { latitude, longitude } = position.coords;
               const locationString = `${latitude},${longitude}`;
               
-              const [current, forecast] = await Promise.all([
-                fetchCurrentWeather(locationString),
-                fetchWeatherForecast(locationString)
+              const [weather, forecast] = await Promise.all([
+                getCurrentWeather(locationString),
+                getWeatherForecast(locationString)
               ]);
               
-              setCurrentWeather(current);
+              setCurrentWeather(weather);
               setForecastData(forecast.daily);
-              setCurrentLocation(current.location);
+              setCurrentLocation(weather.location);
             },
             async (error) => {
               console.error("Geolocation error:", error);
-              const [current, forecast] = await Promise.all([
-                fetchCurrentWeather(), // Using default location
-                fetchWeatherForecast()
+              const [weather, forecast] = await Promise.all([
+                getCurrentWeather(), // Using default location
+                getWeatherForecast()
               ]);
               
-              setCurrentWeather(current);
+              setCurrentWeather(weather);
               setForecastData(forecast.daily);
+              setCurrentLocation(weather.location);
             }
           );
         } else {
-          const [current, forecast] = await Promise.all([
-            fetchCurrentWeather(), // Using default location
-            fetchWeatherForecast()
+          const [weather, forecast] = await Promise.all([
+            getCurrentWeather(), // Using default location
+            getWeatherForecast()
           ]);
           
-          setCurrentWeather(current);
+          setCurrentWeather(weather);
           setForecastData(forecast.daily);
+          setCurrentLocation(weather.location);
         }
       } catch (error) {
         console.error("Error fetching weather data:", error);
@@ -124,18 +125,18 @@ const Weather = () => {
     if (searchLocation.trim()) {
       setIsLoading(true);
       try {
-        const [current, forecast] = await Promise.all([
-          fetchCurrentWeather(searchLocation),
-          fetchWeatherForecast(searchLocation)
+        const [weather, forecast] = await Promise.all([
+          getCurrentWeather(searchLocation),
+          getWeatherForecast(searchLocation)
         ]);
         
-        setCurrentWeather(current);
+        setCurrentWeather(weather);
         setForecastData(forecast.daily);
-        setCurrentLocation(current.location);
+        setCurrentLocation(weather.location);
         setSearchLocation('');
         
         toast.success("Localisation mise à jour", {
-          description: `Données météo pour ${current.location}`
+          description: `Données météo pour ${weather.location}`
         });
       } catch (error) {
         console.error("Error in location search:", error);
@@ -151,19 +152,19 @@ const Weather = () => {
   const getWeatherIcon = () => {
     if (!currentWeather) return <CloudSun className="h-12 w-12" />;
     
-    if (currentWeather.condition.toLowerCase().includes('soleil') || 
-        currentWeather.condition.toLowerCase().includes('sunny') ||
-        currentWeather.condition.toLowerCase().includes('clear')) {
+    if (currentWeather.condition.text.toLowerCase().includes('soleil') || 
+        currentWeather.condition.text.toLowerCase().includes('sunny') ||
+        currentWeather.condition.text.toLowerCase().includes('clear')) {
       return <CloudSun className="h-12 w-12" />;
     }
     
-    if (currentWeather.condition.toLowerCase().includes('pluie') || 
-        currentWeather.condition.toLowerCase().includes('rain')) {
+    if (currentWeather.condition.text.toLowerCase().includes('pluie') || 
+        currentWeather.condition.text.toLowerCase().includes('rain')) {
       return <Droplets className="h-12 w-12" />;
     }
     
-    if (currentWeather.condition.toLowerCase().includes('nuage') || 
-        currentWeather.condition.toLowerCase().includes('cloud')) {
+    if (currentWeather.condition.text.toLowerCase().includes('nuage') || 
+        currentWeather.condition.text.toLowerCase().includes('cloud')) {
       return <CloudSun className="h-12 w-12" />;
     }
     
@@ -220,8 +221,8 @@ const Weather = () => {
                     </div>
                     
                     <div className="text-center">
-                      <p className="text-5xl font-semibold mb-1">{currentWeather?.temperature}°C</p>
-                      <p className="text-blue-100">{currentWeather?.condition}</p>
+                      <p className="text-5xl font-semibold mb-1">{currentWeather?.temperature || currentWeather?.temp_c}°C</p>
+                      <p className="text-blue-100">{currentWeather?.condition.text}</p>
                     </div>
                   </div>
                 </div>
@@ -241,7 +242,7 @@ const Weather = () => {
                     <Wind className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Vent</p>
-                      <p className="font-medium">{currentWeather?.windSpeed || currentWeather?.wind_speed || "--"} km/h</p>
+                      <p className="font-medium">{currentWeather?.wind_speed || "--"} km/h</p>
                     </div>
                   </div>
                   
@@ -290,7 +291,7 @@ const Weather = () => {
                   >
                     <WeatherCard 
                       date={day.date}
-                      day={day.day_name}
+                      day={day.day_name || ''}
                       temp={day.max_temp}
                       humidity={day.humidity}
                       windSpeed={day.wind_speed}
@@ -421,7 +422,7 @@ const Weather = () => {
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">2</span>
-                        <p className="text-gray-700">Des vents de {currentWeather?.windSpeed || currentWeather?.wind_speed || 12} km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
+                        <p className="text-gray-700">Des vents de {currentWeather?.wind_speed || 12} km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">3</span>
