@@ -22,20 +22,24 @@ export interface CurrentWeather {
   sunset: string;
 }
 
-// OpenWeatherMap API key - this is a free API key with limited usage
+// WeatherAPI API key - this is a free API key with limited usage
 // In a production app, this would be stored in environment variables
 const API_KEY = "d5bdef91d6694068b9212124232006";
 const BASE_URL = "https://api.weatherapi.com/v1";
 
 export const fetchCurrentWeather = async (location: string = "Gafsa,Tunisia"): Promise<CurrentWeather> => {
   try {
+    console.log(`Fetching current weather for ${location}`);
     const response = await fetch(`${BASE_URL}/current.json?key=${API_KEY}&q=${location}&aqi=no`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch weather data');
+      const errorData = await response.json();
+      console.error('Weather API Error:', errorData);
+      throw new Error(`Failed to fetch weather data: ${response.status} ${errorData.error?.message || ''}`);
     }
     
     const data = await response.json();
+    console.log('Weather data received:', data);
     
     const weather = {
       location: `${data.location.name}, ${data.location.country}`,
@@ -85,13 +89,17 @@ export const fetchCurrentWeather = async (location: string = "Gafsa,Tunisia"): P
 
 export const fetchWeatherForecast = async (location: string = "Gafsa,Tunisia", days: number = 7): Promise<WeatherForecast[]> => {
   try {
+    console.log(`Fetching forecast for ${location}, ${days} days`);
     const response = await fetch(`${BASE_URL}/forecast.json?key=${API_KEY}&q=${location}&days=${days}&aqi=no`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch forecast data');
+      const errorData = await response.json();
+      console.error('Weather API Error:', errorData);
+      throw new Error(`Failed to fetch forecast data: ${response.status} ${errorData.error?.message || ''}`);
     }
     
     const data = await response.json();
+    console.log('Forecast data received:', data);
     
     // Map API data to our format
     return data.forecast.forecastday.map((day: any) => {

@@ -1,7 +1,12 @@
 
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, Phone, Mail, MapPin } from 'lucide-react';
+import { createConversation } from '@/services/authService';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 type SupplierCardProps = {
   id: string;
@@ -18,8 +23,51 @@ type SupplierCardProps = {
 const SupplierCard = ({ 
   id, name, category, rating, location, phone, email, products, image 
 }: SupplierCardProps) => {
+  const { user, isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  
   // Convert rating to an array for rendering stars
   const stars = Array.from({ length: 5 }, (_, i) => i < Math.floor(rating));
+  
+  const handleContact = async () => {
+    if (!isAuthenticated || !user) {
+      toast.error("Vous devez être connecté pour contacter un fournisseur", {
+        description: "Veuillez vous connecter ou créer un compte",
+        action: {
+          label: "Se connecter",
+          onClick: () => navigate('/')
+        }
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const conversationId = await createConversation(user.id, id);
+      navigate(`/conversations/${conversationId}`);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast.error("Impossible de créer la conversation");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleMessage = () => {
+    if (!isAuthenticated || !user) {
+      toast.error("Vous devez être connecté pour envoyer un message", {
+        description: "Veuillez vous connecter ou créer un compte",
+        action: {
+          label: "Se connecter",
+          onClick: () => navigate('/')
+        }
+      });
+      return;
+    }
+    
+    navigate('/conversations');
+  };
   
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 flex flex-col h-full">
@@ -88,7 +136,12 @@ const SupplierCard = ({
       </div>
       
       <div className="px-5 py-3 border-t border-gray-100 flex justify-between mt-auto">
-        <Button variant="outline" size="sm" className="text-gray-700 flex-1 mr-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-gray-700 flex-1 mr-2"
+          onClick={handleMessage}
+        >
           Message
         </Button>
         
@@ -96,8 +149,10 @@ const SupplierCard = ({
           variant="default" 
           size="sm" 
           className="bg-agri-green-500 hover:bg-agri-green-600 text-white flex-1"
+          onClick={handleContact}
+          disabled={isLoading}
         >
-          Contacter
+          {isLoading ? "Chargement..." : "Contacter"}
         </Button>
       </div>
     </div>

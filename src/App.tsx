@@ -16,6 +16,8 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import BottomNavbar from "./components/BottomNavbar";
+import Conversations from "./pages/Conversations";
+import ConversationDetail from "./pages/ConversationDetail";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/conversations" element={<Conversations />} />
+              <Route path="/conversations/:conversationId" element={<ConversationDetail />} />
             </Route>
             
             {/* Public Routes */}

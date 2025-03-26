@@ -1,4 +1,3 @@
-
 // Import only what we need from the existing file, then we'll add our new methods
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,27 +5,51 @@ import { generateRandomCode } from '@/lib/utils';
 
 // Function to login a user
 export const login = async (email: string, password: string): Promise<User> => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      console.error('Login error from Supabase:', error);
+      throw new Error(error.message);
+    }
+
+    if (!data?.user) {
+      throw new Error('User not found');
+    }
+
+    // Fetch profile data
+    const profile = await fetchUserProfile(data.user.id);
+    
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    return profile;
+  } catch (error: any) {
+    console.error('Error in login function:', error);
+    
+    // Check if the user exists by email
+    try {
+      const { data: userByEmail } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .single();
+        
+      if (userByEmail) {
+        throw new Error('Mot de passe incorrect. Veuillez réessayer.');
+      } else {
+        throw new Error('Aucun compte trouvé avec cet email. Veuillez vous inscrire.');
+      }
+    } catch (innerError) {
+      console.error('Error checking user email:', innerError);
+      // If there's an error checking the email, throw the original error
+      throw error;
+    }
   }
-
-  if (!data?.user) {
-    throw new Error('User not found');
-  }
-
-  // Fetch profile data
-  const profile = await fetchUserProfile(data.user.id);
-  
-  if (!profile) {
-    throw new Error('Profile not found');
-  }
-
-  return profile;
 };
 
 // Function to signup a new user
@@ -129,7 +152,9 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
     phone_number: updates.phone_number,
     avatar: updates.avatar,
     role: updates.role,
-    // Add any other profile fields you want to update
+    address: updates.address,
+    bio: updates.bio,
+    preferences: updates.preferences,
   };
   
   // Remove undefined values
@@ -494,3 +519,152 @@ export const deleteProject = async (projectId: string) => {
     throw new Error(error.message);
   }
 };
+
+// Function to become a fournisseur
+export const becomeFournisseur = async (userId: string): Promise<User> => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role: 'fournisseur' })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return fetchUserProfile(userId);
+};
+
+// Function to create a new conversation with a fournisseur
+export const createConversation = async (userId: string, fournisseurId: string): Promise<string> => {
+  // First check if a conversation already exists
+  const { data: existingConv, error: checkError } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('fournisseur_id', fournisseurId)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+    throw new Error(checkError.message);
+  }
+
+  if (existingConv) {
+    return existingConv.id;
+  }
+
+  // Create new conversation
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      user_id: userId,
+      fournisseur_id: fournisseurId
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.id;
+};
+
+// Function to send a message in a conversation
+export const sendMessage = async (conversationId: string, senderId: string, content: string): Promise<void> => {
+  const { error } = await supabase
+    .from('messages')
+    .insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  // Update conversation's updated_at
+  await supabase
+    .from('conversations')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', conversationId);
+};
+
+// Function to get messages from a conversation
+export const getMessages = async (conversationId: string) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select(`
+      id,
+      content,
+      created_at,
+      read,
+      sender_id,
+      profiles:sender_id (name, avatar)
+    `)
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+// Function to get user conversations
+export const getUserConversations = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select(`
+      id,
+      created_at,
+      updated_at,
+      user_id,
+      fournisseur_id,
+      user:user_id (name, avatar),
+      fournisseur:fournisseur_id (name, avatar)
+    `)
+    .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+// Function to mark messages as read
+export const markMessagesAsRead = async (conversationId: string, userId: string) => {
+  const { error } = await supabase
+    .from('messages')
+    .update({ read: true })
+    .eq('conversation_id', conversationId)
+    .neq('sender_id', userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+// Function to get unread message count
+export const getUnreadMessageCount = async (userId: string): Promise<number> => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact' })
+    .neq('sender_id', userId)
+    .eq('read', false)
+    .in('conversation_id', supabase
+      .from('conversations')
+      .select('id')
+      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.length || 0;
+};
+
