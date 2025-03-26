@@ -680,5 +680,52 @@ export const getUnreadMessageCount = async (userId: string): Promise<number> => 
   }
 };
 
-// Create
+// Function to create an admin account
+export const createAdminAccount = async (
+  name: string,
+  email: string,
+  password: string
+): Promise<User> => {
+  try {
+    // Create user with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: 'admin'
+        },
+      },
+    });
 
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.user) {
+      throw new Error('Failed to create admin user');
+    }
+
+    // Wait for the trigger to create a profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Update the user's role to admin
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('id', data.user.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    // Fetch the updated profile
+    const profile = await fetchUserProfile(data.user.id);
+    
+    return profile;
+  } catch (error: any) {
+    console.error('Error creating admin account:', error);
+    throw error;
+  }
+};
