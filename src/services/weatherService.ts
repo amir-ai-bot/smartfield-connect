@@ -11,6 +11,10 @@ export interface CurrentWeather {
   wind_speed: number;
   location: string;
   timestamp: string;
+  feelsLike?: number; // Added for compatibility
+  windSpeed?: number; // Added for compatibility
+  sunrise?: string;   // Added for compatibility
+  sunset?: string;    // Added for compatibility
 }
 
 export interface ForecastDay {
@@ -28,6 +32,7 @@ export interface ForecastDay {
 export interface WeatherForecast {
   daily: ForecastDay[];
   location: string;
+  temp?: number; // Added for compatibility
 }
 
 interface Position {
@@ -45,7 +50,11 @@ const mockCurrentWeather: CurrentWeather = {
   humidity: 45,
   wind_speed: 12,
   location: "Tunis, Tunisie",
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
+  feelsLike: 26,    // Added for compatibility
+  windSpeed: 12,    // Added for compatibility
+  sunrise: "06:30", // Added for compatibility  
+  sunset: "18:45"   // Added for compatibility
 };
 
 const mockForecast: WeatherForecast = {
@@ -128,7 +137,8 @@ const mockForecast: WeatherForecast = {
       chance_of_rain: 0
     }
   ],
-  location: "Tunis, Tunisie"
+  location: "Tunis, Tunisie",
+  temp: 24 // Added for compatibility
 };
 
 // Helper function to get day of week
@@ -137,11 +147,20 @@ function getWeekdayName(date: Date): string {
   return days[date.getDay()];
 }
 
-export async function fetchCurrentWeather(lat: number, lng: number): Promise<CurrentWeather> {
+export async function fetchCurrentWeather(location?: string): Promise<CurrentWeather> {
   try {
-    console.info(`Fetching current weather for ${lat},${lng}`);
+    if (!location) {
+      console.info('No location provided, using mock data');
+      return {
+        ...mockCurrentWeather,
+        feelsLike: mockCurrentWeather.temperature + 2,
+        windSpeed: mockCurrentWeather.wind_speed
+      };
+    }
     
-    const url = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lng}&lang=fr`;
+    console.info(`Fetching current weather for ${location}`);
+    
+    const url = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${location}&lang=fr`;
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -159,20 +178,36 @@ export async function fetchCurrentWeather(lat: number, lng: number): Promise<Cur
       humidity: data.current.humidity,
       wind_speed: data.current.wind_kph,
       location: `${data.location.name}, ${data.location.country}`,
-      timestamp: data.current.last_updated_epoch
+      timestamp: data.current.last_updated_epoch,
+      feelsLike: data.current.feelslike_c,
+      windSpeed: data.current.wind_kph,
+      sunrise: "06:30", // API doesn't provide this in current endpoint
+      sunset: "18:45"   // API doesn't provide this in current endpoint
     };
   } catch (error) {
     console.error('Error fetching current weather:', error);
     // Return mock data when API fails
-    return mockCurrentWeather;
+    return {
+      ...mockCurrentWeather,
+      feelsLike: mockCurrentWeather.temperature + 2,
+      windSpeed: mockCurrentWeather.wind_speed
+    };
   }
 }
 
-export async function fetchWeatherForecast(lat: number, lng: number, days: number = 7): Promise<WeatherForecast> {
+export async function fetchWeatherForecast(location?: string, days: number = 7): Promise<WeatherForecast> {
   try {
-    console.info(`Fetching forecast for ${lat},${lng}, ${days} days`);
+    if (!location) {
+      console.info('No location provided, using mock data');
+      return {
+        ...mockForecast,
+        temp: (mockForecast.daily[0].max_temp + mockForecast.daily[0].min_temp) / 2
+      };
+    }
     
-    const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${lat},${lng}&days=${days}&lang=fr`;
+    console.info(`Fetching forecast for ${location}, ${days} days`);
+    
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${location}&days=${days}&lang=fr`;
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -204,12 +239,16 @@ export async function fetchWeatherForecast(lat: number, lng: number, days: numbe
     
     return {
       daily,
-      location: `${data.location.name}, ${data.location.country}`
+      location: `${data.location.name}, ${data.location.country}`,
+      temp: data.current.temp_c
     };
   } catch (error) {
     console.error('Error fetching weather forecast:', error);
     // Return mock data when API fails
-    return mockForecast;
+    return {
+      ...mockForecast,
+      temp: (mockForecast.daily[0].max_temp + mockForecast.daily[0].min_temp) / 2
+    };
   }
 }
 

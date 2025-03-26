@@ -1,3 +1,4 @@
+
 // Import only what we need from the existing file, then we'll add our new methods
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -381,7 +382,7 @@ export const getFournisseurRatings = async (fournisseurId: string) => {
     throw new Error(error.message);
   }
 
-  return data;
+  return data || [];
 };
 
 // Function to get average fournisseur rating
@@ -390,6 +391,7 @@ export const getFournisseurAverageRating = async (fournisseurId: string): Promis
   
   if (ratings.length === 0) return 0;
   
+  // Type assertion to ensure TypeScript recognizes the 'rating' property
   const sum = ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0);
   return sum / ratings.length;
 };
@@ -549,7 +551,7 @@ export const createConversation = async (userId: string, fournisseurId: string):
   }
 
   if (existingConv) {
-    return existingConv.id;
+    return (existingConv as any).id; // Type assertion
   }
 
   // Create new conversation
@@ -566,7 +568,7 @@ export const createConversation = async (userId: string, fournisseurId: string):
     throw new Error(error.message);
   }
 
-  return data.id;
+  return (data as any).id; // Type assertion
 };
 
 // Function to send a message in a conversation
@@ -609,7 +611,7 @@ export const getMessages = async (conversationId: string) => {
     throw new Error(error.message);
   }
 
-  return data;
+  return data || [];
 };
 
 // Function to get user conversations
@@ -632,7 +634,7 @@ export const getUserConversations = async (userId: string) => {
     throw new Error(error.message);
   }
 
-  return data;
+  return data || [];
 };
 
 // Function to mark messages as read
@@ -660,7 +662,8 @@ export const getUnreadMessageCount = async (userId: string): Promise<number> => 
       return 0;
     }
     
-    const conversationIds = conversations.map(c => c.id);
+    // Type assertion for conversations data
+    const conversationIds = (conversations as any[]).map(c => c.id);
     
     const { count, error } = await supabase
       .from('messages' as any)

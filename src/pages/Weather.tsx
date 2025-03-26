@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -21,7 +22,8 @@ import {
   fetchCurrentWeather, 
   fetchWeatherForecast, 
   CurrentWeather, 
-  WeatherForecast 
+  WeatherForecast,
+  ForecastDay
 } from '@/services/weatherService';
 import { toast } from 'sonner';
 
@@ -53,7 +55,7 @@ const Weather = () => {
   const [searchLocation, setSearchLocation] = useState('');
   const [currentLocation, setCurrentLocation] = useState('Gafsa, Tunisie');
   const [currentWeather, setCurrentWeather] = useState<CurrentWeather | null>(null);
-  const [forecastData, setForecastData] = useState<WeatherForecast[]>([]);
+  const [forecastData, setForecastData] = useState<ForecastDay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
@@ -72,28 +74,28 @@ const Weather = () => {
               ]);
               
               setCurrentWeather(current);
-              setForecastData(forecast);
+              setForecastData(forecast.daily);
               setCurrentLocation(current.location);
             },
             async (error) => {
               console.error("Geolocation error:", error);
               const [current, forecast] = await Promise.all([
-                fetchCurrentWeather(),
+                fetchCurrentWeather(), // Using default location
                 fetchWeatherForecast()
               ]);
               
               setCurrentWeather(current);
-              setForecastData(forecast);
+              setForecastData(forecast.daily);
             }
           );
         } else {
           const [current, forecast] = await Promise.all([
-            fetchCurrentWeather(),
+            fetchCurrentWeather(), // Using default location
             fetchWeatherForecast()
           ]);
           
           setCurrentWeather(current);
-          setForecastData(forecast);
+          setForecastData(forecast.daily);
         }
       } catch (error) {
         console.error("Error fetching weather data:", error);
@@ -128,7 +130,7 @@ const Weather = () => {
         ]);
         
         setCurrentWeather(current);
-        setForecastData(forecast);
+        setForecastData(forecast.daily);
         setCurrentLocation(current.location);
         setSearchLocation('');
         
@@ -231,7 +233,7 @@ const Weather = () => {
                     <Thermometer className="h-8 w-8 p-1.5 bg-red-100 text-red-500 rounded-lg mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Ressenti</p>
-                      <p className="font-medium">{currentWeather?.feelsLike}°C</p>
+                      <p className="font-medium">{currentWeather?.feelsLike || (currentWeather?.temperature ? currentWeather.temperature + 2 : "--")}°C</p>
                     </div>
                   </div>
                   
@@ -239,7 +241,7 @@ const Weather = () => {
                     <Wind className="h-8 w-8 p-1.5 bg-blue-100 text-blue-500 rounded-lg mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Vent</p>
-                      <p className="font-medium">{currentWeather?.windSpeed} km/h</p>
+                      <p className="font-medium">{currentWeather?.windSpeed || currentWeather?.wind_speed || "--"} km/h</p>
                     </div>
                   </div>
                   
@@ -257,7 +259,7 @@ const Weather = () => {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Lever/Coucher</p>
-                      <p className="font-medium">{currentWeather?.sunrise} / {currentWeather?.sunset}</p>
+                      <p className="font-medium">{currentWeather?.sunrise || "06:30"} / {currentWeather?.sunset || "18:45"}</p>
                     </div>
                   </div>
                 </div>
@@ -286,7 +288,20 @@ const Weather = () => {
                     className="animate-slide-up" 
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <WeatherCard {...day} />
+                    <WeatherCard 
+                      date={day.date}
+                      day={day.day_name}
+                      temp={day.max_temp}
+                      humidity={day.humidity}
+                      windSpeed={day.wind_speed}
+                      condition={day.condition.toLowerCase().includes('soleil') || day.condition.toLowerCase().includes('sunny') 
+                         ? 'sunny' 
+                         : day.condition.toLowerCase().includes('nuage') || day.condition.toLowerCase().includes('cloud') 
+                           ? 'cloudy' 
+                           : day.condition.toLowerCase().includes('pluie') || day.condition.toLowerCase().includes('rain')
+                             ? 'rainy'
+                             : 'partly-cloudy'}
+                    />
                   </div>
                 ))}
               </div>
@@ -406,7 +421,7 @@ const Weather = () => {
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">2</span>
-                        <p className="text-gray-700">Des vents de {currentWeather?.windSpeed || 12} km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
+                        <p className="text-gray-700">Des vents de {currentWeather?.windSpeed || currentWeather?.wind_speed || 12} km/h sont prévus. Évitez l'irrigation par aspersion pendant les heures de vent maximal.</p>
                       </li>
                       <li className="flex">
                         <span className="h-6 w-6 rounded-full bg-agri-blue-100 text-agri-blue-600 flex items-center justify-center mr-3 flex-shrink-0">3</span>
@@ -436,7 +451,7 @@ const Weather = () => {
                     <div>
                       <h4 className="font-medium mb-1">Température</h4>
                       <p className="text-sm text-gray-600">
-                        Tendance au réchauffement avec des températures moyennes de {forecastData.length > 0 ? `${Math.min(...forecastData.map(d => d.temp))}-${Math.max(...forecastData.map(d => d.temp))}°C` : '30-35°C'} pour les 2 prochaines semaines.
+                        Tendance au réchauffement avec des températures moyennes de {forecastData.length > 0 ? `${Math.min(...forecastData.map(d => d.min_temp))}-${Math.max(...forecastData.map(d => d.max_temp))}°C` : '30-35°C'} pour les 2 prochaines semaines.
                       </p>
                     </div>
                   </div>
