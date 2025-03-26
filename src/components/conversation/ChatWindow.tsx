@@ -48,7 +48,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
       try {
         setLoading(true);
         const data = await getMessages(conversationId);
-        setMessages(data);
+        setMessages(data as Message[]);
         
         // Mark messages as read
         await markMessagesAsRead(conversationId, currentUser.id);
@@ -74,7 +74,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         try {
           // When a new message comes in, fetch all messages again to get proper data structure
           const data = await getMessages(conversationId);
-          setMessages(data);
+          setMessages(data as Message[]);
           
           // If we receive a message, mark it as read
           if (payload.new.sender_id !== currentUser.id) {

@@ -37,7 +37,7 @@ const ConversationList = ({ currentUser }: ConversationListProps) => {
     const fetchConversations = async () => {
       try {
         const data = await getUserConversations(currentUser.id);
-        setConversations(data);
+        setConversations(data as Conversation[]);
       } catch (error) {
         console.error('Error fetching conversations:', error);
       } finally {

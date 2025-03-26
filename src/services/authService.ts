@@ -1,3 +1,4 @@
+
 // Import only what we need from the existing file, then we'll add our new methods
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -337,7 +338,7 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
 // Function to submit a support message
 export const submitSupportMessage = async (userId: string, message: string): Promise<void> => {
   const { error } = await supabase
-    .from('support_messages')
+    .from('support_messages' as any)
     .insert({
       user_id: userId,
       message,
@@ -357,7 +358,7 @@ export const rateFournisseur = async (
   comment?: string
 ): Promise<void> => {
   const { error } = await supabase
-    .from('fournisseur_ratings')
+    .from('fournisseur_ratings' as any)
     .insert({
       user_id: userId,
       fournisseur_id: fournisseurId,
@@ -373,7 +374,7 @@ export const rateFournisseur = async (
 // Function to get fournisseur ratings
 export const getFournisseurRatings = async (fournisseurId: string) => {
   const { data, error } = await supabase
-    .from('fournisseur_ratings')
+    .from('fournisseur_ratings' as any)
     .select('*')
     .eq('fournisseur_id', fournisseurId);
 
@@ -390,7 +391,7 @@ export const getFournisseurAverageRating = async (fournisseurId: string): Promis
   
   if (ratings.length === 0) return 0;
   
-  const sum = ratings.reduce((acc, curr) => acc + curr.rating, 0);
+  const sum = ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0);
   return sum / ratings.length;
 };
 
@@ -538,7 +539,7 @@ export const becomeFournisseur = async (userId: string): Promise<User> => {
 export const createConversation = async (userId: string, fournisseurId: string): Promise<string> => {
   // First check if a conversation already exists
   const { data: existingConv, error: checkError } = await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .select('id')
     .eq('user_id', userId)
     .eq('fournisseur_id', fournisseurId)
@@ -554,7 +555,7 @@ export const createConversation = async (userId: string, fournisseurId: string):
 
   // Create new conversation
   const { data, error } = await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .insert({
       user_id: userId,
       fournisseur_id: fournisseurId
@@ -572,7 +573,7 @@ export const createConversation = async (userId: string, fournisseurId: string):
 // Function to send a message in a conversation
 export const sendMessage = async (conversationId: string, senderId: string, content: string): Promise<void> => {
   const { error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
@@ -585,7 +586,7 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
   
   // Update conversation's updated_at
   await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .update({ updated_at: new Date().toISOString() })
     .eq('id', conversationId);
 };
@@ -593,7 +594,7 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
 // Function to get messages from a conversation
 export const getMessages = async (conversationId: string) => {
   const { data, error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .select(`
       id,
       content,
@@ -615,7 +616,7 @@ export const getMessages = async (conversationId: string) => {
 // Function to get user conversations
 export const getUserConversations = async (userId: string) => {
   const { data, error } = await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .select(`
       id,
       created_at,
@@ -638,7 +639,7 @@ export const getUserConversations = async (userId: string) => {
 // Function to mark messages as read
 export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   const { error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .update({ read: true })
     .eq('conversation_id', conversationId)
     .neq('sender_id', userId);
@@ -650,21 +651,23 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
 
 // Function to get unread message count
 export const getUnreadMessageCount = async (userId: string): Promise<number> => {
-  const { data, error } = await supabase
-    .from('messages')
+  // Using a raw count query works better here
+  const { count, error } = await supabase
+    .from('messages' as any)
     .select('id', { count: 'exact' })
     .neq('sender_id', userId)
     .eq('read', false)
-    .in('conversation_id', supabase
-      .from('conversations')
-      .select('id')
-      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
+    .in('conversation_id', 
+      // Get all conversation IDs where the user is part of
+      supabase
+        .from('conversations' as any)
+        .select('id')
+        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
     );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data?.length || 0;
+  return count || 0;
 };
-

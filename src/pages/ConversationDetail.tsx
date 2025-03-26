@@ -28,7 +28,7 @@ const ConversationDetail = () => {
 
       try {
         const { data, error } = await supabase
-          .from('conversations')
+          .from('conversations' as any)
           .select(`
             id,
             user_id,
