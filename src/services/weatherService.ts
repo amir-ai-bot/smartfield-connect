@@ -37,7 +37,7 @@ export const fetchCurrentWeather = async (location: string = "Gafsa,Tunisia"): P
     
     const data = await response.json();
     
-    return {
+    const weather = {
       location: `${data.location.name}, ${data.location.country}`,
       temperature: data.current.temp_c,
       condition: data.current.condition.text,
@@ -48,10 +48,25 @@ export const fetchCurrentWeather = async (location: string = "Gafsa,Tunisia"): P
       sunrise: "05:42", // Using static values as this API doesn't provide sunrise/sunset in free tier
       sunset: "19:28"
     };
+    
+    // Add weather recommendations based on conditions
+    const recommendations = getWeatherRecommendations(weather);
+    
+    // Show recommendation as a toast
+    if (recommendations) {
+      toast.info("Recommandation météo", {
+        description: recommendations,
+        position: 'top-center',
+        duration: 5000
+      });
+    }
+    
+    return weather;
   } catch (error) {
     console.error('Error fetching current weather:', error);
     toast.error("Impossible de récupérer la météo actuelle", {
-      description: "Veuillez vérifier votre connexion internet"
+      description: "Veuillez vérifier votre connexion internet",
+      position: 'top-center'
     });
     // Return fallback data
     return {
@@ -114,7 +129,8 @@ export const fetchWeatherForecast = async (location: string = "Gafsa,Tunisia", d
   } catch (error) {
     console.error('Error fetching weather forecast:', error);
     toast.error("Impossible de récupérer les prévisions météo", {
-      description: "Veuillez vérifier votre connexion internet"
+      description: "Veuillez vérifier votre connexion internet",
+      position: 'top-center'
     });
     
     // Return fallback data similar to what we had before
@@ -128,4 +144,42 @@ export const fetchWeatherForecast = async (location: string = "Gafsa,Tunisia", d
       { date: "23 Juin", day: "Dimanche", temp: 34, humidity: 25, windSpeed: 13, condition: "sunny" }
     ];
   }
+};
+
+// Function to generate recommendations based on weather conditions
+const getWeatherRecommendations = (weather: CurrentWeather): string => {
+  // Temperature-based recommendations
+  if (weather.temperature > 35) {
+    return "Températures très élevées. Assurez une irrigation adéquate et évitez les travaux agricoles entre 11h et 16h.";
+  } else if (weather.temperature > 30) {
+    return "Chaleur importante. Veillez à ce que vos cultures soient bien irriguées et envisagez un ombrage pour les plantations sensibles.";
+  } else if (weather.temperature < 10) {
+    return "Températures basses. Protégez les cultures sensibles au gel et reportez les semis si possible.";
+  }
+  
+  // Humidity-based recommendations
+  if (weather.humidity > 80) {
+    return "Humidité élevée. Surveillez les maladies fongiques. Assurez une bonne ventilation des cultures.";
+  } else if (weather.humidity < 30) {
+    return "Temps très sec. Augmentez l'irrigation et envisagez un paillage pour conserver l'humidité du sol.";
+  }
+  
+  // Wind-based recommendations
+  if (weather.windSpeed > 30) {
+    return "Vents forts. Protégez les jeunes plants et reportez les pulvérisations. Risque de dessèchement rapide.";
+  }
+  
+  // Condition-based recommendations
+  if (weather.condition.toLowerCase().includes("pluie") || weather.condition.toLowerCase().includes("averse")) {
+    return "Précipitations prévues. Reportez les travaux de pulvérisation et de fertilisation. Vérifiez les systèmes de drainage.";
+  } else if (weather.condition.toLowerCase().includes("orage")) {
+    return "Orages prévus. Sécurisez les équipements et les structures. Risque d'érosion des sols.";
+  } else if (weather.condition.toLowerCase().includes("soleil") || weather.condition.toLowerCase().includes("ensoleillé")) {
+    return "Journée ensoleillée. Moment idéal pour la récolte et le séchage des produits. Vérifiez les besoins en eau.";
+  } else if (weather.condition.toLowerCase().includes("nuag")) {
+    return "Temps nuageux. Bon moment pour les travaux agricoles nécessitant moins de chaleur.";
+  }
+  
+  // Default recommendation
+  return "Conditions modérées. Idéal pour la plupart des travaux agricoles.";
 };

@@ -4,9 +4,19 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'fournisseur';
   phone_number?: string;
   email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
 }
 
 export interface AuthState {
@@ -20,11 +30,13 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   signup: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
   isAdmin: () => boolean;
+  isFournisseur: () => boolean;
   updateProfile: (updates: Partial<User>) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   confirmPasswordReset: (code: string, password: string) => Promise<void>;
+  becomeFournisseur: () => Promise<void>;
 }
 
 export interface LoginFormData {
@@ -52,4 +64,54 @@ export interface NewPasswordFormData {
 
 export interface VerifyEmailFormData {
   code: string;
+}
+
+export interface ProfileUpdateFormData {
+  name?: string;
+  email?: string;
+  phone_number?: string;
+  address?: string;
+  bio?: string;
+  avatar?: File | null;
+}
+
+export interface UserPreferences {
+  language?: 'fr' | 'en' | 'ar';
+  notifications?: {
+    email?: boolean;
+    app?: boolean;
+  };
+  theme?: 'light' | 'dark' | 'system';
+}
+
+export interface ProjectData {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  status: 'active' | 'planning' | 'completed';
+  image?: string;
+  description?: string;
+  user_id: string;
+  isPublic: boolean;
+}
+
+export interface SupportMessage {
+  id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  resolved: boolean;
+}
+
+export interface FournisseurRating {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
 }

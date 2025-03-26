@@ -233,21 +233,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Reset password function (wrapper for requestPasswordReset for compatibility)
+  const resetPassword = async (email: string) => {
+    return requestPasswordReset(email);
+  };
+
+  // Become fournisseur function
+  const becomeFournisseur = async () => {
+    try {
+      if (!state.user) throw new Error('Not authenticated');
+      
+      const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'fournisseur' });
+      
+      setState(prev => ({
+        ...prev,
+        user: updatedUser
+      }));
+      
+      toast.success('Vous êtes maintenant un fournisseur!');
+      return updatedUser;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur lors du changement de rôle');
+      throw error;
+    }
+  };
+
   // Check if user is an admin
   const isAdmin = () => {
     return state.user?.role === 'admin';
   };
 
-  const value = {
+  // Check if user is a fournisseur
+  const isFournisseur = () => {
+    return state.user?.role === 'fournisseur';
+  };
+
+  const value: AuthContextType = {
     ...state,
     login,
     signup,
     logout,
     isAdmin,
+    isFournisseur,
     updateProfile,
     verifyEmail,
     requestPasswordReset,
-    confirmPasswordReset
+    confirmPasswordReset,
+    resetPassword,
+    becomeFournisseur
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
