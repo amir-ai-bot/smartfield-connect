@@ -39,6 +39,11 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
     }
   };
 
+  // Handle project creation success
+  const handleProjectCreated = () => {
+    refreshData();
+  };
+
   return (
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
@@ -89,6 +94,7 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
       <CreateProjectDialog 
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        onProjectCreated={handleProjectCreated}
       />
     </>
   );

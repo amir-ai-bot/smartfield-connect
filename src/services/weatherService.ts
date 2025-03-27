@@ -14,6 +14,15 @@ export interface CurrentWeather {
     description: string;
     icon: string;
   }[];
+  // Additional properties for Weather component compatibility
+  temperature?: number;
+  temp_c?: number;
+  feelsLike?: number;
+  condition?: {
+    text: string;
+    icon: string;
+    code: number;
+  };
 }
 
 export interface ForecastDay {
@@ -30,6 +39,17 @@ export interface ForecastDay {
     description: string;
     icon: string;
   }[];
+  // Additional properties for Weather component compatibility
+  date?: string;
+  day_name?: string;
+  max_temp?: number;
+  min_temp?: number;
+  wind_speed?: number;
+  condition?: {
+    text: string;
+    icon: string;
+    code: number;
+  };
 }
 
 export interface WeatherForecast {
@@ -40,6 +60,46 @@ export interface WeatherForecast {
 
 const API_KEY = '38d79015b08a472ac87f3957c2ed4300';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+
+// Helper to convert OpenWeather data to our format
+const mapWeatherData = (data: any): WeatherForecast => {
+  // Map the current weather data to include compatibility fields
+  const current: CurrentWeather = {
+    ...data.current,
+    temperature: data.current.temp,
+    temp_c: data.current.temp,
+    feelsLike: data.current.feels_like,
+    condition: {
+      text: data.current.weather[0].description,
+      icon: data.current.weather[0].icon,
+      code: data.current.weather[0].id
+    }
+  };
+
+  // Map the daily forecast to include compatibility fields
+  const daily = data.daily.map((day: any) => {
+    const date = new Date(day.dt * 1000);
+    return {
+      ...day,
+      date: date.toISOString().split('T')[0],
+      day_name: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      max_temp: day.temp.max,
+      min_temp: day.temp.min,
+      wind_speed: day.wind_speed,
+      condition: {
+        text: day.weather[0].description,
+        icon: day.weather[0].icon,
+        code: day.weather[0].id
+      }
+    };
+  });
+
+  return {
+    current,
+    daily,
+    location: data.location
+  };
+};
 
 export const fetchCurrentWeather = async (city: string, country: string): Promise<WeatherForecast> => {
   try {
@@ -53,16 +113,21 @@ export const fetchCurrentWeather = async (city: string, country: string): Promis
       `${BASE_URL}/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&units=metric&appid=${API_KEY}`
     );
     
-    return {
-      current: response.data.current as CurrentWeather,
-      daily: response.data.daily as ForecastDay[],
+    const mappedData = mapWeatherData({
+      ...response.data,
       location: `${city}, ${country}`
-    };
+    });
+    
+    return mappedData;
   } catch (error) {
     console.error('Error fetching weather data:', error);
     throw new Error('Failed to fetch weather data. Please try again later.');
   }
 };
+
+// Added for Weather.tsx compatibility
+export const getCurrentWeather = fetchCurrentWeather;
+export const getWeatherForecast = fetchCurrentWeather;
 
 export const fetchWeatherForecast = async (city: string, country: string): Promise<WeatherForecast> => {
   return fetchCurrentWeather(city, country);
