@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { getUserConversations } from '@/services/authService'; 
+import { getUserConversations } from '@/services/conversationService'; 
 import { User } from '@/types/auth';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface ConversationListProps {
   currentUser: User;
+  filterUnread?: boolean;
 }
 
 interface Conversation {
@@ -29,7 +30,7 @@ interface Conversation {
   unreadCount?: number;
 }
 
-const ConversationList = ({ currentUser }: ConversationListProps) => {
+const ConversationList = ({ currentUser, filterUnread = false }: ConversationListProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -38,8 +39,18 @@ const ConversationList = ({ currentUser }: ConversationListProps) => {
     const fetchConversations = async () => {
       try {
         const data = await getUserConversations(currentUser.id);
+        
         // Cast the data to the correct type to avoid type errors
-        setConversations(data as unknown as Conversation[]);
+        let conversationsData = data as unknown as Conversation[];
+        
+        // Filter for unread messages if specified
+        if (filterUnread) {
+          conversationsData = conversationsData.filter(conv => 
+            conv.unreadCount && conv.unreadCount > 0
+          );
+        }
+        
+        setConversations(conversationsData);
       } catch (error) {
         console.error('Error fetching conversations:', error);
       } finally {
@@ -48,7 +59,24 @@ const ConversationList = ({ currentUser }: ConversationListProps) => {
     };
 
     fetchConversations();
-  }, [currentUser.id]);
+    
+    // Subscribe to conversation changes
+    const channel = supabase
+      .channel('public:conversations')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations'
+      }, () => {
+        // Refresh the conversations list when changes occur
+        fetchConversations();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser.id, filterUnread]);
 
   const getOtherParty = (conversation: Conversation) => {
     if (conversation.user_id === currentUser.id) {
@@ -68,13 +96,19 @@ const ConversationList = ({ currentUser }: ConversationListProps) => {
   if (conversations.length === 0) {
     return (
       <div className="text-center p-8 border rounded-lg bg-gray-50">
-        <p className="text-gray-500 mb-4">Vous n'avez pas encore de conversations.</p>
-        <Button 
-          onClick={() => navigate('/suppliers')}
-          className="bg-agri-green-500 hover:bg-agri-green-600"
-        >
-          Trouver des fournisseurs
-        </Button>
+        <p className="text-gray-500 mb-4">
+          {filterUnread 
+            ? "Vous n'avez pas de messages non lus." 
+            : "Vous n'avez pas encore de conversations."}
+        </p>
+        {!filterUnread && (
+          <Button 
+            onClick={() => navigate('/suppliers')}
+            className="bg-agri-green-500 hover:bg-agri-green-600"
+          >
+            Trouver des fournisseurs
+          </Button>
+        )}
       </div>
     );
   }

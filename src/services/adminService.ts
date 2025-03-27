@@ -68,8 +68,6 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    // Use any for the rpc function name to bypass TypeScript's type checking
-    // @ts-ignore - This is needed because Supabase's typings are restrictive with RPC
     const { error } = await supabase.rpc('admin_verify_user', { user_id: userId });
     
     if (error) {
@@ -87,8 +85,6 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // Use any for the rpc function name to bypass TypeScript's type checking
-    // @ts-ignore - This is needed because Supabase's typings are restrictive with RPC
     const { error } = await supabase.rpc('admin_delete_user', { user_id: userId });
     
     if (error) {
@@ -106,6 +102,7 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
+    // Fix parameter ordering to match the function in the database
     const params = {
       user_name: name,
       user_email: email,
@@ -113,8 +110,6 @@ export const createUser = async (name: string, email: string, password: string, 
       user_role: role
     };
     
-    // Use any for the rpc function name to bypass TypeScript's type checking
-    // @ts-ignore - This is needed because Supabase's typings are restrictive with RPC
     const { error } = await supabase.rpc('admin_create_user', params);
     
     if (error) {
@@ -137,8 +132,6 @@ export const setUserPassword = async (userId: string, newPassword: string) => {
       new_password: newPassword
     };
     
-    // Use any for the rpc function name to bypass TypeScript's type checking
-    // @ts-ignore - This is needed because Supabase's typings are restrictive with RPC
     const { error } = await supabase.rpc('admin_update_user_password', params);
     
     if (error) {
