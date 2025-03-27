@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfileButton from '@/components/auth/UserProfileButton';
 import AuthDialog from '@/components/auth/AuthDialog';
-import LogoImg from '/logo.png'; // Ensure this logo file exists in the public directory
+import LogoImg from '../assets/logo.png'; // Changed to a relative path in the assets folder
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
