@@ -34,6 +34,25 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
   }
 };
 
+// Function to delete an old avatar if needed
+export const deleteAvatar = async (avatarUrl: string): Promise<void> => {
+  if (!avatarUrl || !avatarUrl.includes('avatars')) return;
+  
+  try {
+    // Extract path from the URL
+    const path = avatarUrl.split('avatars/')[1];
+    if (!path) return;
+    
+    await supabase.storage
+      .from('avatars')
+      .remove([path]);
+      
+  } catch (error) {
+    console.error('Error deleting avatar:', error);
+    // We don't throw here as this is a cleanup operation
+  }
+};
+
 // Function to upload a project image
 export const uploadProjectImage = async (file: File, userId: string): Promise<string> => {
   try {

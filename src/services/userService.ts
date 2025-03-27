@@ -1,6 +1,7 @@
 
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteAvatar } from './storageService';
 
 // Function to fetch a user's profile
 export const fetchUserProfile = async (userId: string): Promise<User> => {
@@ -27,6 +28,7 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
     role: data.role as 'admin' | 'user' | 'fournisseur',
     phone_number: data.phone_number || undefined,
     address: data.address,
+    bio: data.bio,
     email_verified: false, // Default to false
   };
 
@@ -45,7 +47,24 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
 
 // Function to update a user's profile
 export const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<User> => {
-  // Filter out non-profile fields
+  // If there's a new avatar and an old one, delete the old one
+  if (updates.avatar && updates.avatar !== 'pending-upload') {
+    try {
+      const { data: currentUser } = await supabase
+        .from('profiles')
+        .select('avatar')
+        .eq('id', userId)
+        .single();
+      
+      if (currentUser?.avatar && currentUser.avatar !== updates.avatar) {
+        await deleteAvatar(currentUser.avatar);
+      }
+    } catch (error) {
+      console.error('Error deleting old avatar:', error);
+    }
+  }
+  
+  // Filter out non-profile fields and undefined values
   const profileUpdates: any = {
     name: updates.name,
     phone_number: updates.phone_number,

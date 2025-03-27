@@ -10,6 +10,9 @@ const maleAvatars = [
   '/avatars/male-1.png',
   '/avatars/male-2.png',
   '/avatars/male-3.png',
+  '/avatars/male-4.png',
+  '/avatars/male-5.png',
+  '/avatars/male-6.png',
 ];
 
 // Female avatar options
@@ -17,6 +20,9 @@ const femaleAvatars = [
   '/avatars/female-1.png',
   '/avatars/female-2.png',
   '/avatars/female-3.png',
+  '/avatars/female-4.png',
+  '/avatars/female-5.png',
+  '/avatars/female-6.png',
 ];
 
 interface AvatarSelectorProps {
@@ -34,6 +40,10 @@ const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorPro
       onUpload(file);
     }
   };
+
+  const isCustomAvatar = currentAvatar && 
+    !maleAvatars.includes(currentAvatar) && 
+    !femaleAvatars.includes(currentAvatar);
 
   return (
     <div className="space-y-4">
@@ -54,7 +64,7 @@ const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorPro
           onClick={() => fileInputRef.current?.click()}
         >
           <Upload className="h-4 w-4" />
-          Upload Photo
+          Télécharger Photo
         </Button>
         <input 
           type="file" 
@@ -66,7 +76,7 @@ const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorPro
       </div>
       
       <div>
-        <h3 className="text-sm font-medium mb-2">Male Avatars</h3>
+        <h3 className="text-sm font-medium mb-2">Avatars Homme</h3>
         <ScrollArea className="h-20 w-full">
           <div className="flex gap-2 p-1">
             {maleAvatars.map((avatar, index) => (
@@ -86,7 +96,7 @@ const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorPro
       </div>
       
       <div>
-        <h3 className="text-sm font-medium mb-2">Female Avatars</h3>
+        <h3 className="text-sm font-medium mb-2">Avatars Femme</h3>
         <ScrollArea className="h-20 w-full">
           <div className="flex gap-2 p-1">
             {femaleAvatars.map((avatar, index) => (

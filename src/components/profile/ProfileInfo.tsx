@@ -13,24 +13,48 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AvatarSelector from './AvatarSelector';
-import { updateUserProfile } from '@/services/userService';
 import { uploadAvatar } from '@/services/storageService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileInfoProps {
   user: User;
+  onUpdate?: (updatedUser: User) => void;
 }
 
-const ProfileInfo = ({ user }: ProfileInfoProps) => {
+const ProfileInfo = ({ user, onUpdate }: ProfileInfoProps) => {
   const { updateProfile } = useAuth();
-  const [name, setName] = React.useState(user.name);
-  const [email, setEmail] = React.useState(user.email);
+  const [name, setName] = React.useState(user.name || '');
+  const [email, setEmail] = React.useState(user.email || '');
   const [phone, setPhone] = React.useState(user.phone_number || '');
   const [address, setAddress] = React.useState(user.address || '');
   const [bio, setBio] = React.useState(user.bio || '');
   const [avatar, setAvatar] = React.useState(user.avatar || '');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [hasChanges, setHasChanges] = React.useState(false);
+
+  // Track changes
+  React.useEffect(() => {
+    const changes = 
+      name !== user.name || 
+      email !== user.email || 
+      phone !== (user.phone_number || '') || 
+      address !== (user.address || '') || 
+      bio !== (user.bio || '') || 
+      avatar !== (user.avatar || '');
+    
+    setHasChanges(changes);
+  }, [name, email, phone, address, bio, avatar, user]);
+
+  // Reset form when user changes
+  React.useEffect(() => {
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setPhone(user.phone_number || '');
+    setAddress(user.address || '');
+    setBio(user.bio || '');
+    setAvatar(user.avatar || '');
+  }, [user]);
 
   const handleSelectAvatar = (newAvatar: string) => {
     setAvatar(newAvatar);
@@ -53,7 +77,7 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      await updateProfile({
+      const updatedUser = await updateProfile({
         name,
         email,
         phone_number: phone,
@@ -61,9 +85,21 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
         bio,
         avatar
       });
+      
       toast.success('Profil mis à jour avec succès');
+      
+      // Call onUpdate if provided
+      if (onUpdate) {
+        onUpdate(updatedUser);
+      }
+      
+      setHasChanges(false);
     } catch (error) {
-      toast.error('Erreur lors de la mise à jour du profil');
+      let errorMessage = 'Erreur lors de la mise à jour du profil';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -72,12 +108,13 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
 
   const handleCancel = () => {
     // Reset to original values
-    setName(user.name);
-    setEmail(user.email);
+    setName(user.name || '');
+    setEmail(user.email || '');
     setPhone(user.phone_number || '');
     setAddress(user.address || '');
     setBio(user.bio || '');
     setAvatar(user.avatar || '');
+    setHasChanges(false);
   };
 
   return (
@@ -126,6 +163,7 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
               id="phone" 
               value={phone} 
               onChange={(e) => setPhone(e.target.value)} 
+              placeholder="+216 XX XXX XXX"
             />
           </div>
           
@@ -137,6 +175,7 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
               id="address" 
               value={address} 
               onChange={(e) => setAddress(e.target.value)} 
+              placeholder="Votre adresse"
             />
           </div>
           
@@ -149,23 +188,23 @@ const ProfileInfo = ({ user }: ProfileInfoProps) => {
               rows={4}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
+              placeholder="Parlez-nous de vous..."
             />
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end">
+      <CardFooter className="flex justify-end space-x-2">
         <Button 
           variant="outline" 
-          className="mr-2"
           onClick={handleCancel}
-          disabled={isLoading}
+          disabled={isLoading || !hasChanges}
         >
           Annuler
         </Button>
         <Button 
           className="bg-agri-green-500 hover:bg-agri-green-600"
           onClick={handleSave}
-          disabled={isLoading}
+          disabled={isLoading || !hasChanges}
         >
           {isLoading ? 'Enregistrement...' : 'Enregistrer'}
         </Button>
