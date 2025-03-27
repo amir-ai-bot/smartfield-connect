@@ -68,7 +68,7 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    // Using RPC with proper typing
+    // Fix the typing issue by properly defining the parameter type
     const { error } = await supabase.rpc('admin_verify_user', {
       user_id: userId
     } as { user_id: string });
@@ -88,7 +88,7 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // Using RPC with proper typing
+    // Fix the typing issue by properly defining the parameter type
     const { error } = await supabase.rpc('admin_delete_user', {
       user_id: userId
     } as { user_id: string });
@@ -108,7 +108,7 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
-    // Using RPC with proper typing
+    // Fix the typing issue by properly defining the parameter type
     const { error } = await supabase.rpc('admin_create_user', {
       user_name: name,
       user_email: email,
