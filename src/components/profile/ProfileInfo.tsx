@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 import AvatarSelector from './AvatarSelector';
 import { uploadAvatar } from '@/services/storageService';
 import { toast } from 'sonner';
@@ -20,9 +21,10 @@ import { useAuth } from '@/contexts/AuthContext';
 interface ProfileInfoProps {
   user: User;
   onUpdate?: (updatedUser: User) => void;
+  onBack?: () => void;
 }
 
-const ProfileInfo = ({ user, onUpdate }: ProfileInfoProps) => {
+const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
   const { updateProfile } = useAuth();
   const [name, setName] = React.useState(user.name || '');
   const [email, setEmail] = React.useState(user.email || '');
@@ -119,9 +121,17 @@ const ProfileInfo = ({ user, onUpdate }: ProfileInfoProps) => {
 
   return (
     <Card className="shadow-card mb-6">
-      <CardHeader>
-        <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
-        <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
+          <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+        </div>
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Retour
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-6">

@@ -128,3 +128,27 @@ export const createUser = async (name: string, email: string, password: string, 
     throw error;
   }
 };
+
+// Set admin user password (admin only)
+export const setUserPassword = async (userId: string, newPassword: string) => {
+  try {
+    const params = {
+      user_id: userId,
+      new_password: newPassword
+    };
+    
+    // Use any for the rpc function name to bypass TypeScript's type checking
+    // @ts-ignore - This is needed because Supabase's typings are restrictive with RPC
+    const { error } = await supabase.rpc('admin_update_user_password', params);
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating user password:', error);
+    toast.error('Erreur lors de la mise à jour du mot de passe');
+    throw error;
+  }
+};

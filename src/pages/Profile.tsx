@@ -21,15 +21,59 @@ import {
   HelpCircle,
   FileText,
   BookOpen,
-  MessageSquare
+  MessageSquare,
+  ChevronLeft,
+  EyeOff,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProfileInfo from '@/components/profile/ProfileInfo';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const [activeDetail, setActiveDetail] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  
+  const goBack = () => {
+    setActiveDetail(null);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (error) throw error;
+      
+      toast.success('Mot de passe mis à jour avec succès');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      toast.error('Échec de la mise à jour du mot de passe');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   if (!user) {
     return (
@@ -46,6 +90,371 @@ const Profile = () => {
     );
   }
   
+  const renderDetailView = () => {
+    switch (activeDetail) {
+      case 'notifications':
+        return (
+          <Card className="shadow-card animate-slide-up">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display">Paramètres de notification</CardTitle>
+                <CardDescription>Gérez vos préférences de notification</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={goBack}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Retour
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-semibold mb-3">Notifications par e-mail</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Alertes météo', defaultChecked: true },
+                      { label: 'Rappels de tâches', defaultChecked: true },
+                      { label: 'Recommandations agricoles', defaultChecked: true },
+                      { label: 'Alertes d&apos;irrigation', defaultChecked: true },
+                      { label: 'Bulletins d&apos;information', defaultChecked: false },
+                    ].map((item, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="text-sm">{item.label}</div>
+                        <Switch defaultChecked={item.defaultChecked} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-3">Notifications sur l&apos;application</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Alertes météo', defaultChecked: true },
+                      { label: 'Rappels de tâches', defaultChecked: true },
+                      { label: 'Recommandations agricoles', defaultChecked: true },
+                      { label: 'Alertes d&apos;irrigation', defaultChecked: true },
+                      { label: 'Messages des fournisseurs', defaultChecked: true },
+                    ].map((item, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="text-sm">{item.label}</div>
+                        <Switch defaultChecked={item.defaultChecked} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-3">Fréquence des notifications</h3>
+                  <Tabs defaultValue="immediate">
+                    <TabsList className="w-full grid grid-cols-3">
+                      <TabsTrigger value="immediate">Immédiate</TabsTrigger>
+                      <TabsTrigger value="daily">Quotidienne</TabsTrigger>
+                      <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={goBack}>
+                Annuler
+              </Button>
+              <Button className="bg-agri-green-500 hover:bg-agri-green-600">
+                Enregistrer
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      
+      case 'security':
+        return (
+          <Card className="shadow-card animate-slide-up">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display">Sécurité du compte</CardTitle>
+                <CardDescription>Mettez à jour votre mot de passe</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={goBack}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Retour
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="currentPassword">
+                    Mot de passe actuel
+                  </label>
+                  <div className="relative">
+                    <Input 
+                      id="currentPassword" 
+                      type={showPassword ? "text" : "password"} 
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1 h-7 w-7 p-0"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="newPassword">
+                    Nouveau mot de passe
+                  </label>
+                  <div className="relative">
+                    <Input 
+                      id="newPassword" 
+                      type={showPassword ? "text" : "password"} 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">
+                    Confirmer le mot de passe
+                  </label>
+                  <div className="relative">
+                    <Input 
+                      id="confirmPassword" 
+                      type={showPassword ? "text" : "password"} 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={goBack}>
+                Annuler
+              </Button>
+              <Button 
+                className="bg-agri-green-500 hover:bg-agri-green-600"
+                onClick={handleUpdatePassword}
+                disabled={isLoading || !newPassword || !confirmPassword}
+              >
+                {isLoading ? 'Mise à jour...' : 'Mettre à jour le mot de passe'}
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      
+      case 'language':
+        return (
+          <Card className="shadow-card animate-slide-up">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display">Paramètres de langue</CardTitle>
+                <CardDescription>Modifiez la langue de l'application</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={goBack}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Retour
+              </Button>
+            </CardHeader>
+            <CardContent className="py-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <span className="text-lg">🇫🇷</span>
+                    <span className="mt-2 font-medium">Français</span>
+                    <span className="text-xs text-gray-500 mt-1">Par défaut</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <span className="text-lg">🇬🇧</span>
+                    <span className="mt-2 font-medium">English</span>
+                    <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <span className="text-lg">🇩🇿</span>
+                    <span className="mt-2 font-medium">العربية</span>
+                    <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={goBack}>
+                Annuler
+              </Button>
+              <Button className="bg-agri-green-500 hover:bg-agri-green-600">
+                Enregistrer
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      
+      case 'settings':
+        return (
+          <Card className="shadow-card animate-slide-up">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display">Paramètres du compte</CardTitle>
+                <CardDescription>Gérez les paramètres généraux de votre compte</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={goBack}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Retour
+              </Button>
+            </CardHeader>
+            <CardContent className="py-6">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <h3 className="font-medium">Thème de l'application</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center py-4"
+                    >
+                      <Settings className="h-5 w-5 mb-2" />
+                      <span className="text-sm font-medium">Système</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center py-4 bg-gray-50"
+                    >
+                      <Sun className="h-5 w-5 mb-2 text-yellow-500" />
+                      <span className="text-sm font-medium">Clair</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center py-4"
+                    >
+                      <Moon className="h-5 w-5 mb-2 text-indigo-600" />
+                      <span className="text-sm font-medium">Sombre</span>
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <h3 className="font-medium">Confidentialité</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Profil public</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Partage des données</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Localisation visible</span>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <h3 className="font-medium">Session</h3>
+                  <Button variant="destructive" className="w-full">
+                    Déconnecter tous les appareils
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={goBack}>
+                Annuler
+              </Button>
+              <Button className="bg-agri-green-500 hover:bg-agri-green-600">
+                Enregistrer
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      
+      case 'help':
+        return (
+          <Card className="shadow-card animate-slide-up">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-display">Centre d'aide</CardTitle>
+                <CardDescription>Obtenez de l'aide et consultez les informations sur l'application</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={goBack}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Retour
+              </Button>
+            </CardHeader>
+            <CardContent className="py-6">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <BookOpen className="h-6 w-6 mb-2 text-agri-green-600" />
+                    <span className="font-medium">Guide d'utilisation</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <FileText className="h-6 w-6 mb-2 text-agri-green-600" />
+                    <span className="font-medium">Tutoriels</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <MessageSquare className="h-6 w-6 mb-2 text-agri-green-600" />
+                    <span className="font-medium">Support technique</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                  >
+                    <Info className="h-6 w-6 mb-2 text-agri-green-600" />
+                    <span className="font-medium">À propos</span>
+                  </Button>
+                </div>
+                
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold mb-2">Besoin d'aide supplémentaire ?</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Notre équipe de support est disponible pour vous aider avec toutes vos questions.
+                  </p>
+                  <Button className="w-full bg-agri-green-500 hover:bg-agri-green-600">
+                    Contacter le support
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      
+      default:
+        return <ProfileInfo user={user} onBack={goBack} onUpdate={updateProfile} />;
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -56,7 +465,7 @@ const Profile = () => {
             <div className="bg-white rounded-xl shadow-card p-6 text-center mb-6 animate-slide-up">
               <div className="relative mx-auto mb-4">
                 <Avatar className="h-20 w-20 mx-auto">
-                  <AvatarImage src={user.avatar || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80"} />
+                  <AvatarImage src={user.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} />
                   <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </div>
@@ -85,7 +494,10 @@ const Profile = () => {
               
               <Button 
                 className="w-full bg-agri-green-500 hover:bg-agri-green-600"
-                onClick={() => setActiveTab('profile')}
+                onClick={() => {
+                  setActiveDetail(null);
+                  setActiveTab('profile');
+                }}
               >
                 Modifier le profil
               </Button>
@@ -108,11 +520,18 @@ const Profile = () => {
                     <button
                       key={item.value}
                       className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
-                        activeTab === item.value
+                        activeTab === item.value && !activeDetail
                           ? 'bg-agri-green-50 text-agri-green-700'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
-                      onClick={() => setActiveTab(item.value)}
+                      onClick={() => {
+                        setActiveTab(item.value);
+                        if (item.value !== 'profile') {
+                          setActiveDetail(item.value);
+                        } else {
+                          setActiveDetail(null);
+                        }
+                      }}
                     >
                       {item.icon}
                       {item.label}
@@ -147,238 +566,10 @@ const Profile = () => {
           </div>
           
           <div className="md:w-2/3 lg:w-3/4 mt-6 md:mt-0">
-            {activeTab === 'profile' && (
-              <div className="animate-slide-up">
-                <ProfileInfo user={user} />
-                
-                <Card className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-display">Informations agricoles</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1" htmlFor="firstName">
-                            Prénom
-                          </label>
-                          <Input id="firstName" defaultValue="Mohamed" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1" htmlFor="lastName">
-                            Nom
-                          </label>
-                          <Input id="lastName" defaultValue="Karim" />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="email">
-                          Adresse e-mail
-                        </label>
-                        <Input id="email" type="email" defaultValue="mohamed.karim@example.com" />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="phone">
-                          Téléphone
-                        </label>
-                        <Input id="phone" defaultValue="+216 98 765 432" />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="address">
-                          Adresse
-                        </label>
-                        <Input id="address" defaultValue="Rue des Oliviers, Gafsa" />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="bio">
-                          Bio
-                        </label>
-                        <Textarea 
-                          id="bio" 
-                          rows={4}
-                          defaultValue="Agriculteur avec 15 ans d'expérience dans la culture d'oliviers et de palmiers dattiers dans la région de Gafsa."
-                        />
-                      </div>
-                    </form>
-                  </CardContent>
-                  <CardFooter className="flex justify-end">
-                    <Button variant="outline" className="mr-2">
-                      Annuler
-                    </Button>
-                    <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                      Enregistrer
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-            )}
-            
-            {activeTab === 'notifications' && (
-              <div className="animate-slide-up">
-                <Card className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-display">Paramètres de notification</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-semibold mb-3">Notifications par e-mail</h3>
-                        <div className="space-y-3">
-                          {[
-                            { label: 'Alertes météo', defaultChecked: true },
-                            { label: 'Rappels de tâches', defaultChecked: true },
-                            { label: 'Recommandations agricoles', defaultChecked: true },
-                            { label: 'Alertes d&apos;irrigation', defaultChecked: true },
-                            { label: 'Bulletins d&apos;information', defaultChecked: false },
-                          ].map((item, index) => (
-                            <div key={index} className="flex items-center justify-between">
-                              <div className="text-sm">{item.label}</div>
-                              <Switch defaultChecked={item.defaultChecked} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="font-semibold mb-3">Notifications sur l&apos;application</h3>
-                        <div className="space-y-3">
-                          {[
-                            { label: 'Alertes météo', defaultChecked: true },
-                            { label: 'Rappels de tâches', defaultChecked: true },
-                            { label: 'Recommandations agricoles', defaultChecked: true },
-                            { label: 'Alertes d&apos;irrigation', defaultChecked: true },
-                            { label: 'Messages des fournisseurs', defaultChecked: true },
-                          ].map((item, index) => (
-                            <div key={index} className="flex items-center justify-between">
-                              <div className="text-sm">{item.label}</div>
-                              <Switch defaultChecked={item.defaultChecked} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="font-semibold mb-3">Fréquence des notifications</h3>
-                        <Tabs defaultValue="immediate">
-                          <TabsList className="w-full grid grid-cols-3">
-                            <TabsTrigger value="immediate">Immédiate</TabsTrigger>
-                            <TabsTrigger value="daily">Quotidienne</TabsTrigger>
-                            <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
-            {activeTab === 'security' && (
-              <div className="animate-slide-up">
-                <Card className="shadow-card mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-display">Sécurité du compte</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="currentPassword">
-                          Mot de passe actuel
-                        </label>
-                        <Input id="currentPassword" type="password" />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="newPassword">
-                          Nouveau mot de passe
-                        </label>
-                        <Input id="newPassword" type="password" />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">
-                          Confirmer le mot de passe
-                        </label>
-                        <Input id="confirmPassword" type="password" />
-                      </div>
-                    </form>
-                  </CardContent>
-                  <CardFooter className="flex justify-end">
-                    <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                      Mettre à jour le mot de passe
-                    </Button>
-                  </CardFooter>
-                </Card>
-                
-                <Card className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-display">Paramètres de confidentialité</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">Profil public</h3>
-                          <p className="text-sm text-gray-500">Autoriser les autres utilisateurs à voir votre profil</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">Partage des données de culture</h3>
-                          <p className="text-sm text-gray-500">Partager vos données agricoles de manière anonyme pour la recherche</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">Localisation visible</h3>
-                          <p className="text-sm text-gray-500">Permettre aux fournisseurs de voir votre localisation</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-end">
-                    <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                      Enregistrer les préférences
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-            )}
-            
-            {(activeTab === 'language' || activeTab === 'settings' || activeTab === 'help') && (
-              <div className="animate-slide-up">
-                <Card className="shadow-card p-8 text-center">
-                  <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    {activeTab === 'language' && <Languages className="h-8 w-8 text-gray-500" />}
-                    {activeTab === 'settings' && <Settings className="h-8 w-8 text-gray-500" />}
-                    {activeTab === 'help' && <HelpCircle className="h-8 w-8 text-gray-500" />}
-                  </div>
-                  <h3 className="font-display text-lg font-semibold mb-2">
-                    {activeTab === 'language' && "Paramètres de langue"}
-                    {activeTab === 'settings' && "Paramètres du compte"}
-                    {activeTab === 'help' && "Centre d&apos;aide"}
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {activeTab === 'language' && "Cette fonctionnalité sera bientôt disponible."}
-                    {activeTab === 'settings' && "Les paramètres avancés du compte seront disponibles prochainement."}
-                    {activeTab === 'help' && "Notre centre d&apos;aide est en cours de construction."}
-                  </p>
-                  <Button>
-                    {activeTab === 'language' && "Explorer les langues"}
-                    {activeTab === 'settings' && "Voir les options de base"}
-                    {activeTab === 'help' && "Contacter le support"}
-                  </Button>
-                </Card>
-              </div>
+            {activeDetail ? (
+              renderDetailView()
+            ) : (
+              <ProfileInfo user={user} onUpdate={updateProfile} />
             )}
           </div>
         </div>
@@ -390,3 +581,38 @@ const Profile = () => {
 };
 
 export default Profile;
+
+// Missing imports
+function Info(props) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  );
+}
+
+function Moon(props) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 3a6.364 6.364 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+    </svg>
+  );
+}
+
+function Sun(props) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="4"></circle>
+      <path d="M12 2v2"></path>
+      <path d="M12 20v2"></path>
+      <path d="m4.93 4.93 1.41 1.41"></path>
+      <path d="m17.66 17.66 1.41 1.41"></path>
+      <path d="M2 12h2"></path>
+      <path d="M20 12h2"></path>
+      <path d="m6.34 17.66-1.41 1.41"></path>
+      <path d="m19.07 4.93-1.41 1.41"></path>
+    </svg>
+  );
+}

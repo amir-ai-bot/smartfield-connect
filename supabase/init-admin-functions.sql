@@ -1,4 +1,5 @@
 
+
 -- Function to verify a user's email by admin
 CREATE OR REPLACE FUNCTION public.admin_verify_user(user_id UUID)
 RETURNS VOID
@@ -89,3 +90,23 @@ BEGIN
   );
 END;
 $$;
+
+-- Function to update a user's password by admin
+CREATE OR REPLACE FUNCTION public.admin_update_user_password(
+  user_id UUID,
+  new_password TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  -- This will run with SECURITY DEFINER privileges (superuser)
+  UPDATE auth.users
+  SET encrypted_password = crypt(new_password, gen_salt('bf')),
+      updated_at = CURRENT_TIMESTAMP
+  WHERE id = user_id;
+END;
+$$;
+

@@ -1,119 +1,131 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Upload } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Camera, Upload, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
-// Male avatar options
-const maleAvatars = [
-  '/avatars/male-1.png',
-  '/avatars/male-2.png',
-  '/avatars/male-3.png',
-  '/avatars/male-4.png',
-  '/avatars/male-5.png',
-  '/avatars/male-6.png',
-];
-
-// Female avatar options
-const femaleAvatars = [
-  '/avatars/female-1.png',
-  '/avatars/female-2.png',
-  '/avatars/female-3.png',
-  '/avatars/female-4.png',
-  '/avatars/female-5.png',
-  '/avatars/female-6.png',
+// Default avatar selection options
+const defaultAvatars = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lily",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Max",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Zoe",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie",
+  "https://api.dicebear.com/7.x/fun-emoji/svg?seed=farmer",
+  "https://api.dicebear.com/7.x/fun-emoji/svg?seed=gardener",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=farm",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=garden",
+  "https://api.dicebear.com/7.x/thumbs/svg?seed=green",
+  "https://api.dicebear.com/7.x/initials/svg?seed=CC"
 ];
 
 interface AvatarSelectorProps {
   currentAvatar?: string;
   onSelect: (avatar: string) => void;
-  onUpload: (file: File) => void;
+  onUpload?: (file: File) => Promise<void>;
 }
 
 const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorProps) => {
+  const [open, setOpen] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
+    if (!file || !onUpload) return;
+    
+    try {
+      setUploadLoading(true);
+      await onUpload(file);
+      setOpen(false);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    } finally {
+      setUploadLoading(false);
     }
   };
 
-  const isCustomAvatar = currentAvatar && 
-    !maleAvatars.includes(currentAvatar) && 
-    !femaleAvatars.includes(currentAvatar);
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-center">
+    <div className="flex flex-col items-center">
+      <div className="relative mb-4">
         <Avatar className="h-24 w-24">
-          <AvatarImage src={currentAvatar} />
-          <AvatarFallback>
-            {currentAvatar ? currentAvatar.charAt(0).toUpperCase() : 'U'}
-          </AvatarFallback>
+          {currentAvatar ? (
+            <AvatarImage src={currentAvatar} alt="Profile" />
+          ) : (
+            <AvatarFallback>
+              <User className="h-12 w-12 text-gray-400" />
+            </AvatarFallback>
+          )}
         </Avatar>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              size="sm" 
+              className="absolute -bottom-2 -right-2 rounded-full p-1.5 h-auto" 
+              variant="outline"
+            >
+              <Camera className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Choisir un avatar</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4 py-4">
+              {defaultAvatars.map((avatar, index) => (
+                <Avatar 
+                  key={index} 
+                  className="h-16 w-16 cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-gray-300 transition-all"
+                  onClick={() => {
+                    onSelect(avatar);
+                    setOpen(false);
+                  }}
+                >
+                  <AvatarImage src={avatar} alt={`Avatar ${index+1}`} />
+                </Avatar>
+              ))}
+            </div>
+            
+            {onUpload && (
+              <div className="mt-4 border-t pt-4">
+                <p className="text-sm text-gray-500 mb-3">Ou téléchargez votre propre image</p>
+                <div className="flex items-center justify-center">
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <Button
+                    onClick={triggerFileInput}
+                    variant="outline"
+                    disabled={uploadLoading}
+                    className="w-full"
+                  >
+                    {uploadLoading ? 'Téléchargement...' : 'Télécharger une image'}
+                    <Upload className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-      
-      <div className="flex justify-center">
-        <Button 
-          type="button" 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="h-4 w-4" />
-          Télécharger Photo
-        </Button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileUpload} 
-          accept="image/*"
-          className="hidden" 
-        />
-      </div>
-      
-      <div>
-        <h3 className="text-sm font-medium mb-2">Avatars Homme</h3>
-        <ScrollArea className="h-20 w-full">
-          <div className="flex gap-2 p-1">
-            {maleAvatars.map((avatar, index) => (
-              <Avatar 
-                key={index} 
-                className={`h-16 w-16 cursor-pointer hover:ring-2 hover:ring-primary ${
-                  currentAvatar === avatar ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => onSelect(avatar)}
-              >
-                <AvatarImage src={avatar} />
-                <AvatarFallback>M{index + 1}</AvatarFallback>
-              </Avatar>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-      
-      <div>
-        <h3 className="text-sm font-medium mb-2">Avatars Femme</h3>
-        <ScrollArea className="h-20 w-full">
-          <div className="flex gap-2 p-1">
-            {femaleAvatars.map((avatar, index) => (
-              <Avatar 
-                key={index} 
-                className={`h-16 w-16 cursor-pointer hover:ring-2 hover:ring-primary ${
-                  currentAvatar === avatar ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => onSelect(avatar)}
-              >
-                <AvatarImage src={avatar} />
-                <AvatarFallback>F{index + 1}</AvatarFallback>
-              </Avatar>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+      <p className="text-sm text-gray-500 mb-4">Cliquez sur l'icône pour changer votre avatar</p>
     </div>
   );
 };
