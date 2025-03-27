@@ -6,8 +6,8 @@ export interface CurrentWeather {
   humidity: number;
   wind_speed: number;
   feels_like: number;
-  sunrise: number;
-  sunset: number;
+  sunrise: string; // Changed to string for compatibility
+  sunset: string;  // Changed to string for compatibility
   weather: {
     id: number;
     main: string;
@@ -18,11 +18,12 @@ export interface CurrentWeather {
   temperature?: number;
   temp_c?: number;
   feelsLike?: number;
-  condition?: {
+  condition: {
     text: string;
     icon: string;
     code: number;
   };
+  location?: string;
 }
 
 export interface ForecastDay {
@@ -40,16 +41,12 @@ export interface ForecastDay {
     icon: string;
   }[];
   // Additional properties for Weather component compatibility
-  date?: string;
-  day_name?: string;
-  max_temp?: number;
-  min_temp?: number;
-  wind_speed?: number;
-  condition?: {
-    text: string;
-    icon: string;
-    code: number;
-  };
+  date: string;
+  day_name: string;
+  max_temp: number;
+  min_temp: number;
+  wind_speed: number;
+  condition: string; // Changed to string for compatibility
 }
 
 export interface WeatherForecast {
@@ -73,7 +70,10 @@ const mapWeatherData = (data: any): WeatherForecast => {
       text: data.current.weather[0].description,
       icon: data.current.weather[0].icon,
       code: data.current.weather[0].id
-    }
+    },
+    // Convert Unix timestamps to time strings
+    sunrise: new Date(data.current.sunrise * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    sunset: new Date(data.current.sunset * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   };
 
   // Map the daily forecast to include compatibility fields
@@ -86,11 +86,7 @@ const mapWeatherData = (data: any): WeatherForecast => {
       max_temp: day.temp.max,
       min_temp: day.temp.min,
       wind_speed: day.wind_speed,
-      condition: {
-        text: day.weather[0].description,
-        icon: day.weather[0].icon,
-        code: day.weather[0].id
-      }
+      condition: day.weather[0].description
     };
   });
 
@@ -101,10 +97,17 @@ const mapWeatherData = (data: any): WeatherForecast => {
   };
 };
 
-export const fetchCurrentWeather = async (city: string, country: string): Promise<WeatherForecast> => {
+// Default parameters for location if not provided
+const DEFAULT_CITY = 'Gafsa';
+const DEFAULT_COUNTRY = 'TN';
+
+export const fetchCurrentWeather = async (location?: string, country?: string): Promise<WeatherForecast> => {
   try {
+    const city = location || DEFAULT_CITY;
+    const countryCode = country || DEFAULT_COUNTRY;
+    
     const geocodeResponse = await axios.get(
-      `https://api.openweathermap.org/geo/1.0/direct?q=${city},${country}&limit=1&appid=${API_KEY}`
+      `https://api.openweathermap.org/geo/1.0/direct?q=${city},${countryCode}&limit=1&appid=${API_KEY}`
     );
     
     const { lat, lon } = geocodeResponse.data[0];
@@ -115,7 +118,7 @@ export const fetchCurrentWeather = async (city: string, country: string): Promis
     
     const mappedData = mapWeatherData({
       ...response.data,
-      location: `${city}, ${country}`
+      location: `${city}, ${countryCode === 'TN' ? 'Tunisie' : countryCode}`
     });
     
     return mappedData;
@@ -125,12 +128,13 @@ export const fetchCurrentWeather = async (city: string, country: string): Promis
   }
 };
 
-// Added for Weather.tsx compatibility
-export const getCurrentWeather = fetchCurrentWeather;
-export const getWeatherForecast = fetchCurrentWeather;
+// Added for Weather.tsx compatibility - overload the function to accept different param formats
+export const getCurrentWeather = async (location?: string): Promise<WeatherForecast> => {
+  return fetchCurrentWeather(location);
+};
 
-export const fetchWeatherForecast = async (city: string, country: string): Promise<WeatherForecast> => {
-  return fetchCurrentWeather(city, country);
+export const getWeatherForecast = async (location?: string): Promise<WeatherForecast> => {
+  return fetchCurrentWeather(location);
 };
 
 export const getDefaultCities = async (): Promise<WeatherForecast[]> => {

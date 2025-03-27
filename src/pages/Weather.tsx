@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -22,7 +21,8 @@ import {
   getCurrentWeather, 
   getWeatherForecast,
   CurrentWeather, 
-  ForecastDay
+  ForecastDay,
+  WeatherForecast
 } from '@/services/weatherService';
 import { toast } from 'sonner';
 
@@ -67,35 +67,26 @@ const Weather = () => {
               const { latitude, longitude } = position.coords;
               const locationString = `${latitude},${longitude}`;
               
-              const [weather, forecast] = await Promise.all([
-                getCurrentWeather(locationString),
-                getWeatherForecast(locationString)
-              ]);
+              const weather = await getCurrentWeather(locationString);
               
-              setCurrentWeather(weather);
-              setForecastData(forecast.daily);
+              setCurrentWeather(weather.current);
+              setForecastData(weather.daily);
               setCurrentLocation(weather.location);
             },
             async (error) => {
               console.error("Geolocation error:", error);
-              const [weather, forecast] = await Promise.all([
-                getCurrentWeather(), // Using default location
-                getWeatherForecast()
-              ]);
+              const weather = await getCurrentWeather();
               
-              setCurrentWeather(weather);
-              setForecastData(forecast.daily);
+              setCurrentWeather(weather.current);
+              setForecastData(weather.daily);
               setCurrentLocation(weather.location);
             }
           );
         } else {
-          const [weather, forecast] = await Promise.all([
-            getCurrentWeather(), // Using default location
-            getWeatherForecast()
-          ]);
+          const weather = await getCurrentWeather();
           
-          setCurrentWeather(weather);
-          setForecastData(forecast.daily);
+          setCurrentWeather(weather.current);
+          setForecastData(weather.daily);
           setCurrentLocation(weather.location);
         }
       } catch (error) {
@@ -125,13 +116,10 @@ const Weather = () => {
     if (searchLocation.trim()) {
       setIsLoading(true);
       try {
-        const [weather, forecast] = await Promise.all([
-          getCurrentWeather(searchLocation),
-          getWeatherForecast(searchLocation)
-        ]);
+        const weather = await getCurrentWeather(searchLocation);
         
-        setCurrentWeather(weather);
-        setForecastData(forecast.daily);
+        setCurrentWeather(weather.current);
+        setForecastData(weather.daily);
         setCurrentLocation(weather.location);
         setSearchLocation('');
         
@@ -152,19 +140,19 @@ const Weather = () => {
   const getWeatherIcon = () => {
     if (!currentWeather) return <CloudSun className="h-12 w-12" />;
     
-    if (currentWeather.condition.text.toLowerCase().includes('soleil') || 
-        currentWeather.condition.text.toLowerCase().includes('sunny') ||
-        currentWeather.condition.text.toLowerCase().includes('clear')) {
+    if (currentWeather.condition.text.includes('soleil') || 
+        currentWeather.condition.text.includes('sunny') ||
+        currentWeather.condition.text.includes('clear')) {
       return <CloudSun className="h-12 w-12" />;
     }
     
-    if (currentWeather.condition.text.toLowerCase().includes('pluie') || 
-        currentWeather.condition.text.toLowerCase().includes('rain')) {
+    if (currentWeather.condition.text.includes('pluie') || 
+        currentWeather.condition.text.includes('rain')) {
       return <Droplets className="h-12 w-12" />;
     }
     
-    if (currentWeather.condition.text.toLowerCase().includes('nuage') || 
-        currentWeather.condition.text.toLowerCase().includes('cloud')) {
+    if (currentWeather.condition.text.includes('nuage') || 
+        currentWeather.condition.text.includes('cloud')) {
       return <CloudSun className="h-12 w-12" />;
     }
     

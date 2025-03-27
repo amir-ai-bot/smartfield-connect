@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -71,8 +70,6 @@ export const verifyUserEmail = async (userId: string) => {
     // Using RPC with proper typing
     const { error } = await supabase.rpc('admin_verify_user', {
       user_id: userId
-    } as {
-      user_id: string;
     });
     
     if (error) {
@@ -93,8 +90,6 @@ export const deleteUser = async (userId: string) => {
     // Using RPC with proper typing
     const { error } = await supabase.rpc('admin_delete_user', {
       user_id: userId
-    } as {
-      user_id: string;
     });
     
     if (error) {
@@ -118,11 +113,6 @@ export const createUser = async (name: string, email: string, password: string, 
       user_email: email,
       user_password: password,
       user_role: role
-    } as {
-      user_name: string;
-      user_email: string;
-      user_password: string;
-      user_role: string;
     });
     
     if (error) {
