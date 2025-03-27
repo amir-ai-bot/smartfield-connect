@@ -1,21 +1,10 @@
-
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, 
@@ -31,9 +20,28 @@ import {
   BookOpen,
   MessageSquare
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import ProfileInfo from '@/components/profile/ProfileInfo';
+import { Switch } from '@/components/ui/switch';
 
 const Profile = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-card text-center">
+          <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <User className="h-8 w-8 text-gray-400" />
+          </div>
+          <h3 className="font-display text-lg font-semibold mb-2">Session expirée</h3>
+          <p className="text-gray-600 mb-4">Veuillez vous connecter pour accéder à votre profil</p>
+          <Button>Se connecter</Button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,45 +53,37 @@ const Profile = () => {
             <div className="bg-white rounded-xl shadow-card p-6 text-center mb-6 animate-slide-up">
               <div className="relative mx-auto mb-4">
                 <Avatar className="h-20 w-20 mx-auto">
-                  <AvatarImage src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80" />
-                  <AvatarFallback>MK</AvatarFallback>
+                  <AvatarImage src={user.avatar || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80"} />
+                  <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
-                <Button size="icon" variant="outline" className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-white shadow-sm">
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </Button>
               </div>
               
-              <h2 className="font-display text-xl font-bold">Mohamed Karim</h2>
-              <p className="text-gray-600 mb-3">Agriculteur</p>
-              
-              <div className="flex justify-center mb-4">
-                <Badge variant="outline" className="mr-2 bg-agri-green-50 text-agri-green-700 border-agri-green-200">
-                  Olives
-                </Badge>
-                <Badge variant="outline" className="bg-agri-blue-50 text-agri-blue-700 border-agri-blue-200">
-                  Palmiers
-                </Badge>
-              </div>
+              <h2 className="font-display text-xl font-bold">{user.name}</h2>
+              <p className="text-gray-600 mb-3">{user.role === 'admin' ? 'Administrateur' : user.role === 'fournisseur' ? 'Fournisseur' : 'Agriculteur'}</p>
               
               <div className="space-y-2 text-left mb-4">
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 text-gray-500 mr-2" />
-                  <span className="text-sm">mohamed.karim@example.com</span>
+                  <span className="text-sm">{user.email}</span>
                 </div>
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 text-gray-500 mr-2" />
-                  <span className="text-sm">+216 98 765 432</span>
-                </div>
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 text-gray-500 mr-2" />
-                  <span className="text-sm">Gafsa, Tunisie</span>
-                </div>
+                {user.phone_number && (
+                  <div className="flex items-center">
+                    <Phone className="h-4 w-4 text-gray-500 mr-2" />
+                    <span className="text-sm">{user.phone_number}</span>
+                  </div>
+                )}
+                {user.address && (
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 text-gray-500 mr-2" />
+                    <span className="text-sm">{user.address}</span>
+                  </div>
+                )}
               </div>
               
-              <Button className="w-full bg-agri-green-500 hover:bg-agri-green-600">
+              <Button 
+                className="w-full bg-agri-green-500 hover:bg-agri-green-600"
+                onClick={() => setActiveTab('profile')}
+              >
                 Modifier le profil
               </Button>
             </div>
@@ -146,10 +146,11 @@ const Profile = () => {
           <div className="md:w-2/3 lg:w-3/4 mt-6 md:mt-0">
             {activeTab === 'profile' && (
               <div className="animate-slide-up">
-                <Card className="shadow-card mb-6">
+                <ProfileInfo user={user} />
+                
+                <Card className="shadow-card">
                   <CardHeader>
-                    <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
-                    <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+                    <CardTitle className="text-xl font-display">Informations agricoles</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form className="space-y-4">
@@ -210,64 +211,6 @@ const Profile = () => {
                     </Button>
                   </CardFooter>
                 </Card>
-                
-                <Card className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-display">Informations agricoles</CardTitle>
-                    <CardDescription>Informations sur votre exploitation et vos cultures</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="farmName">
-                          Nom de l&apos;exploitation
-                        </label>
-                        <Input id="farmName" defaultValue="Ferme El Baraka" />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1" htmlFor="farmSize">
-                            Superficie (hectares)
-                          </label>
-                          <Input id="farmSize" type="number" defaultValue="12" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1" htmlFor="farmType">
-                            Type d&apos;exploitation
-                          </label>
-                          <Input id="farmType" defaultValue="Mixte (Oliviers et Palmiers)" />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="mainCrops">
-                          Cultures principales
-                        </label>
-                        <Textarea 
-                          id="mainCrops" 
-                          rows={2}
-                          defaultValue="Oliviers (8 hectares), Palmiers dattiers (4 hectares)"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="irrigationMethod">
-                          Méthode d&apos;irrigation
-                        </label>
-                        <Input id="irrigationMethod" defaultValue="Goutte-à-goutte" />
-                      </div>
-                    </form>
-                  </CardContent>
-                  <CardFooter className="flex justify-end">
-                    <Button variant="outline" className="mr-2">
-                      Annuler
-                    </Button>
-                    <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                      Enregistrer
-                    </Button>
-                  </CardFooter>
-                </Card>
               </div>
             )}
             
@@ -276,7 +219,6 @@ const Profile = () => {
                 <Card className="shadow-card">
                   <CardHeader>
                     <CardTitle className="text-xl font-display">Paramètres de notification</CardTitle>
-                    <CardDescription>Gérez vos préférences de notification</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
@@ -328,11 +270,6 @@ const Profile = () => {
                       </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end">
-                    <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                      Enregistrer les préférences
-                    </Button>
-                  </CardFooter>
                 </Card>
               </div>
             )}
@@ -342,7 +279,6 @@ const Profile = () => {
                 <Card className="shadow-card mb-6">
                   <CardHeader>
                     <CardTitle className="text-xl font-display">Sécurité du compte</CardTitle>
-                    <CardDescription>Gérez votre mot de passe et la sécurité de votre compte</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form className="space-y-4">
@@ -378,7 +314,6 @@ const Profile = () => {
                 <Card className="shadow-card">
                   <CardHeader>
                     <CardTitle className="text-xl font-display">Paramètres de confidentialité</CardTitle>
-                    <CardDescription>Contrôlez qui peut voir vos informations</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">

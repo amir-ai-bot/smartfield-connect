@@ -1,7 +1,15 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
-import { 
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuth } from '@/contexts/AuthContext';
+import { createProject } from '@/services/projectService';
+import { uploadProjectImage } from '@/services/storageService';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -9,182 +17,349 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Image, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type ProjectFormData = {
-  title: string;
-  crop: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-};
+const formSchema = z.object({
+  title: z.string().min(2, 'Le titre doit contenir au moins 2 caractères'),
+  crop: z.string().min(1, 'Veuillez sélectionner une culture'),
+  location: z.string().min(2, 'L\'emplacement doit contenir au moins 2 caractères'),
+  startDate: z.date({ required_error: 'Veuillez sélectionner une date de début' }),
+  endDate: z.date({ required_error: 'Veuillez sélectionner une date de fin' }),
+  description: z.string().optional(),
+  isPublic: z.boolean().default(false),
+});
 
-type CreateProjectDialogProps = {
+type FormValues = z.infer<typeof formSchema>;
+
+interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProjectCreated?: (project: any) => void;
-};
+  onProjectCreated: (project: any) => void;
+}
 
-const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ 
-  open, 
-  onOpenChange,
-  onProjectCreated
-}) => {
-  const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } = useForm<ProjectFormData>({
+const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreateProjectDialogProps) => {
+  const { user } = useAuth();
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
       crop: '',
       location: '',
-      startDate: '',
-      endDate: '',
-      status: 'planning',
-    }
+      description: '',
+      isPublic: false,
+    },
   });
 
-  const onSubmit = async (data: ProjectFormData) => {
-    try {
-      // Here we would normally send data to an API
-      // For now, we'll just simulate a delay
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // Create a new project object with all necessary fields
-      const newProject = {
-        ...data,
-        id: Math.random().toString(36).substring(2, 9),
-        progress: data.status === 'completed' ? 100 : data.status === 'active' ? 30 : 0,
-        image: "https://images.unsplash.com/photo-1605000797499-95a51c5269ae?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-      };
-      
-      // Notify the parent component about the new project
-      if (onProjectCreated) {
-        onProjectCreated(newProject);
-      }
-      
-      // Show success message
-      toast.success("Projet créé avec succès");
-      
-      // Reset form and close dialog
-      reset();
-      onOpenChange(false);
-    } catch (error) {
-      toast.error("Erreur lors de la création du projet");
-      console.error("Project creation error:", error);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
     }
   };
-
-  // Handle select value changes
-  const handleSelectChange = (name: keyof ProjectFormData, value: string) => {
-    setValue(name, value);
+  
+  const onSubmit = async (values: FormValues) => {
+    if (!user) {
+      toast.error("Vous devez être connecté pour créer un projet");
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      let imageUrl = '';
+      if (selectedImage) {
+        imageUrl = await uploadProjectImage(selectedImage, user.id);
+      }
+      
+      const newProject = await createProject(
+        user.id,
+        values.title,
+        values.crop,
+        values.location,
+        format(values.startDate, 'yyyy-MM-dd'),
+        format(values.endDate, 'yyyy-MM-dd'),
+        values.description,
+        imageUrl,
+        values.isPublic
+      );
+      
+      toast.success("Projet créé avec succès");
+      onOpenChange(false);
+      onProjectCreated(newProject);
+      
+      // Reset the form
+      form.reset();
+      setSelectedImage(null);
+      setImagePreview(null);
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de la création du projet");
+      console.error("Project creation error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Créer un nouveau projet</DialogTitle>
           <DialogDescription>
-            Remplissez les détails de votre nouveau projet agricole.
+            Ajoutez les détails de votre nouveau projet agricole.
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
-          <div className="space-y-1">
-            <Label htmlFor="title">Nom du projet</Label>
-            <Input 
-              id="title"
-              {...register('title', { required: "Le nom est requis" })}
-              placeholder="ex: Oliveraie Secteur Nord"
-            />
-            {errors.title && (
-              <p className="text-sm text-red-500">{errors.title.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="crop">Culture</Label>
-            <Input 
-              id="crop"
-              {...register('crop', { required: "La culture est requise" })}
-              placeholder="ex: Oliviers"
-            />
-            {errors.crop && (
-              <p className="text-sm text-red-500">{errors.crop.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="location">Localisation</Label>
-            <Input 
-              id="location"
-              {...register('location', { required: "La localisation est requise" })}
-              placeholder="ex: Gafsa Nord"
-            />
-            {errors.location && (
-              <p className="text-sm text-red-500">{errors.location.message}</p>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="startDate">Date de début</Label>
-              <Input 
-                id="startDate"
-                {...register('startDate', { required: "La date de début est requise" })}
-                placeholder="ex: Mars 2023"
-              />
-              {errors.startDate && (
-                <p className="text-sm text-red-500">{errors.startDate.message}</p>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Titre du projet</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Verger d'oliviers" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="crop"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Culture principale</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Oliviers, Palmiers, etc." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Emplacement</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Gafsa, Tunisie" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             
-            <div className="space-y-1">
-              <Label htmlFor="endDate">Date de fin</Label>
-              <Input 
-                id="endDate"
-                {...register('endDate', { required: "La date de fin est requise" })}
-                placeholder="ex: Oct 2023"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date de début</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Choisir une date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.endDate && (
-                <p className="text-sm text-red-500">{errors.endDate.message}</p>
-              )}
+              
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date de fin</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Choisir une date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="status">Statut</Label>
-            <Select 
-              onValueChange={(value) => handleSelectChange('status', value)}
-              defaultValue="planning"
-            >
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Sélectionnez un statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="planning">Planification</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="completed">Complété</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Création...' : 'Créer le projet'}
-            </Button>
-          </DialogFooter>
-        </form>
+            
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Décrivez votre projet..." 
+                      className="resize-none" 
+                      rows={4} 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium">Image du projet</label>
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('project-image')?.click()}
+                  className="flex items-center gap-2"
+                >
+                  <Image className="h-4 w-4" />
+                  Choisir une image
+                </Button>
+                <input
+                  id="project-image"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+                {imagePreview && (
+                  <div className="relative h-16 w-16 rounded overflow-hidden">
+                    <img 
+                      src={imagePreview} 
+                      alt="Aperçu" 
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="isPublic"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Projet public</FormLabel>
+                    <FormDescription>
+                      Permettre aux autres utilisateurs de voir ce projet
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Annuler
+              </Button>
+              <Button 
+                type="submit"
+                className="bg-agri-green-500 hover:bg-agri-green-600"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  'Créer le projet'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
