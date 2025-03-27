@@ -69,11 +69,11 @@ export const deleteProject = async (projectId: string) => {
 export const verifyUserEmail = async (userId: string) => {
   try {
     // Define the parameter type explicitly for the RPC call
-    type VerifyUserParams = { user_id: string };
+    interface VerifyUserParams { user_id: string }
     
-    const { error } = await supabase.rpc<null, VerifyUserParams>('admin_verify_user', {
+    const { error } = await supabase.rpc('admin_verify_user', {
       user_id: userId
-    });
+    } as VerifyUserParams);
     
     if (error) {
       throw new Error(error.message);
@@ -91,11 +91,11 @@ export const verifyUserEmail = async (userId: string) => {
 export const deleteUser = async (userId: string) => {
   try {
     // Define the parameter type explicitly for the RPC call
-    type DeleteUserParams = { user_id: string };
+    interface DeleteUserParams { user_id: string }
     
-    const { error } = await supabase.rpc<null, DeleteUserParams>('admin_delete_user', {
+    const { error } = await supabase.rpc('admin_delete_user', {
       user_id: userId
-    });
+    } as DeleteUserParams);
     
     if (error) {
       throw new Error(error.message);
@@ -113,19 +113,19 @@ export const deleteUser = async (userId: string) => {
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
     // Define the parameter type explicitly for the RPC call
-    type CreateUserParams = {
+    interface CreateUserParams {
       user_name: string;
       user_email: string;
       user_password: string;
       user_role: string;
-    };
+    }
     
-    const { error } = await supabase.rpc<null, CreateUserParams>('admin_create_user', {
+    const { error } = await supabase.rpc('admin_create_user', {
       user_name: name,
       user_email: email,
       user_password: password,
       user_role: role
-    });
+    } as CreateUserParams);
     
     if (error) {
       throw new Error(error.message);
