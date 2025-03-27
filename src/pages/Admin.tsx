@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,6 @@ import {
   Users, Clipboard, Settings, DatabaseZap, 
   CheckCircle, XCircle, Trash2, Edit, Loader2, UserPlus
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -33,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from '@tanstack/react-query';
+import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser, createUser } from '@/services/adminService';
 
 const Admin = () => {
   const { user } = useAuth();
@@ -54,82 +53,19 @@ const Admin = () => {
   // Fetch all users
   const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching users:', error);
-          toast.error('Erreur lors du chargement des utilisateurs');
-          return [];
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error in fetchUsers:', error);
-        toast.error('Erreur lors du chargement des utilisateurs');
-        return [];
-      }
-    }
+    queryFn: fetchAllUsers
   });
 
   // Fetch all projects
   const { data: projects = [], isLoading: isLoadingProjects, refetch: refetchProjects } = useQuery({
     queryKey: ['admin-projects'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            profiles:user_id (name, email)
-          `)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching projects:', error);
-          toast.error('Erreur lors du chargement des projets');
-          return [];
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error in fetchProjects:', error);
-        toast.error('Erreur lors du chargement des projets');
-        return [];
-      }
-    }
+    queryFn: fetchAllProjects
   });
 
-  const verifyUser = async (userId: string) => {
+  const handleVerifyUser = async (userId: string) => {
     try {
       setIsVerifyingUser(userId);
-      
-      // First, get the user's email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .single();
-        
-      if (userError || !userData?.email) {
-        throw new Error('Utilisateur non trouvé');
-      }
-      
-      // Update the auth.users table to mark email as verified
-      // This is done through an RPC function to avoid auth schema restrictions
-      const { error } = await supabase.rpc('admin_verify_user', {
-        user_id: userId
-      });
-      
-      if (error) {
-        console.error('Error verifying user:', error);
-        throw new Error(error.message);
-      }
-      
+      await verifyUserEmail(userId);
       toast.success('Email de l\'utilisateur vérifié avec succès');
       refetchUsers();
     } catch (error) {
@@ -140,17 +76,10 @@ const Admin = () => {
     }
   };
 
-  const deleteUser = async (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       setIsDeletingUser(userId);
-      
-      // Use RPC function to delete user (since auth.users can't be accessed directly)
-      const { error } = await supabase.rpc('admin_delete_user', {
-        user_id: userId
-      });
-      
-      if (error) throw new Error(error.message);
-      
+      await deleteUser(userId);
       toast.success('Utilisateur supprimé avec succès');
       refetchUsers();
     } catch (error) {
@@ -161,7 +90,7 @@ const Admin = () => {
     }
   };
 
-  const createNewUser = async () => {
+  const handleCreateNewUser = async () => {
     try {
       setIsCreatingUser(true);
       
@@ -169,15 +98,12 @@ const Admin = () => {
         throw new Error('Veuillez remplir tous les champs requis');
       }
       
-      // Call RPC function to create user
-      const { error } = await supabase.rpc('admin_create_user', {
-        user_name: newUserData.name,
-        user_email: newUserData.email,
-        user_password: newUserData.password,
-        user_role: newUserData.role
-      });
-      
-      if (error) throw new Error(error.message);
+      await createUser(
+        newUserData.name,
+        newUserData.email,
+        newUserData.password,
+        newUserData.role
+      );
       
       toast.success('Nouvel utilisateur créé avec succès');
       setNewUserDialog(false);
@@ -196,16 +122,9 @@ const Admin = () => {
     }
   };
 
-  const deleteProject = async (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     try {
-      // Delete the project
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId);
-        
-      if (error) throw new Error(error.message);
-      
+      await deleteProject(projectId);
       toast.success('Projet supprimé avec succès');
       refetchProjects();
     } catch (error) {
@@ -328,7 +247,7 @@ const Admin = () => {
                                   <Button 
                                     variant="outline" 
                                     size="icon"
-                                    onClick={() => verifyUser(user.id)}
+                                    onClick={() => handleVerifyUser(user.id)}
                                     disabled={!!isVerifyingUser}
                                   >
                                     {isVerifyingUser === user.id ? (
@@ -340,7 +259,7 @@ const Admin = () => {
                                   <Button 
                                     variant="outline" 
                                     size="icon"
-                                    onClick={() => deleteUser(user.id)}
+                                    onClick={() => handleDeleteUser(user.id)}
                                     disabled={!!isDeletingUser || user.id === user?.id}
                                   >
                                     {isDeletingUser === user.id ? (
@@ -436,7 +355,7 @@ const Admin = () => {
                   <Button variant="outline" onClick={() => setNewUserDialog(false)}>
                     Annuler
                   </Button>
-                  <Button onClick={createNewUser} disabled={isCreatingUser}>
+                  <Button onClick={handleCreateNewUser} disabled={isCreatingUser}>
                     {isCreatingUser ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -502,7 +421,7 @@ const Admin = () => {
                                   <Button 
                                     variant="outline" 
                                     size="icon"
-                                    onClick={() => deleteProject(project.id)}
+                                    onClick={() => handleDeleteProject(project.id)}
                                   >
                                     <Trash2 className="h-4 w-4 text-red-600" />
                                   </Button>

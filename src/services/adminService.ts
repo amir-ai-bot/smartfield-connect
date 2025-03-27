@@ -71,9 +71,7 @@ export const verifyUserEmail = async (userId: string) => {
     // Using RPC with proper typing
     const { error } = await supabase.rpc('admin_verify_user', {
       user_id: userId
-    } as {
-      user_id: string;
-    });
+    } as { user_id: string });
     
     if (error) {
       throw new Error(error.message);
@@ -93,9 +91,7 @@ export const deleteUser = async (userId: string) => {
     // Using RPC with proper typing
     const { error } = await supabase.rpc('admin_delete_user', {
       user_id: userId
-    } as {
-      user_id: string;
-    });
+    } as { user_id: string });
     
     if (error) {
       throw new Error(error.message);
