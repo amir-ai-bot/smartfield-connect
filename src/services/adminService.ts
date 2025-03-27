@@ -68,12 +68,13 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    // Define the parameter type explicitly for the RPC call
+    // Define the parameter type for the RPC call
     interface VerifyUserParams { user_id: string }
     
-    const { error } = await supabase.rpc('admin_verify_user', {
-      user_id: userId
-    } as VerifyUserParams);
+    const { error } = await supabase.rpc<void, VerifyUserParams>(
+      'admin_verify_user',
+      { user_id: userId }
+    );
     
     if (error) {
       throw new Error(error.message);
@@ -90,12 +91,13 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // Define the parameter type explicitly for the RPC call
+    // Define the parameter type for the RPC call
     interface DeleteUserParams { user_id: string }
     
-    const { error } = await supabase.rpc('admin_delete_user', {
-      user_id: userId
-    } as DeleteUserParams);
+    const { error } = await supabase.rpc<void, DeleteUserParams>(
+      'admin_delete_user',
+      { user_id: userId }
+    );
     
     if (error) {
       throw new Error(error.message);
@@ -112,7 +114,7 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
-    // Define the parameter type explicitly for the RPC call
+    // Define the parameter type for the RPC call
     interface CreateUserParams {
       user_name: string;
       user_email: string;
@@ -120,12 +122,15 @@ export const createUser = async (name: string, email: string, password: string, 
       user_role: string;
     }
     
-    const { error } = await supabase.rpc('admin_create_user', {
-      user_name: name,
-      user_email: email,
-      user_password: password,
-      user_role: role
-    } as CreateUserParams);
+    const { error } = await supabase.rpc<void, CreateUserParams>(
+      'admin_create_user',
+      {
+        user_name: name,
+        user_email: email,
+        user_password: password,
+        user_role: role
+      }
+    );
     
     if (error) {
       throw new Error(error.message);
