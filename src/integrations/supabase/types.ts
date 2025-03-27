@@ -9,6 +9,92 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          created_at: string | null
+          fournisseur_id: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fournisseur_id: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fournisseur_id?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fournisseur_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          fournisseur_id: string
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          fournisseur_id: string
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          fournisseur_id?: string
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          read: boolean | null
+          sender_id: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          read?: boolean | null
+          sender_id?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          read?: boolean | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
@@ -54,24 +140,48 @@ export type Database = {
       projects: {
         Row: {
           created_at: string
+          crop: string | null
           description: string | null
+          end_date: string | null
           id: string
+          image: string | null
+          is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          crop?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
+          image?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          crop?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
+          image?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
           title?: string
           updated_at?: string
           user_id?: string

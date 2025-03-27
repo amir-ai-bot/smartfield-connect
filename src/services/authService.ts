@@ -60,40 +60,74 @@ export const signup = async (
   password: string,
   phone_number?: string
 ): Promise<User> => {
-  // First register the user with Supabase Auth
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        phone_number
+  try {
+    // First register the user with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          phone_number
+        },
       },
-    },
-  });
+    });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.user) {
+      throw new Error('Failed to create user');
+    }
+
+    // Wait for the trigger to create a profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Check if profile was created successfully
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching profile after signup:', profileError);
+    }
+
+    // If profile wasn't created by trigger, create it manually
+    if (!profileData) {
+      console.log('Profile not created by trigger, creating manually');
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          name,
+          email,
+          phone_number,
+          role: 'user'
+        });
+
+      if (insertError) {
+        console.error('Error creating profile manually:', insertError);
+      }
+    }
+
+    // Now fetch the profile safely
+    const profile = await fetchUserProfile(data.user.id);
+    
+    if (!profile) {
+      throw new Error('Failed to create or fetch profile');
+    }
+
+    // Generate and insert verification code
+    await generateEmailVerificationCode(data.user.id);
+
+    return profile;
+  } catch (error: any) {
+    console.error('Error in signup function:', error);
+    throw error;
   }
-
-  if (!data?.user) {
-    throw new Error('Failed to create user');
-  }
-
-  // Wait for the trigger to create a profile
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // Fetch profile data
-  const profile = await fetchUserProfile(data.user.id);
-  
-  if (!profile) {
-    throw new Error('Profile not found');
-  }
-
-  // Generate and insert verification code
-  await generateEmailVerificationCode(data.user.id);
-
-  return profile;
 };
 
 // Function to logout a user
@@ -246,22 +280,11 @@ export const confirmPasswordReset = async (code: string, newPassword: string): P
     throw new Error('User not found');
   }
 
-  // Sign in as the user (required for password update)
-  const { error: signInError } = await supabase.auth.signInWithOtp({
-    email: userData.email,
-    options: {
-      shouldCreateUser: false
-    }
-  });
-
-  if (signInError) {
-    throw new Error(signInError.message);
-  }
-
   // Update the password
-  const { error } = await supabase.auth.updateUser({
-    password: newPassword,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    userData.email,
+    { redirectTo: window.location.origin }
+  );
 
   if (error) {
     throw new Error(error.message);

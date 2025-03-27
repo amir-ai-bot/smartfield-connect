@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Plus, Filter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import AuthDialog from '@/components/auth/AuthDialog';
+import { toast } from 'sonner';
 
 const suppliersData = [
   {
@@ -79,9 +82,11 @@ const suppliersData = [
 ];
 
 const Suppliers = () => {
+  const { isAuthenticated, becomeFournisseur } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   
   const filteredSuppliers = suppliersData.filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,6 +103,21 @@ const Suppliers = () => {
   
   const uniqueCategories = Array.from(new Set(suppliersData.map(supplier => supplier.category)));
   
+  const handleBecomeFournisseur = async () => {
+    if (!isAuthenticated) {
+      setAuthDialogOpen(true);
+      return;
+    }
+    
+    try {
+      await becomeFournisseur();
+      toast.success('Félicitations! Vous êtes maintenant un fournisseur.');
+    } catch (error) {
+      console.error('Error becoming fournisseur:', error);
+      toast.error('Erreur lors du changement de statut');
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -111,6 +131,7 @@ const Suppliers = () => {
           
           <Button 
             className="mt-4 md:mt-0 bg-agri-blue-500 hover:bg-agri-blue-600 text-white flex items-center"
+            onClick={handleBecomeFournisseur}
           >
             <Plus className="h-4 w-4 mr-2" />
             Devenir fournisseur
@@ -193,6 +214,12 @@ const Suppliers = () => {
           </div>
         )}
       </main>
+
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen}
+        initialView="login"
+      />
       
       <Footer />
     </div>
