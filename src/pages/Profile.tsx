@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,8 @@ import {
   MessageSquare,
   ChevronLeft,
   EyeOff,
-  Eye
+  Eye,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProfileInfo from '@/components/profile/ProfileInfo';
@@ -41,7 +42,16 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    user?.preferences?.language || 'fr'
+  );
   
+  useEffect(() => {
+    if (user?.preferences?.language) {
+      setSelectedLanguage(user.preferences.language);
+    }
+  }, [user]);
+
   const goBack = () => {
     setActiveDetail(null);
   };
@@ -74,6 +84,23 @@ const Profile = () => {
       setIsLoading(false);
     }
   };
+
+  const handleLanguageChange = async (language: string) => {
+    setSelectedLanguage(language);
+    
+    try {
+      const updatedPreferences = {
+        ...user?.preferences,
+        language: language
+      };
+      
+      await updateProfile({ preferences: updatedPreferences });
+      toast.success('Langue mise à jour avec succès');
+    } catch (error) {
+      console.error('Error updating language preference:', error);
+      toast.error('Échec de la mise à jour de la langue');
+    }
+  };
   
   if (!user) {
     return (
@@ -101,7 +128,7 @@ const Profile = () => {
                 <CardDescription>Gérez vos préférences de notification</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={goBack}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Retour
               </Button>
             </CardHeader>
@@ -175,7 +202,7 @@ const Profile = () => {
                 <CardDescription>Mettez à jour votre mot de passe</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={goBack}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Retour
               </Button>
             </CardHeader>
@@ -261,7 +288,7 @@ const Profile = () => {
                 <CardDescription>Modifiez la langue de l'application</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={goBack}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Retour
               </Button>
             </CardHeader>
@@ -269,30 +296,51 @@ const Profile = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    variant="outline" 
-                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                    variant={selectedLanguage === 'fr' ? 'default' : 'outline'}
+                    className={`flex flex-col items-center justify-center h-24 hover:bg-gray-50 ${
+                      selectedLanguage === 'fr' ? 'bg-agri-green-500 hover:bg-agri-green-600 text-white' : ''
+                    }`}
+                    onClick={() => handleLanguageChange('fr')}
                   >
                     <span className="text-lg">🇫🇷</span>
                     <span className="mt-2 font-medium">Français</span>
-                    <span className="text-xs text-gray-500 mt-1">Par défaut</span>
+                    {selectedLanguage === 'fr' && (
+                      <span className="text-xs mt-1">Active</span>
+                    )}
                   </Button>
                   
                   <Button 
-                    variant="outline" 
-                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                    variant={selectedLanguage === 'en' ? 'default' : 'outline'}
+                    className={`flex flex-col items-center justify-center h-24 hover:bg-gray-50 ${
+                      selectedLanguage === 'en' ? 'bg-agri-green-500 hover:bg-agri-green-600 text-white' : ''
+                    }`}
+                    onClick={() => handleLanguageChange('en')}
                   >
                     <span className="text-lg">🇬🇧</span>
                     <span className="mt-2 font-medium">English</span>
-                    <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                    {selectedLanguage === 'en' && (
+                      <span className="text-xs mt-1">Active</span>
+                    )}
+                    {selectedLanguage !== 'en' && (
+                      <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                    )}
                   </Button>
                   
                   <Button 
-                    variant="outline" 
-                    className="flex flex-col items-center justify-center h-24 hover:bg-gray-50"
+                    variant={selectedLanguage === 'ar' ? 'default' : 'outline'}
+                    className={`flex flex-col items-center justify-center h-24 hover:bg-gray-50 ${
+                      selectedLanguage === 'ar' ? 'bg-agri-green-500 hover:bg-agri-green-600 text-white' : ''
+                    }`}
+                    onClick={() => handleLanguageChange('ar')}
                   >
-                    <span className="text-lg">🇩🇿</span>
+                    <span className="text-lg">🇹🇳</span>
                     <span className="mt-2 font-medium">العربية</span>
-                    <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                    {selectedLanguage === 'ar' && (
+                      <span className="text-xs mt-1">Active</span>
+                    )}
+                    {selectedLanguage !== 'ar' && (
+                      <span className="text-xs text-gray-500 mt-1">Bientôt disponible</span>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -301,8 +349,11 @@ const Profile = () => {
               <Button variant="outline" onClick={goBack}>
                 Annuler
               </Button>
-              <Button className="bg-agri-green-500 hover:bg-agri-green-600">
-                Enregistrer
+              <Button 
+                className="bg-agri-green-500 hover:bg-agri-green-600"
+                onClick={goBack}
+              >
+                Fermer
               </Button>
             </CardFooter>
           </Card>
@@ -317,7 +368,7 @@ const Profile = () => {
                 <CardDescription>Gérez les paramètres généraux de votre compte</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={goBack}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Retour
               </Button>
             </CardHeader>
@@ -396,7 +447,7 @@ const Profile = () => {
                 <CardDescription>Obtenez de l'aide et consultez les informations sur l'application</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={goBack}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Retour
               </Button>
             </CardHeader>
@@ -521,6 +572,8 @@ const Profile = () => {
                       key={item.value}
                       className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
                         activeTab === item.value && !activeDetail
+                          ? 'bg-agri-green-50 text-agri-green-700'
+                          : activeDetail === item.value
                           ? 'bg-agri-green-50 text-agri-green-700'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
