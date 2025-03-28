@@ -70,7 +70,7 @@ export const verifyUserEmail = async (userId: string) => {
   try {
     // Call the RPC function using parameters object
     const { error } = await supabase.rpc('admin_verify_user', { 
-      user_id: userId 
+      p_user_id: userId  // Changed from user_id to p_user_id
     });
     
     if (error) {
@@ -90,7 +90,7 @@ export const deleteUser = async (userId: string) => {
   try {
     // Call the RPC function using parameters object
     const { error } = await supabase.rpc('admin_delete_user', { 
-      user_id: userId 
+      p_user_id: userId  // Changed from user_id to p_user_id
     });
     
     if (error) {
@@ -110,10 +110,10 @@ export const createUser = async (name: string, email: string, password: string, 
   try {
     // Call the RPC function using parameters object
     const { error } = await supabase.rpc('admin_create_user', {
-      user_name: name,
-      user_email: email,
-      user_password: password,
-      user_role: role
+      p_user_name: name,      // Changed parameter names to match RPC function
+      p_user_email: email,
+      p_user_password: password,
+      p_user_role: role
     });
     
     if (error) {
@@ -133,8 +133,8 @@ export const setUserPassword = async (userId: string, newPassword: string) => {
   try {
     // Call the RPC function using parameters object
     const { error } = await supabase.rpc('admin_update_user_password', {
-      user_id: userId,
-      new_password: newPassword
+      p_user_id: userId,      // Changed from user_id to p_user_id
+      p_new_password: newPassword  // Changed from new_password to p_new_password
     });
     
     if (error) {

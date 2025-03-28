@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Paperclip, Mic, Send, Star, Heart, Image as ImageIcon, Plus, X, Star as StarIcon, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Paperclip, Mic, Send, Star, Heart, Image as ImageIcon, Plus, X, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, sendMessage, markMessagesAsRead } from '@/services/conversationService';
 import RatingDialog from '@/components/conversation/RatingDialog';
@@ -57,7 +56,7 @@ const ConversationDetail = () => {
       setMessages(messagesData);
       
       // Check if other participant is a fournisseur and in favorites
-      if (otherParticipantData?.role === 'fournisseur') {
+      if (otherParticipantData && otherParticipantData.role === 'fournisseur') {
         const favoriteStatus = await isFournisseurFavorite(user.id, otherParticipantData.id);
         setIsFavorite(favoriteStatus);
       }
@@ -73,7 +72,6 @@ const ConversationDetail = () => {
     }
   };
   
-  // Load conversation data on mount
   useEffect(() => {
     if (user) {
       loadConversationData();
@@ -97,12 +95,10 @@ const ConversationDetail = () => {
     return () => clearInterval(intervalId);
   }, [user, conversationId, navigate]);
   
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   
-  // Handle recording timer
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
@@ -260,7 +256,6 @@ const ConversationDetail = () => {
     }
   };
   
-  // Format time (for voice recording display)
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -295,7 +290,6 @@ const ConversationDetail = () => {
     return format(messageDate, 'EEEE d MMMM', { locale: fr });
   };
   
-  // Group messages by date
   const groupMessagesByDate = () => {
     const groups: {date: string, messages: any[]}[] = [];
     let currentDate = '';
@@ -383,7 +377,6 @@ const ConversationDetail = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 pt-16 pb-16 flex flex-col h-[calc(100vh-4rem)] max-w-screen-md">
-        {/* Conversation header */}
         <div className="bg-white shadow-sm py-3 px-4 flex items-center sticky top-16 z-10 border-b rounded-t-lg">
           <Button 
             variant="ghost" 
@@ -430,7 +423,6 @@ const ConversationDetail = () => {
           )}
         </div>
         
-        {/* Messages container */}
         <div className="flex-1 overflow-y-auto py-4 px-2 bg-gray-50">
           {groupMessagesByDate().map((group, groupIndex) => (
             <div key={groupIndex} className="mb-6">
@@ -471,7 +463,6 @@ const ConversationDetail = () => {
                           {message.content}
                         </p>
                         
-                        {/* Render media if any */}
                         {message.media && message.media.map((mediaItem: any, mediaIndex: number) => (
                           <div key={mediaIndex} className="mt-2">
                             {renderMediaContent(mediaItem)}
@@ -499,7 +490,6 @@ const ConversationDetail = () => {
           <div ref={messagesEndRef} />
         </div>
         
-        {/* Message input */}
         <Card className="mt-auto border-t rounded-b-lg">
           <CardContent className="p-3">
             {selectedFile && (
@@ -592,7 +582,6 @@ const ConversationDetail = () => {
         </Card>
       </main>
       
-      {/* Rating dialog */}
       {otherParticipant && (
         <RatingDialog
           open={showRatingDialog}
