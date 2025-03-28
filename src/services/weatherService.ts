@@ -63,9 +63,9 @@ const mapWeatherData = (data: any): WeatherForecast => {
   // Map the current weather data to include compatibility fields
   const current: CurrentWeather = {
     ...data.current,
-    temperature: data.current.temp,
-    temp_c: data.current.temp,
-    feelsLike: data.current.feels_like,
+    temperature: Math.round(data.current.temp),
+    temp_c: Math.round(data.current.temp),
+    feelsLike: Math.round(data.current.feels_like),
     condition: {
       text: data.current.weather[0].description,
       icon: data.current.weather[0].icon,
@@ -77,15 +77,15 @@ const mapWeatherData = (data: any): WeatherForecast => {
   };
 
   // Map the daily forecast to include compatibility fields
-  const daily = data.daily.map((day: any) => {
+  const daily = data.daily.slice(0, 5).map((day: any) => {
     const date = new Date(day.dt * 1000);
     return {
       ...day,
       date: date.toISOString().split('T')[0],
       day_name: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
-      max_temp: day.temp.max,
-      min_temp: day.temp.min,
-      wind_speed: day.wind_speed,
+      max_temp: Math.round(day.temp.max),
+      min_temp: Math.round(day.temp.min),
+      wind_speed: Math.round(day.wind_speed),
       condition: day.weather[0].description
     };
   });
@@ -109,6 +109,10 @@ export const fetchCurrentWeather = async (location?: string, country?: string): 
     const geocodeResponse = await axios.get(
       `https://api.openweathermap.org/geo/1.0/direct?q=${city},${countryCode}&limit=1&appid=${API_KEY}`
     );
+    
+    if (!geocodeResponse.data || geocodeResponse.data.length === 0) {
+      throw new Error('Location not found');
+    }
     
     const { lat, lon } = geocodeResponse.data[0];
     

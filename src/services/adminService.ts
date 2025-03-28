@@ -12,6 +12,8 @@ export const fetchAllUsers = async () => {
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Erreur lors du chargement des utilisateurs');
       throw new Error(error.message);
     }
 
@@ -32,6 +34,8 @@ export const fetchAllProjects = async (): Promise<ProjectWithUser[]> => {
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Erreur lors du chargement des projets');
       throw new Error(error.message);
     }
 
@@ -52,6 +56,8 @@ export const deleteProject = async (projectId: string) => {
       .eq('id', projectId);
       
     if (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Erreur lors de la suppression du projet');
       throw new Error(error.message);
     }
     
@@ -71,6 +77,8 @@ export const verifyUserEmail = async (userId: string) => {
     });
     
     if (error) {
+      console.error('Error verifying user email:', error);
+      toast.error('Erreur lors de la vérification de l\'email');
       throw new Error(error.message);
     }
     
@@ -85,11 +93,41 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
+    // First fetch and delete all projects by this user to prevent orphaned data
+    const { data: userProjects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('user_id', userId);
+      
+    if (projectsError) {
+      console.error('Error fetching user projects:', projectsError);
+      toast.error('Erreur lors de la récupération des projets de l\'utilisateur');
+      throw new Error(projectsError.message);
+    }
+    
+    // Delete all projects by this user
+    if (userProjects && userProjects.length > 0) {
+      const projectIds = userProjects.map(project => project.id);
+      const { error: deleteProjectsError } = await supabase
+        .from('projects')
+        .delete()
+        .in('id', projectIds);
+        
+      if (deleteProjectsError) {
+        console.error('Error deleting user projects:', deleteProjectsError);
+        toast.error('Erreur lors de la suppression des projets de l\'utilisateur');
+        throw new Error(deleteProjectsError.message);
+      }
+    }
+    
+    // Now delete the user
     const { error } = await supabase.rpc('admin_delete_user', { 
       user_id: userId
     });
     
     if (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Erreur lors de la suppression de l\'utilisateur');
       throw new Error(error.message);
     }
     
@@ -112,6 +150,8 @@ export const createUser = async (name: string, email: string, password: string, 
     });
     
     if (error) {
+      console.error('Error creating user:', error);
+      toast.error('Erreur lors de la création de l\'utilisateur');
       throw new Error(error.message);
     }
     
@@ -132,6 +172,8 @@ export const setUserPassword = async (userId: string, newPassword: string) => {
     });
     
     if (error) {
+      console.error('Error updating user password:', error);
+      toast.error('Erreur lors de la mise à jour du mot de passe');
       throw new Error(error.message);
     }
     

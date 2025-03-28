@@ -1,189 +1,130 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import UserProfileButton from '@/components/auth/UserProfileButton';
-import AuthDialog from '@/components/auth/AuthDialog';
-import LogoImg from '../assets/logo.png';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { LogOut } from 'lucide-react';
+import logo from '@/assets/logo.png';
+import BottomNavbar from './BottomNavbar';
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
   const location = useLocation();
-  const { isAuthenticated, isAdmin, logout } = useAuth();
+  const isMobile = useIsMobile();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
   const closeMenu = () => {
-    if (isMenuOpen) setIsMenuOpen(false);
-  };
-
-  const handleLoginClick = () => {
-    setAuthDialogOpen(true);
-    closeMenu();
+    setIsMenuOpen(false);
   };
 
   const handleLogout = async () => {
-    await logout();
-    closeMenu();
+    try {
+      await logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    return location.pathname === path ? 'text-agri-green-500' : 'text-gray-500';
+  };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className={isScrolled ? "fixed w-full z-50 bg-white shadow-md animate-in fade-in slide-in-from-top-2 transition-all duration-300" : "fixed w-full z-50 bg-white shadow-sm transition-all duration-300"}>
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo and brand */}
-          <Link to="/" className="flex items-center space-x-2" onClick={closeMenu}>
-            <img src={LogoImg} alt="Agri Mobile" className="h-10 w-10 rounded-full object-cover" />
-            <span className="font-display text-xl font-bold text-agri-green-600">Agri Mobile</span>
+        <div className="flex items-center justify-between h-16">
+          <Link to="/" className="flex items-center">
+            <div className="h-10 w-10 bg-agri-green-500 rounded-full overflow-hidden flex-shrink-0">
+              <img 
+                src={logo} 
+                alt="AgriTech Logo" 
+                className="w-full h-full object-cover" 
+              />
+            </div>
+            <span className="ml-2 text-xl font-display font-bold text-gray-900">AgriTech</span>
           </Link>
-
-          {/* Desktop navigation */}
-          <div className="hidden md:flex space-x-1">
-            <NavLinks isActive={isActive} closeMenu={closeMenu} isAdmin={isAdmin} />
-          </div>
-
-          {/* Auth button or user profile */}
-          <div className="hidden md:flex items-center gap-2">
-            {isAuthenticated ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Déconnexion
-                </Button>
-                <UserProfileButton />
-              </>
-            ) : (
-              <Button 
-                onClick={handleLoginClick} 
-                className="bg-agri-green-500 hover:bg-agri-green-600 text-white"
-              >
-                Connexion
-              </Button>
-            )}
-          </div>
-
-          {/* Mobile menu button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden focus:outline-none" 
-            onClick={toggleMenu}
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </Button>
+          
+          {!isMobile ? (
+            <nav className="hidden md:flex items-center space-x-6">
+              <Link to="/" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>Accueil</Link>
+              <Link to="/projects" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>Projets</Link>
+              <Link to="/suppliers" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>Marchands</Link>
+              <Link to="/weather" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>Météo</Link>
+              
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>Profil</Link>
+                  <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300">
+                    <LogOut className="inline-block h-5 w-5 mr-1 align-text-top" />
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <Link to="/auth" className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
+                  Se connecter
+                </Link>
+              )}
+            </nav>
+          ) : (
+            <button onClick={toggleMenu} className="md:hidden text-gray-500 hover:text-gray-700 focus:outline-none">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Mobile navigation */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white">
-          <div className="container mx-auto px-4 py-3 space-y-2">
-            <NavLinks isActive={isActive} closeMenu={closeMenu} isAdmin={isAdmin} isMobile />
-            
-            {/* Auth buttons for mobile */}
-            <div className="pt-4 border-t border-gray-200">
-              {isAuthenticated ? (
-                <Button 
-                  onClick={handleLogout} 
-                  className="w-full flex items-center justify-center"
-                  variant="outline"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Déconnexion
-                </Button>
-              ) : (
-                <Button 
-                  onClick={handleLoginClick} 
-                  className="w-full bg-agri-green-500 hover:bg-agri-green-600 text-white"
-                >
-                  Connexion
-                </Button>
-              )}
+      
+      {isMobile && (
+        <div className={`md:hidden fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+          <div className="flex flex-col h-full">
+            <div className="p-4 flex justify-end">
+              <button onClick={closeMenu} className="text-gray-500 hover:text-gray-700 focus:outline-none">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
             </div>
+            
+            <nav className="flex flex-col items-center space-y-4 p-4">
+              <Link to="/" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>Accueil</Link>
+              <Link to="/projects" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>Projets</Link>
+              <Link to="/suppliers" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>Marchands</Link>
+              <Link to="/weather" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>Météo</Link>
+              
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>Profil</Link>
+                  <button onClick={() => { closeMenu(); handleLogout(); }} className="hover:text-agri-green-500 transition duration-300">
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <Link to="/auth" onClick={closeMenu} className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
+                  Se connecter
+                </Link>
+              )}
+            </nav>
           </div>
         </div>
       )}
-
-      <AuthDialog 
-        open={authDialogOpen}
-        onOpenChange={setAuthDialogOpen}
-      />
-    </nav>
-  );
-};
-
-interface NavLinksProps {
-  isActive: (path: string) => boolean;
-  closeMenu: () => void;
-  isAdmin: () => boolean;
-  isMobile?: boolean;
-}
-
-const NavLinks = ({ isActive, closeMenu, isAdmin, isMobile }: NavLinksProps) => {
-  const linkStyle = (path: string) => isActive(path) ? "bg-agri-green-50 text-agri-green-600" : "text-gray-700 hover:text-agri-green-600";
-  const navItemClass = isMobile 
-    ? "block px-4 py-2 rounded-md font-medium" 
-    : "px-3 py-2 rounded-md text-sm font-medium";
-
-  return (
-    <>
-      <Link 
-        to="/dashboard" 
-        className={`${navItemClass} ${linkStyle('/dashboard')}`}
-        onClick={closeMenu}
-      >
-        Tableau de bord
-      </Link>
-      <Link 
-        to="/projects" 
-        className={`${navItemClass} ${linkStyle('/projects')}`}
-        onClick={closeMenu}
-      >
-        Projets
-      </Link>
-      <Link 
-        to="/suppliers" 
-        className={`${navItemClass} ${linkStyle('/suppliers')}`}
-        onClick={closeMenu}
-      >
-        Fournisseurs
-      </Link>
-      <Link 
-        to="/weather" 
-        className={`${navItemClass} ${linkStyle('/weather')}`}
-        onClick={closeMenu}
-      >
-        Météo
-      </Link>
-      <Link 
-        to="/conversations" 
-        className={`${navItemClass} ${linkStyle('/conversations')}`}
-        onClick={closeMenu}
-      >
-        Messages
-      </Link>
-      {isAdmin() && (
-        <Link 
-          to="/admin" 
-          className={`${navItemClass} ${linkStyle('/admin')}`}
-          onClick={closeMenu}
-        >
-          Administration
-        </Link>
-      )}
-    </>
+      
+      {isMobile && <BottomNavbar />}
+    </header>
   );
 };
 

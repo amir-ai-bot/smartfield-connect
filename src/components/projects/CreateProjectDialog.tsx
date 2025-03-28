@@ -34,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Image, Loader2 } from 'lucide-react';
 import MobileFriendlyDatePicker from './MobileFriendlyDatePicker';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const formSchema = z.object({
   title: z.string().min(2, 'Le titre doit contenir au moins 2 caractères'),
@@ -59,6 +60,33 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const availableCrops = [
+    "Oliviers",
+    "Palmiers",
+    "Pistachiers",
+    "Amandiers",
+    "Grenadiers",
+    "Figuiers",
+    "Pommiers",
+    "Poiriers",
+    "Abricotiers",
+    "Vignes",
+    "Agrumes",
+    "Blé",
+    "Orge",
+    "Maïs",
+    "Tomates",
+    "Pommes de terre",
+    "Oignons",
+    "Poivrons",
+    "Piments",
+    "Ail",
+    "Carottes",
+    "Autres légumes",
+    "Autres fruits",
+    "Autres cultures"
+  ];
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -172,9 +200,23 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Culture principale</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Oliviers, Palmiers, etc." {...field} />
-                    </FormControl>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une culture" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableCrops.map((crop) => (
+                          <SelectItem key={crop} value={crop}>
+                            {crop}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
