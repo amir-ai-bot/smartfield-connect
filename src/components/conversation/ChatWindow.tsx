@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types/auth';
-import { getMessages, sendMessage, markMessagesAsRead, sendVoiceMessage } from '@/services/conversationService';
+import { getConversationMessages, sendMessage, markMessagesAsRead, sendVoiceMessage, sendMessageWithFiles } from '@/services/conversationService';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,7 +58,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const data = await getMessages(conversationId);
+        const data = await getConversationMessages(conversationId, currentUser.id);
         // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
@@ -85,7 +84,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         filter: `conversation_id=eq.${conversationId}`
       }, async (payload) => {
         // Fetch new messages to keep the message format consistent
-        const data = await getMessages(conversationId);
+        const data = await getConversationMessages(conversationId, currentUser.id);
         // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
@@ -120,12 +119,22 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
     setSending(true);
     
     try {
-      await sendMessage(
-        conversationId, 
-        currentUser.id, 
-        newMessage.trim() || (selectedFiles.length > 0 ? `📎 ${selectedFiles.length} fichier(s)` : ''),
-        selectedFiles
-      );
+      if (selectedFiles.length > 0) {
+        // Use the sendMessageWithFiles function for multiple files
+        await sendMessageWithFiles(
+          conversationId, 
+          newMessage.trim() || `📎 ${selectedFiles.length} fichier(s)`, 
+          currentUser.id,
+          selectedFiles
+        );
+      } else {
+        // Use regular sendMessage for text only
+        await sendMessage(
+          conversationId, 
+          newMessage.trim(), 
+          currentUser.id
+        );
+      }
       setNewMessage('');
       setSelectedFiles([]);
     } catch (error) {

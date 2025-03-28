@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Paperclip, Mic, Send, Star, Heart, Image as ImageIcon, Plus, X, Star as StarIcon } from 'lucide-react';
+import { ArrowLeft, Paperclip, Mic, Send, Star, Heart, Image as ImageIcon, Plus, X, Star as StarIcon, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, sendMessage, markMessagesAsRead } from '@/services/conversationService';
 import RatingDialog from '@/components/conversation/RatingDialog';

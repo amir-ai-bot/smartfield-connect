@@ -6,7 +6,7 @@ import SupplierCard from '@/components/SupplierCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFavoriteFournisseurs } from '@/services/conversationService';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 

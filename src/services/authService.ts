@@ -359,11 +359,11 @@ export {
 export {
   createConversation,
   sendMessage,
-  getMessages,
+  getConversationMessages,
   getUserConversations,
   markMessagesAsRead,
-  getUnreadMessageCount,
+  toggleFavoriteFournisseur,
   rateFournisseur,
-  getFournisseurRatings,
-  getFournisseurAverageRating
+  isFournisseurFavorite,
+  getFavoriteFournisseurs
 } from './conversationService';

@@ -28,7 +28,7 @@ export const getUserConversations = async (userId: string, filterUnread = false)
       (data || []).map(async (conversation) => {
         // Get last message for each conversation
         const lastMessage = conversation.messages && conversation.messages.length > 0
-          ? conversation.messages.sort((a, b) => 
+          ? conversation.messages.sort((a: any, b: any) => 
               new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             )[0]
           : null;
@@ -36,7 +36,7 @@ export const getUserConversations = async (userId: string, filterUnread = false)
         // Count unread messages
         const unreadCount = conversation.messages
           ? conversation.messages.filter(
-              msg => !msg.read && msg.sender_id !== userId
+              (msg: any) => !msg.read && msg.sender_id !== userId
             ).length
           : 0;
 
@@ -164,6 +164,110 @@ export const sendMessage = async (
   }
 };
 
+// Send multiple files in a message
+export const sendMessageWithFiles = async (
+  conversationId: string,
+  content: string,
+  senderId: string,
+  mediaFiles: File[]
+) => {
+  try {
+    // Insert message first
+    const { data: messageData, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        content,
+        sender_id: senderId,
+        read: false
+      })
+      .select()
+      .single();
+
+    if (messageError) throw new Error(messageError.message);
+
+    // If there are media files, upload them and create media records
+    if (mediaFiles && mediaFiles.length > 0) {
+      for (const file of mediaFiles) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${conversationId}/${messageData.id}-${Date.now()}.${fileExt}`;
+        
+        // Determine media type
+        let mediaType = 'document';
+        if (file.type.startsWith('image/')) {
+          mediaType = 'image';
+        } else if (file.type.startsWith('audio/')) {
+          mediaType = 'audio';
+        }
+        
+        // Upload to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('conversation-media')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+        
+        if (uploadError) throw new Error(uploadError.message);
+        
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('conversation-media')
+          .getPublicUrl(fileName);
+          
+        // Insert media record
+        const { error: mediaError } = await supabase.rpc('insert_conversation_media', {
+          p_message_id: messageData.id,
+          p_media_type: mediaType,
+          p_media_url: publicUrl
+        });
+        
+        if (mediaError) throw new Error(mediaError.message);
+      }
+    }
+
+    // Update conversation timestamp
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
+
+    return messageData;
+  } catch (error) {
+    console.error('Error sending message with files:', error);
+    toast.error('Erreur lors de l\'envoi du message');
+    throw error;
+  }
+};
+
+// Send a voice message
+export const sendVoiceMessage = async (
+  conversationId: string,
+  senderId: string,
+  audioBlob: Blob
+) => {
+  try {
+    // Create a File from the Blob
+    const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { 
+      type: 'audio/webm',
+      lastModified: Date.now()
+    });
+    
+    // Use the sendMessage function to handle the rest
+    return await sendMessage(
+      conversationId,
+      'Message vocal',
+      senderId,
+      audioFile,
+      'audio'
+    );
+  } catch (error) {
+    console.error('Error sending voice message:', error);
+    toast.error('Erreur lors de l\'envoi du message vocal');
+    throw error;
+  }
+};
+
 // Get messages for a conversation
 export const getConversationMessages = async (conversationId: string, userId: string) => {
   try {
@@ -203,6 +307,34 @@ export const getConversationMessages = async (conversationId: string, userId: st
     console.error('Error fetching messages:', error);
     toast.error('Erreur lors du chargement des messages');
     throw error;
+  }
+};
+
+// Alias for getConversationMessages to maintain backward compatibility
+export const getMessages = getConversationMessages;
+
+// Function to check for unread messages count
+export const getUnreadMessageCount = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact' })
+      .eq('read', false)
+      .neq('sender_id', userId)
+      .or(`conversation_id.in.(${
+        supabase
+          .from('conversations')
+          .select('id')
+          .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
+          .toString()
+      })`);
+
+    if (error) throw new Error(error.message);
+    
+    return data?.length || 0;
+  } catch (error) {
+    console.error('Error checking unread messages:', error);
+    return 0;
   }
 };
 
@@ -305,6 +437,47 @@ export const rateFournisseur = async (
     console.error('Error rating fournisseur:', error);
     toast.error('Erreur lors de l\'évaluation du fournisseur');
     throw error;
+  }
+};
+
+// Get fournisseur ratings
+export const getFournisseurRatings = async (fournisseurId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('fournisseur_ratings')
+      .select(`
+        *,
+        user:user_id(name, avatar)
+      `)
+      .eq('fournisseur_id', fournisseurId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching fournisseur ratings:', error);
+    return [];
+  }
+};
+
+// Get fournisseur average rating
+export const getFournisseurAverageRating = async (fournisseurId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('fournisseur_ratings')
+      .select('rating')
+      .eq('fournisseur_id', fournisseurId);
+
+    if (error) throw new Error(error.message);
+
+    if (!data || data.length === 0) return 0;
+
+    const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
+    return sum / data.length;
+  } catch (error) {
+    console.error('Error calculating average rating:', error);
+    return 0;
   }
 };
 
