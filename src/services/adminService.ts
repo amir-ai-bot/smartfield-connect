@@ -69,7 +69,7 @@ export const deleteProject = async (projectId: string) => {
 export const verifyUserEmail = async (userId: string) => {
   try {
     const { error } = await supabase.rpc('admin_verify_user', { 
-      p_user_id: userId 
+      user_id: userId 
     });
     
     if (error) {
@@ -88,7 +88,7 @@ export const verifyUserEmail = async (userId: string) => {
 export const deleteUser = async (userId: string) => {
   try {
     const { error } = await supabase.rpc('admin_delete_user', { 
-      p_user_id: userId
+      user_id: userId
     });
     
     if (error) {
@@ -107,10 +107,10 @@ export const deleteUser = async (userId: string) => {
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
     const { error } = await supabase.rpc('admin_create_user', {
-      p_name: name,
-      p_email: email,
-      p_password: password,
-      p_role: role
+      name: name,
+      email: email,
+      password: password,
+      role: role
     });
     
     if (error) {
@@ -129,8 +129,8 @@ export const createUser = async (name: string, email: string, password: string, 
 export const setUserPassword = async (userId: string, newPassword: string) => {
   try {
     const { error } = await supabase.rpc('admin_update_user_password', {
-      p_user_id: userId,
-      p_new_password: newPassword
+      user_id: userId,
+      new_password: newPassword
     });
     
     if (error) {

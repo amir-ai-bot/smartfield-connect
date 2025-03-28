@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types/auth';
-import { getConversationMessages, sendMessage, markMessagesAsRead, sendMessageWithFiles } from '@/services/conversationService';
+import { getConversationMessages, sendMessage, markMessagesAsRead, sendMessageWithFiles, sendVoiceMessage } from '@/services/conversationService';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -160,7 +160,7 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId);
     
-    // TODO: Upload the audio blob to storage
+    // TODO: Handle uploading the audio blob to storage in a future implementation
     
     return message;
   } catch (error) {
