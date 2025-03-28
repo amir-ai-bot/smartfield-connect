@@ -68,7 +68,8 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('admin_verify_user', { 
+    // Use type assertion to tell TypeScript this is a valid function with parameters
+    const { error } = await (supabase.rpc as any)('admin_verify_user', { 
       user_id: userId 
     });
     
@@ -87,7 +88,8 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('admin_delete_user', { 
+    // Use type assertion to tell TypeScript this is a valid function with parameters
+    const { error } = await (supabase.rpc as any)('admin_delete_user', { 
       user_id: userId
     });
     
@@ -106,7 +108,8 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
-    const { error } = await supabase.rpc('admin_create_user', {
+    // Use type assertion to tell TypeScript this is a valid function with parameters
+    const { error } = await (supabase.rpc as any)('admin_create_user', {
       name: name,
       email: email,
       password: password,
@@ -128,7 +131,8 @@ export const createUser = async (name: string, email: string, password: string, 
 // Set admin user password (admin only)
 export const setUserPassword = async (userId: string, newPassword: string) => {
   try {
-    const { error } = await supabase.rpc('admin_update_user_password', {
+    // Use type assertion to tell TypeScript this is a valid function with parameters
+    const { error } = await (supabase.rpc as any)('admin_update_user_password', {
       user_id: userId,
       new_password: newPassword
     });
