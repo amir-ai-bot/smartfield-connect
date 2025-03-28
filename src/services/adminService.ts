@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ProjectWithUser } from '@/types/supabase';
 
 // Fetch all users (admin only)
 export const fetchAllUsers = async () => {
@@ -22,7 +24,7 @@ export const fetchAllUsers = async () => {
 };
 
 // Fetch all projects (admin only)
-export const fetchAllProjects = async () => {
+export const fetchAllProjects = async (): Promise<ProjectWithUser[]> => {
   try {
     const { data, error } = await supabase
       .from('projects_with_users')

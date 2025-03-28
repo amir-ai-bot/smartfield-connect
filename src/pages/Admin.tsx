@@ -50,13 +50,11 @@ const Admin = () => {
     document.title = 'Administration - AgriSmart';
   }, []);
 
-  // Fetch all users
   const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
     queryFn: fetchAllUsers
   });
 
-  // Fetch all projects
   const { data: projects = [], isLoading: isLoadingProjects, refetch: refetchProjects } = useQuery({
     queryKey: ['admin-projects'],
     queryFn: fetchAllProjects
@@ -287,7 +285,6 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Add User Dialog */}
             <Dialog open={newUserDialog} onOpenChange={setNewUserDialog}>
               <DialogContent>
                 <DialogHeader>
@@ -403,13 +400,13 @@ const Admin = () => {
                                 <div>
                                   <p className="font-medium">{project.title}</p>
                                   <p className="text-xs text-gray-500 md:hidden">
-                                    {project.crop} • {(project.profiles as any)?.name}
+                                    {project.crop} • {project.user_name}
                                   </p>
                                 </div>
                               </TableCell>
                               <TableCell className="hidden md:table-cell">{project.crop}</TableCell>
                               <TableCell className="hidden md:table-cell">
-                                {(project.profiles as any)?.name}
+                                {project.user_name}
                               </TableCell>
                               <TableCell>
                                 <Badge className={getStatusBadgeColor(project.status)}>
