@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -8,6 +7,7 @@ import { createProject } from '@/services/projectService';
 import { uploadProjectImage } from '@/services/storageService';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 import {
   Dialog,
@@ -33,7 +33,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Image, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import MobileFriendlyDatePicker from './MobileFriendlyDatePicker';
 
 const formSchema = z.object({
@@ -89,10 +88,8 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
       setIsSubmitting(true);
       
       let imageUrl = '';
-      if (selectedImage) {
-        imageUrl = await uploadProjectImage(selectedImage, user.id);
-      }
       
+      // First create the project without the image
       const newProject = await createProject(
         user.id,
         values.title,
@@ -104,6 +101,27 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         imageUrl,
         values.isPublic
       );
+      
+      // Then, if we have an image, upload it and update the project
+      if (selectedImage && newProject) {
+        try {
+          imageUrl = await uploadProjectImage(selectedImage, user.id);
+          
+          // Update the project with the image URL
+          const { error } = await supabase
+            .from('projects')
+            .update({ image: imageUrl })
+            .eq('id', newProject.id);
+          
+          if (error) {
+            console.error('Error updating project with image:', error);
+            toast.error("Image ajoutée mais erreur lors de la mise à jour du projet");
+          }
+        } catch (imageError) {
+          console.error('Error uploading image:', imageError);
+          toast.error("Projet créé mais erreur lors du téléchargement de l'image");
+        }
+      }
       
       toast.success("Projet créé avec succès");
       onOpenChange(false);

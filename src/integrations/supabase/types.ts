@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      conversation_media: {
+        Row: {
+          created_at: string | null
+          id: string
+          media_type: string
+          media_url: string
+          message_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          media_type: string
+          media_url: string
+          message_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string
+          message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_media_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string | null
@@ -246,7 +278,54 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      admin_create_user: {
+        Args: {
+          user_name: string
+          user_email: string
+          user_password: string
+          user_role?: string
+        }
+        Returns: undefined
+      }
+      admin_delete_user: {
+        Args: {
+          user_id: string
+        }
+        Returns: undefined
+      }
+      admin_update_user_password: {
+        Args: {
+          user_id: string
+          new_password: string
+        }
+        Returns: undefined
+      }
+      admin_verify_user: {
+        Args: {
+          user_id: string
+        }
+        Returns: undefined
+      }
+      get_message_media: {
+        Args: {
+          p_message_id: string
+        }
+        Returns: {
+          id: string
+          message_id: string
+          media_type: string
+          media_url: string
+          created_at: string
+        }[]
+      }
+      insert_conversation_media: {
+        Args: {
+          p_message_id: string
+          p_media_type: string
+          p_media_url: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,18 +1,18 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import UserProfileButton from '@/components/auth/UserProfileButton';
 import AuthDialog from '@/components/auth/AuthDialog';
-import LogoImg from '../assets/logo.png'; // Changed to a relative path in the assets folder
+import LogoImg from '../assets/logo.png';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const location = useLocation();
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, logout } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -27,6 +27,11 @@ const Navbar = () => {
     closeMenu();
   };
 
+  const handleLogout = async () => {
+    await logout();
+    closeMenu();
+  };
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -35,8 +40,8 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo and brand */}
           <Link to="/" className="flex items-center space-x-2" onClick={closeMenu}>
-            <img src={LogoImg} alt="Agri Mobile" className="h-8 w-auto" />
-            <span className="font-display text-xl font-bold text-agri-green-600 hidden sm:inline-block">Agri Mobile</span>
+            <img src={LogoImg} alt="Agri Mobile" className="h-10 w-10 rounded-full object-cover" />
+            <span className="font-display text-xl font-bold text-agri-green-600">Agri Mobile</span>
           </Link>
 
           {/* Desktop navigation */}
@@ -45,9 +50,20 @@ const Navbar = () => {
           </div>
 
           {/* Auth button or user profile */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-2">
             {isAuthenticated ? (
-              <UserProfileButton />
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Déconnexion
+                </Button>
+                <UserProfileButton />
+              </>
             ) : (
               <Button 
                 onClick={handleLoginClick} 
@@ -76,17 +92,26 @@ const Navbar = () => {
           <div className="container mx-auto px-4 py-3 space-y-2">
             <NavLinks isActive={isActive} closeMenu={closeMenu} isAdmin={isAdmin} isMobile />
             
-            {/* Auth button for mobile */}
-            {!isAuthenticated && (
-              <div className="pt-4 border-t border-gray-200">
+            {/* Auth buttons for mobile */}
+            <div className="pt-4 border-t border-gray-200">
+              {isAuthenticated ? (
+                <Button 
+                  onClick={handleLogout} 
+                  className="w-full flex items-center justify-center"
+                  variant="outline"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Déconnexion
+                </Button>
+              ) : (
                 <Button 
                   onClick={handleLoginClick} 
                   className="w-full bg-agri-green-500 hover:bg-agri-green-600 text-white"
                 >
                   Connexion
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
     // Create a unique file name
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+    const filePath = `${fileName}`;
 
     // Upload the file
     const { error: uploadError } = await supabase.storage
@@ -40,7 +40,10 @@ export const deleteAvatar = async (avatarUrl: string): Promise<void> => {
   
   try {
     // Extract path from the URL
-    const path = avatarUrl.split('avatars/')[1];
+    const urlParts = avatarUrl.split('avatars/');
+    if (urlParts.length < 2) return;
+    
+    const path = urlParts[1];
     if (!path) return;
     
     await supabase.storage
@@ -59,7 +62,7 @@ export const uploadProjectImage = async (file: File, userId: string): Promise<st
     // Create a unique file name
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
-    const filePath = `projects/${fileName}`;
+    const filePath = `${fileName}`;
 
     // Upload the file
     const { error: uploadError } = await supabase.storage
