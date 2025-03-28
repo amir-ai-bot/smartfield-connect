@@ -68,7 +68,9 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('admin_verify_user', { user_id: userId });
+    const { error } = await supabase.rpc('admin_verify_user', { 
+      user_id: userId 
+    });
     
     if (error) {
       throw new Error(error.message);
@@ -85,7 +87,9 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('admin_delete_user', { user_id: userId });
+    const { error } = await supabase.rpc('admin_delete_user', { 
+      user_id: userId 
+    });
     
     if (error) {
       throw new Error(error.message);
@@ -102,15 +106,12 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
-    // Fix parameter ordering to match the function in the database
-    const params = {
+    const { error } = await supabase.rpc('admin_create_user', {
       user_name: name,
       user_email: email,
       user_password: password,
       user_role: role
-    };
-    
-    const { error } = await supabase.rpc('admin_create_user', params);
+    });
     
     if (error) {
       throw new Error(error.message);
@@ -127,12 +128,10 @@ export const createUser = async (name: string, email: string, password: string, 
 // Set admin user password (admin only)
 export const setUserPassword = async (userId: string, newPassword: string) => {
   try {
-    const params = {
+    const { error } = await supabase.rpc('admin_update_user_password', {
       user_id: userId,
       new_password: newPassword
-    };
-    
-    const { error } = await supabase.rpc('admin_update_user_password', params);
+    });
     
     if (error) {
       throw new Error(error.message);

@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import BottomNavbar from "./components/BottomNavbar";
 import Conversations from "./pages/Conversations";
 import ConversationDetail from "./pages/ConversationDetail";
+import Favorites from "./pages/Favorites";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/conversations" element={<Conversations />} />
               <Route path="/conversations/:conversationId" element={<ConversationDetail />} />
+              <Route path="/favorites" element={<Favorites />} />
             </Route>
             
             {/* Public Routes */}

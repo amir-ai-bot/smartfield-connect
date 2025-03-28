@@ -31,11 +31,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Image, Loader2 } from 'lucide-react';
+import { Image, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import MobileFriendlyDatePicker from './MobileFriendlyDatePicker';
 
 const formSchema = z.object({
   title: z.string().min(2, 'Le titre doit contenir au moins 2 caractères'),
@@ -183,39 +182,14 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 control={form.control}
                 name="startDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date de début</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Choisir une date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <FormItem>
+                    <MobileFriendlyDatePicker
+                      date={field.value}
+                      onDateChange={field.onChange}
+                      label="Date de début"
+                      placeholder="Choisir une date de début"
+                      error={form.formState.errors.startDate?.message}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -225,39 +199,14 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 control={form.control}
                 name="endDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date de fin</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Choisir une date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <FormItem>
+                    <MobileFriendlyDatePicker
+                      date={field.value}
+                      onDateChange={field.onChange}
+                      label="Date de fin"
+                      placeholder="Choisir une date de fin"
+                      error={form.formState.errors.endDate?.message}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
