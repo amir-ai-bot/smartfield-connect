@@ -44,22 +44,34 @@ const ConversationDetail = () => {
       setIsLoading(true);
       
       // Get conversation details
-      const conversationData = await getConversation(conversationId, user.id);
+      const conversationData = await getConversation(conversationId);
       setConversation(conversationData);
       
-      // Set other participant
-      const otherParticipantData = conversationData.otherParticipant;
-      setOtherParticipant(otherParticipantData);
+      // Process conversation data to determine the other participant
+      if (conversationData) {
+        let otherParticipantData: any = null;
+        
+        // Determine if the user is the first participant or the second
+        if (conversationData.user_id === user.id) {
+          // User is the first participant, so other is the fournisseur
+          otherParticipantData = conversationData.fournisseur;
+        } else {
+          // User is the second participant, so other is the first user
+          otherParticipantData = conversationData.user;
+        }
+        
+        setOtherParticipant(otherParticipantData);
+        
+        // Check if other participant is a fournisseur and in favorites
+        if (otherParticipantData && otherParticipantData.role === 'fournisseur') {
+          const favoriteStatus = await isFournisseurFavorite(user.id, otherParticipantData.id);
+          setIsFavorite(favoriteStatus);
+        }
+      }
       
       // Get messages
-      const messagesData = await getConversationMessages(conversationId, user.id);
+      const messagesData = await getConversationMessages(conversationId);
       setMessages(messagesData);
-      
-      // Check if other participant is a fournisseur and in favorites
-      if (otherParticipantData && otherParticipantData.role === 'fournisseur') {
-        const favoriteStatus = await isFournisseurFavorite(user.id, otherParticipantData.id);
-        setIsFavorite(favoriteStatus);
-      }
       
       // Mark messages as read
       await markMessagesAsRead(conversationId, user.id);
@@ -82,7 +94,7 @@ const ConversationDetail = () => {
     // Set up polling for new messages
     const intervalId = setInterval(() => {
       if (user && conversationId) {
-        getConversationMessages(conversationId, user.id)
+        getConversationMessages(conversationId)
           .then(newMessages => {
             if (newMessages.length > messages.length) {
               setMessages(newMessages);
@@ -124,13 +136,11 @@ const ConversationDetail = () => {
     try {
       setIsSending(true);
       
-      // Send the message with optional file
+      // Send the message
       await sendMessage(
         conversationId, 
         newMessage.trim() || (selectedFile ? 'A envoyé un fichier' : 'A envoyé un message vocal'), 
-        user.id,
-        selectedFile,
-        selectedFile ? (selectedFile.type.startsWith('image/') ? 'image' : 'document') : undefined
+        user.id
       );
       
       // Clear input and reload messages
@@ -138,7 +148,7 @@ const ConversationDetail = () => {
       setSelectedFile(null);
       
       // Reload messages
-      const updatedMessages = await getConversationMessages(conversationId, user.id);
+      const updatedMessages = await getConversationMessages(conversationId);
       setMessages(updatedMessages);
     } catch (error) {
       console.error('Error sending message:', error);

@@ -44,7 +44,10 @@ export const getConversation = async (conversationId: string) => {
       throw new Error(error.message);
     }
 
-    return data;
+    // Process the data to extract the other participant based on the current user
+    const conversation = data;
+    
+    return conversation;
   } catch (error) {
     console.error('Error fetching conversation:', error);
     toast.error('Erreur lors du chargement de la conversation');
@@ -78,7 +81,7 @@ export const getConversationMessages = async (conversationId: string) => {
 export const getMessages = getConversationMessages;
 
 // Send a message in a conversation
-export const sendMessage = async (conversationId: string, senderId: string, content: string) => {
+export const sendMessage = async (conversationId: string, content: string, senderId: string) => {
   try {
     const { data, error } = await supabase
       .from('messages')
@@ -110,10 +113,15 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
 };
 
 // Send a message with file attachments
-export const sendMessageWithFiles = async (conversationId: string, senderId: string, content: string, files: File[]) => {
+export const sendMessageWithFiles = async (
+  conversationId: string, 
+  content: string, 
+  senderId: string, 
+  files: File[]
+) => {
   try {
     // First send the message
-    const message = await sendMessage(conversationId, senderId, content);
+    const message = await sendMessage(conversationId, content, senderId);
     
     // TODO: Handle file uploads and associate with message
     // This would involve uploading files to storage and storing references

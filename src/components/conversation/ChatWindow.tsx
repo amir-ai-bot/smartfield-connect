@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types/auth';
-import { getConversationMessages, sendMessage, markMessagesAsRead, sendVoiceMessage, sendMessageWithFiles } from '@/services/conversationService';
+import { getConversationMessages, sendMessage, markMessagesAsRead, sendMessageWithFiles } from '@/services/conversationService';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,7 +58,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const data = await getConversationMessages(conversationId, currentUser.id);
+        const data = await getConversationMessages(conversationId);
         // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
@@ -84,7 +84,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         filter: `conversation_id=eq.${conversationId}`
       }, async (payload) => {
         // Fetch new messages to keep the message format consistent
-        const data = await getConversationMessages(conversationId, currentUser.id);
+        const data = await getConversationMessages(conversationId);
         // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
