@@ -68,9 +68,9 @@ export const deleteProject = async (projectId: string) => {
 // Verify a user's email (admin only)
 export const verifyUserEmail = async (userId: string) => {
   try {
-    // Call the RPC function using parameters object
+    // Call the RPC function with the proper parameter object
     const { error } = await supabase.rpc('admin_verify_user', { 
-      p_user_id: userId  // Changed from user_id to p_user_id
+      user_id: userId  // Changed parameter name to match the function in SQL file
     });
     
     if (error) {
@@ -88,9 +88,9 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // Call the RPC function using parameters object
+    // Call the RPC function with the proper parameter object
     const { error } = await supabase.rpc('admin_delete_user', { 
-      p_user_id: userId  // Changed from user_id to p_user_id
+      user_id: userId  // Changed parameter name to match the function in SQL file
     });
     
     if (error) {
@@ -108,12 +108,12 @@ export const deleteUser = async (userId: string) => {
 // Create a new user (admin only)
 export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
   try {
-    // Call the RPC function using parameters object
+    // Call the RPC function with the proper parameter object
     const { error } = await supabase.rpc('admin_create_user', {
-      p_user_name: name,      // Changed parameter names to match RPC function
-      p_user_email: email,
-      p_user_password: password,
-      p_user_role: role
+      user_name: name,      // Changed parameter names to match the function in SQL file
+      user_email: email,
+      user_password: password,
+      user_role: role
     });
     
     if (error) {
@@ -131,10 +131,10 @@ export const createUser = async (name: string, email: string, password: string, 
 // Set admin user password (admin only)
 export const setUserPassword = async (userId: string, newPassword: string) => {
   try {
-    // Call the RPC function using parameters object
+    // Call the RPC function with the proper parameter object
     const { error } = await supabase.rpc('admin_update_user_password', {
-      p_user_id: userId,      // Changed from user_id to p_user_id
-      p_new_password: newPassword  // Changed from new_password to p_new_password
+      user_id: userId,      // Changed parameter name to match the function in SQL file
+      new_password: newPassword
     });
     
     if (error) {
