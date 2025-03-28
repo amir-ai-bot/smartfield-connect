@@ -105,6 +105,7 @@ export type Database = {
           id: string
           name: string | null
           phone_number: string | null
+          preferences: Json | null
           role: string | null
           tags: string[] | null
           updated_at: string
@@ -118,6 +119,7 @@ export type Database = {
           id: string
           name?: string | null
           phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -131,6 +133,7 @@ export type Database = {
           id?: string
           name?: string | null
           phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -220,7 +223,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      projects_with_users: {
+        Row: {
+          created_at: string | null
+          crop: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          image: string | null
+          is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

@@ -47,3 +47,50 @@ BEGIN
 END;
 $$;
 `;
+
+export const createMessageWithMediaFunction = `
+CREATE OR REPLACE FUNCTION public.create_message_with_media(
+  p_conversation_id UUID,
+  p_content TEXT,
+  p_sender_id UUID,
+  p_media_type TEXT DEFAULT NULL,
+  p_media_url TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_message_id UUID;
+BEGIN
+  -- Insert the message
+  INSERT INTO public.messages (
+    conversation_id,
+    content,
+    sender_id,
+    read
+  ) VALUES (
+    p_conversation_id,
+    p_content,
+    p_sender_id,
+    false
+  ) RETURNING id INTO v_message_id;
+  
+  -- If media information is provided, insert it
+  IF p_media_type IS NOT NULL AND p_media_url IS NOT NULL THEN
+    PERFORM public.insert_conversation_media(
+      v_message_id,
+      p_media_type,
+      p_media_url
+    );
+  END IF;
+  
+  -- Update the conversation's updated_at timestamp
+  UPDATE public.conversations
+  SET updated_at = NOW()
+  WHERE id = p_conversation_id;
+  
+  RETURN v_message_id;
+END;
+$$;
+`;

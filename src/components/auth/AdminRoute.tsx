@@ -4,7 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const AdminRoute = () => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+
+  // Don't redirect while checking authentication
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     toast.error('Veuillez vous connecter pour accéder à cette page');

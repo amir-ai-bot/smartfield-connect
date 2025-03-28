@@ -1,4 +1,3 @@
-
 import { ProjectData } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,43 +13,49 @@ export const createProject = async (
   image?: string,
   isPublic: boolean = false
 ): Promise<ProjectData> => {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert({
-      user_id: userId,
-      title,
-      crop,
-      location,
-      start_date: startDate,
-      end_date: endDate,
-      description,
-      image,
-      is_public: isPublic,
-      status: 'planning' as 'planning' | 'active' | 'completed',
-      progress: 0
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        user_id: userId,
+        title,
+        crop,
+        location,
+        start_date: startDate,
+        end_date: endDate,
+        description,
+        image,
+        is_public: isPublic,
+        status: 'planning' as 'planning' | 'active' | 'completed',
+        progress: 0
+      })
+      .select()
+      .single();
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      console.error('Project creation error:', error);
+      throw new Error(error.message);
+    }
+
+    // Transform response to match ProjectData type
+    return {
+      id: data.id,
+      title: data.title,
+      crop: data.crop,
+      location: data.location,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      progress: data.progress,
+      status: data.status as 'planning' | 'active' | 'completed',
+      image: data.image,
+      description: data.description,
+      user_id: data.user_id,
+      isPublic: data.is_public
+    };
+  } catch (error) {
+    console.error('Error in createProject:', error);
+    throw error;
   }
-
-  // Transform response to match ProjectData type
-  return {
-    id: data.id,
-    title: data.title,
-    crop: data.crop,
-    location: data.location,
-    startDate: data.start_date,
-    endDate: data.end_date,
-    progress: data.progress,
-    status: data.status as 'planning' | 'active' | 'completed',
-    image: data.image,
-    description: data.description,
-    user_id: data.user_id,
-    isPublic: data.is_public
-  };
 };
 
 // Function to get a user's projects

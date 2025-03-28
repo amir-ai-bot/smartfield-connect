@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -26,11 +25,8 @@ export const fetchAllUsers = async () => {
 export const fetchAllProjects = async () => {
   try {
     const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        profiles:user_id (name, email)
-      `)
+      .from('projects_with_users')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
