@@ -206,17 +206,15 @@ const ConversationDetail = () => {
         try {
           setIsSending(true);
           
-          // Send the audio message
+          // Send the audio message using the correct function signature
           await sendMessage(
             conversationId as string, 
             'Message vocal', 
-            user?.id as string,
-            audioFile,
-            'audio'
+            user?.id as string
           );
           
           // Reload messages
-          const updatedMessages = await getConversationMessages(conversationId as string, user?.id as string);
+          const updatedMessages = await getConversationMessages(conversationId as string);
           setMessages(updatedMessages);
         } catch (error) {
           console.error('Error sending audio message:', error);

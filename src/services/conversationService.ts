@@ -44,10 +44,7 @@ export const getConversation = async (conversationId: string) => {
       throw new Error(error.message);
     }
 
-    // Process the data to extract the other participant based on the current user
-    const conversation = data;
-    
-    return conversation;
+    return data;
   } catch (error) {
     console.error('Error fetching conversation:', error);
     toast.error('Erreur lors du chargement de la conversation');
@@ -60,7 +57,11 @@ export const getConversationMessages = async (conversationId: string) => {
   try {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select(`
+        *,
+        profiles:sender_id (name, avatar),
+        media:message_id (id, media_type, media_url)
+      `)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
@@ -137,10 +138,31 @@ export const sendMessageWithFiles = async (
 // Send a voice message
 export const sendVoiceMessage = async (conversationId: string, senderId: string, audioBlob: Blob) => {
   try {
-    // TODO: Implement voice message sending
-    // This would involve uploading the audio blob to storage
+    // Create a message for the voice
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: 'Message vocal',
+        read: false
+      })
+      .select('*')
+      .single();
     
-    return null;
+    if (messageError) {
+      throw new Error(messageError.message);
+    }
+    
+    // Update conversation timestamp
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
+    
+    // TODO: Upload the audio blob to storage
+    
+    return message;
   } catch (error) {
     console.error('Error sending voice message:', error);
     toast.error('Erreur lors de l\'envoi du message vocal');

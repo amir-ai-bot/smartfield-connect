@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// Define Message type
 interface Message {
   id: string;
   content: string;
@@ -54,15 +53,12 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
 
-  // Fetch messages when conversation changes
   useEffect(() => {
     const fetchMessages = async () => {
       try {
         const data = await getConversationMessages(conversationId);
-        // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
-        // Mark messages as read
         await markMessagesAsRead(conversationId, currentUser.id);
         
         setInitialLoadComplete(true);
@@ -74,7 +70,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
 
     fetchMessages();
 
-    // Set up real-time subscription to new messages
     const subscription = supabase
       .channel(`messages:${conversationId}`)
       .on('postgres_changes', { 
@@ -83,30 +78,24 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
       }, async (payload) => {
-        // Fetch new messages to keep the message format consistent
         const data = await getConversationMessages(conversationId);
-        // Cast the data to Message[] to avoid type errors
         setMessages(data as unknown as Message[]);
         
-        // Mark messages as read if we're currently viewing the conversation
         await markMessagesAsRead(conversationId, currentUser.id);
       })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
-      // Clean up recording timer if active
       if (recordingTimerRef.current) {
         window.clearInterval(recordingTimerRef.current);
       }
-      // Stop media recorder if active
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
     };
   }, [conversationId, currentUser.id]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (initialLoadComplete && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -120,7 +109,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
     
     try {
       if (selectedFiles.length > 0) {
-        // Use the sendMessageWithFiles function for multiple files
         await sendMessageWithFiles(
           conversationId, 
           newMessage.trim() || `📎 ${selectedFiles.length} fichier(s)`, 
@@ -128,7 +116,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
           selectedFiles
         );
       } else {
-        // Use regular sendMessage for text only
         await sendMessage(
           conversationId, 
           newMessage.trim(), 
@@ -189,20 +176,16 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
           }
         }
         
-        // Reset recording state
         setAudioChunks([]);
         setRecordingTime(0);
         setIsRecording(false);
         
-        // Stop all tracks from the stream
         stream.getTracks().forEach(track => track.stop());
       };
       
-      // Start recording
       recorder.start();
       setIsRecording(true);
       
-      // Start the timer
       recordingTimerRef.current = window.setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -258,7 +241,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         </video>
       );
     } else {
-      // For other file types
       return (
         <a 
           href={media_url} 
@@ -296,7 +278,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
       >
         <div className="text-sm whitespace-pre-wrap break-words">{message.content}</div>
         
-        {/* Render media attachments if any */}
         {message.media && message.media.length > 0 && (
           <div className="mt-2 space-y-2">
             {message.media.map((item) => (
@@ -364,7 +345,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         )}
       </ScrollArea>
       
-      {/* Selected files preview */}
       {selectedFiles.length > 0 && (
         <div className="border-t p-2 flex flex-wrap gap-2">
           {selectedFiles.map((file, index) => (
@@ -381,7 +361,6 @@ const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps)
         </div>
       )}
       
-      {/* Voice recording indicator */}
       {isRecording && (
         <div className="border-t p-3 flex items-center justify-between bg-red-50">
           <div className="flex items-center text-red-600">
