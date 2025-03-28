@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -32,6 +31,7 @@ import ProfileInfo from '@/components/profile/ProfileInfo';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { UserPreferences } from '@/types/auth';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
@@ -42,13 +42,13 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(
-    user?.preferences?.language || 'fr'
+  const [selectedLanguage, setSelectedLanguage] = useState<'fr' | 'en' | 'ar'>(
+    (user?.preferences?.language as 'fr' | 'en' | 'ar') || 'fr'
   );
   
   useEffect(() => {
     if (user?.preferences?.language) {
-      setSelectedLanguage(user.preferences.language);
+      setSelectedLanguage(user.preferences.language as 'fr' | 'en' | 'ar');
     }
   }, [user]);
 
@@ -85,11 +85,11 @@ const Profile = () => {
     }
   };
 
-  const handleLanguageChange = async (language: string) => {
+  const handleLanguageChange = async (language: 'fr' | 'en' | 'ar') => {
     setSelectedLanguage(language);
     
     try {
-      const updatedPreferences = {
+      const updatedPreferences: UserPreferences = {
         ...user?.preferences,
         language: language
       };
