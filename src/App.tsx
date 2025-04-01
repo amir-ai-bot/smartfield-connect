@@ -35,9 +35,8 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <LanguageProvider>
-          <Toaster position="top-center" />
+          <Toaster />
           <Sonner 
-            position="top-center" 
             toastOptions={{ 
               duration: 3000,
               style: { 

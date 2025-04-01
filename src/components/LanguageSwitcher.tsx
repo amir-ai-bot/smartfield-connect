@@ -12,7 +12,7 @@ import {
 import { toast } from 'sonner';
 
 const LanguageSwitcher = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleLanguageChange = (lang: 'en' | 'fr' | 'ar') => {
     setLanguage(lang);

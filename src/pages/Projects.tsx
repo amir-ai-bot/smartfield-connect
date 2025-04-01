@@ -6,7 +6,7 @@ import ProjectCard from '@/components/ProjectCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, SlidersHorizontal, ImageOff } from 'lucide-react';
+import { Plus, Search, Filter, SlidersHorizontal } from 'lucide-react';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
@@ -30,42 +30,61 @@ const Projects = () => {
     const fetchProjects = async () => {
       setIsLoading(true);
       try {
-        let query;
+        let userProjects: ProjectData[] = [];
+        let publicProjects: ProjectData[] = [];
         
         if (isAuthenticated && user) {
-          // Fetch both user's projects and public projects
-          const { data: userProjects, error: userError } = await supabase
+          // Fetch user's projects
+          const { data: userProjectsData, error: userError } = await supabase
             .from('projects')
             .select('*')
             .eq('user_id', user.id);
-          
-          const { data: publicProjects, error: publicError } = await supabase
-            .from('public_projects_view')
-            .select('*');
             
           if (userError) throw userError;
-          if (publicError) throw publicError;
-          
-          // Combine and deduplicate projects (user might see their own public projects twice)
-          const combinedProjects = [...(userProjects || [])];
-          
-          // Add public projects that aren't already in user projects
-          publicProjects?.forEach(publicProject => {
-            if (!combinedProjects.some(p => p.id === publicProject.id)) {
-              combinedProjects.push(publicProject);
-            }
-          });
-          
-          setProjects(combinedProjects.map(transformProjectData));
-        } else {
-          // Fetch only public projects for non-authenticated users
-          const { data: publicProjects, error } = await supabase
-            .from('public_projects_view')
-            .select('*');
-            
-          if (error) throw error;
-          setProjects((publicProjects || []).map(transformProjectData));
+          userProjects = (userProjectsData || []).map(transformProjectData);
         }
+        
+        // Fetch public projects for everyone
+        const { data: publicProjectsData, error: publicError } = await supabase
+          .from('projects')
+          .select(`
+            id, title, crop, location, start_date, end_date, 
+            progress, status, image, description, user_id, is_public, created_at,
+            profiles!projects_user_id_fkey (name, avatar)
+          `)
+          .eq('is_public', true);
+          
+        if (publicError) throw publicError;
+        
+        // Transform public projects data
+        publicProjects = (publicProjectsData || []).map(project => ({
+          id: project.id,
+          title: project.title,
+          crop: project.crop,
+          location: project.location,
+          startDate: project.start_date,
+          endDate: project.end_date,
+          progress: project.progress || 0,
+          status: project.status as 'planning' | 'active' | 'completed',
+          image: project.image,
+          description: project.description,
+          user_id: project.user_id,
+          isPublic: project.is_public,
+          user_name: project.profiles?.name,
+          user_avatar: project.profiles?.avatar
+        }));
+        
+        // Combine and deduplicate projects
+        const combinedProjects = [...userProjects];
+        
+        // Add public projects that aren't already in user projects
+        publicProjects.forEach(publicProject => {
+          if (!combinedProjects.some(p => p.id === publicProject.id)) {
+            combinedProjects.push(publicProject);
+          }
+        });
+        
+        setProjects(combinedProjects);
       } catch (error) {
         console.error('Error fetching projects:', error);
         toast.error(t('errorFetchingProjects') || 'Error fetching projects');
@@ -75,12 +94,9 @@ const Projects = () => {
     };
     
     fetchProjects();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, t]);
   
   const transformProjectData = (project: any): ProjectData => {
-    // Verify image URL and set fallback if invalid
-    let imageUrl = project.image;
-    
     return {
       id: project.id,
       title: project.title,
@@ -90,12 +106,10 @@ const Projects = () => {
       endDate: project.end_date,
       progress: project.progress || 0,
       status: project.status as 'planning' | 'active' | 'completed',
-      image: imageUrl,
+      image: project.image,
       description: project.description,
       user_id: project.user_id,
-      isPublic: project.is_public,
-      user_name: project.user_name,
-      user_avatar: project.user_avatar
+      isPublic: project.is_public
     };
   };
   

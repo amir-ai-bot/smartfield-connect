@@ -119,6 +119,11 @@ type LanguageProviderProps = {
   children: ReactNode;
 };
 
+interface UserPreferences {
+  language?: LanguageType;
+  [key: string]: any;
+}
+
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   const [language, setLanguage] = useState<LanguageType>('fr');
   
@@ -139,9 +144,12 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
           .eq('id', user.id)
           .single();
         
-        if (data?.preferences?.language && ['en', 'fr', 'ar'].includes(data.preferences.language)) {
-          setLanguage(data.preferences.language);
-          localStorage.setItem('preferredLanguage', data.preferences.language);
+        if (data?.preferences) {
+          const prefs = data.preferences as UserPreferences;
+          if (prefs.language && ['en', 'fr', 'ar'].includes(prefs.language)) {
+            setLanguage(prefs.language);
+            localStorage.setItem('preferredLanguage', prefs.language);
+          }
         }
       }
     };
@@ -163,10 +171,14 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
         .eq('id', user.id)
         .single();
       
-      const updatedPreferences = { 
-        ...data?.preferences || {},
-        language: lang 
-      };
+      let updatedPreferences: UserPreferences = { language: lang };
+      if (data?.preferences) {
+        const existingPrefs = data.preferences as UserPreferences;
+        updatedPreferences = { 
+          ...existingPrefs,
+          language: lang 
+        };
+      }
       
       await supabase
         .from('profiles')

@@ -24,11 +24,9 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   onBackToLogin
 }) => {
   const { confirmPasswordReset } = useAuth();
-  const { getTranslation } = useLanguage();
+  const { t } = useLanguage();
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
   const [code, setCode] = useState('');
-
-  const t = (key: string) => getTranslation(key);
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {

@@ -95,7 +95,9 @@ export interface ProjectData {
   image?: string;
   description?: string;
   user_id: string;
-  isPublic: boolean;
+  isPublic?: boolean;
+  user_name?: string;
+  user_avatar?: string;
 }
 
 export const CROP_TYPES = [
