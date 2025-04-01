@@ -1,268 +1,258 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { ProjectData } from '@/types/dashboard';
 import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
 import ProjectCard from '@/components/ProjectCard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter, SlidersHorizontal } from 'lucide-react';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
-import AuthDialog from '@/components/auth/AuthDialog';
-import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
-import { ProjectData } from '@/types/auth';
+import { Plus, X, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Define the public project view type to match what we created in the database
+interface PublicProjectView extends ProjectData {
+  user_name: string;
+  user_avatar: string | null;
+}
 
 const Projects = () => {
-  const { isAuthenticated, user } = useAuth();
-  const { t, language, dir } = useLanguage();
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  
+  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [publicProjects, setPublicProjects] = useState<PublicProjectView[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [cropFilter, setCropFilter] = useState('all');
-  const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [availableCrops, setAvailableCrops] = useState<string[]>([]);
+
   useEffect(() => {
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      try {
-        let userProjects: ProjectData[] = [];
-        let publicProjects: ProjectData[] = [];
-        
-        if (isAuthenticated && user) {
-          // Fetch user's projects
-          const { data: userProjectsData, error: userError } = await supabase
-            .from('projects')
-            .select('*')
-            .eq('user_id', user.id);
-            
-          if (userError) throw userError;
-          userProjects = (userProjectsData || []).map(transformProjectData);
-        }
-        
-        // Fetch public projects for everyone
-        const { data: publicProjectsData, error: publicError } = await supabase
-          .from('projects')
-          .select(`
-            id, title, crop, location, start_date, end_date, 
-            progress, status, image, description, user_id, is_public, created_at,
-            profiles!projects_user_id_fkey (name, avatar)
-          `)
-          .eq('is_public', true);
-          
-        if (publicError) throw publicError;
-        
-        // Transform public projects data
-        publicProjects = (publicProjectsData || []).map(project => ({
-          id: project.id,
-          title: project.title,
-          crop: project.crop,
-          location: project.location,
-          startDate: project.start_date,
-          endDate: project.end_date,
-          progress: project.progress || 0,
-          status: project.status as 'planning' | 'active' | 'completed',
-          image: project.image,
-          description: project.description,
-          user_id: project.user_id,
-          isPublic: project.is_public,
-          user_name: project.profiles?.name,
-          user_avatar: project.profiles?.avatar
-        }));
-        
-        // Combine and deduplicate projects
-        const combinedProjects = [...userProjects];
-        
-        // Add public projects that aren't already in user projects
-        publicProjects.forEach(publicProject => {
-          if (!combinedProjects.some(p => p.id === publicProject.id)) {
-            combinedProjects.push(publicProject);
-          }
-        });
-        
-        setProjects(combinedProjects);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-        toast.error(t('errorFetchingProjects') || 'Error fetching projects');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     fetchProjects();
-  }, [isAuthenticated, user, t]);
-  
-  const transformProjectData = (project: any): ProjectData => {
-    return {
-      id: project.id,
-      title: project.title,
-      crop: project.crop,
-      location: project.location,
-      startDate: project.start_date,
-      endDate: project.end_date,
-      progress: project.progress || 0,
-      status: project.status as 'planning' | 'active' | 'completed',
-      image: project.image,
-      description: project.description,
-      user_id: project.user_id,
-      isPublic: project.is_public
-    };
-  };
-  
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = 
-      (project.title?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
-      (project.location?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
-      (project.crop?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
-                         
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesCrop = cropFilter === 'all' || project.crop === cropFilter;
+  }, [user]);
+
+  const fetchProjects = async () => {
+    setIsLoading(true);
     
-    return matchesSearch && matchesStatus && matchesCrop;
-  });
-  
-  const uniqueCrops = Array.from(new Set(projects.map(project => project.crop))).filter(Boolean);
-  
-  const handleAddProject = () => {
-    if (isAuthenticated) {
-      setCreateDialogOpen(true);
-    } else {
-      setAuthDialogOpen(true);
+    try {
+      // Fetch user's projects
+      if (user) {
+        const { data: userProjects, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        setProjects(userProjects || []);
+      }
+      
+      // Fetch public projects using the view we created
+      const { data: publicProjectsData, error: publicError } = await supabase
+        .from('public_projects_view')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (publicError) throw publicError;
+      
+      // Type the data correctly to match our interface
+      const typedPublicProjects = publicProjectsData as unknown as PublicProjectView[];
+      setPublicProjects(typedPublicProjects || []);
+      
+      // Extract unique crops for filter
+      const allProjects = [...(userProjects || []), ...typedPublicProjects];
+      const crops = [...new Set(allProjects.map(p => p.crop))].filter(Boolean);
+      setAvailableCrops(crops);
+      
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleProjectCreated = (newProject: ProjectData) => {
-    setProjects(prev => [newProject, ...prev]);
-    toast.success(t('projectCreated') || 'Project created successfully');
+  const getFilteredProjects = () => {
+    const allProjects = [...projects, ...publicProjects.filter(p => !projects.some(up => up.id === p.id))];
+    
+    return allProjects.filter(project => {
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesCrop = cropFilter === 'all' || project.crop === cropFilter;
+      return matchesSearch && matchesStatus && matchesCrop;
+    });
   };
-  
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setCropFilter('all');
+  };
+
+  const handleCreateProject = async (projectData: Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          ...projectData,
+          user_id: user?.id
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      setProjects(prev => [data, ...prev]);
+      setIsCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating project:', error);
+    }
+  };
+
+  const filteredProjects = getFilteredProjects();
+
   return (
-    <div className="min-h-screen bg-gray-50" dir={dir}>
+    <div className="min-h-screen bg-gray-50 pb-20">
       <Navbar />
       
       <main className="container mx-auto px-4 pt-24 pb-16">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">{t('projects')}</h1>
-            <p className="text-gray-600">{t('projectsDescription') || 'Manage and track all your projects in one place'}</p>
-          </div>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">{t('projects')}</h1>
           
-          <Button 
-            className="mt-4 md:mt-0 bg-agri-green-500 hover:bg-agri-green-600 text-white flex items-center"
-            onClick={handleAddProject}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t('addProject')}
-          </Button>
+          {user && (
+            <Button 
+              onClick={() => setIsCreateDialogOpen(true)} 
+              className="bg-agri-green-500 hover:bg-agri-green-600"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              {t('addProject')}
+            </Button>
+          )}
         </div>
         
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-card mb-8 p-4 animate-slide-up">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input 
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+            <div className="w-full md:w-1/3">
+              <Input
                 placeholder={t('searchProjects')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-gray-200"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
               />
             </div>
             
-            <div className="flex space-x-4">
-              <div className="w-40">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger id="status" className="border-gray-200">
-                    <div className="flex items-center">
-                      <Filter className="h-4 w-4 mr-2 text-gray-500" />
-                      <SelectValue placeholder={t('status')} />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('all')}</SelectItem>
-                    <SelectItem value="active">{t('active')}</SelectItem>
-                    <SelectItem value="planning">{t('planning')}</SelectItem>
-                    <SelectItem value="completed">{t('completed')}</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2 w-full md:w-auto">
+              <div className="flex items-center space-x-2">
+                <p className="text-sm font-medium">{t('status')}:</p>
+                <div className="flex flex-wrap gap-2">
+                  {['all', 'active', 'planning', 'completed'].map(status => (
+                    <Badge 
+                      key={status}
+                      variant={statusFilter === status ? "default" : "outline"}
+                      className={`cursor-pointer ${statusFilter === status ? 'bg-agri-green-500 hover:bg-agri-green-600' : ''}`}
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {t(status)}
+                    </Badge>
+                  ))}
+                </div>
               </div>
               
-              <div className="w-40">
-                <Select value={cropFilter} onValueChange={setCropFilter}>
-                  <SelectTrigger id="crop" className="border-gray-200">
-                    <div className="flex items-center">
-                      <SlidersHorizontal className="h-4 w-4 mr-2 text-gray-500" />
-                      <SelectValue placeholder={t('crop')} />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('all')}</SelectItem>
-                    {uniqueCrops.map(crop => (
-                      <SelectItem key={crop} value={crop}>
+              {availableCrops.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium">{t('crop')}:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge 
+                      variant={cropFilter === 'all' ? "default" : "outline"}
+                      className={`cursor-pointer ${cropFilter === 'all' ? 'bg-agri-green-500 hover:bg-agri-green-600' : ''}`}
+                      onClick={() => setCropFilter('all')}
+                    >
+                      {t('all')}
+                    </Badge>
+                    
+                    {availableCrops.map(crop => (
+                      <Badge 
+                        key={crop}
+                        variant={cropFilter === crop ? "default" : "outline"}
+                        className={`cursor-pointer ${cropFilter === crop ? 'bg-agri-green-500 hover:bg-agri-green-600' : ''}`}
+                        onClick={() => setCropFilter(crop)}
+                      >
                         {crop}
-                      </SelectItem>
+                      </Badge>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
+            
+            {(searchTerm || statusFilter !== 'all' || cropFilter !== 'all') && (
+              <Button variant="ghost" onClick={resetFilters} className="h-8 px-2">
+                <X className="w-4 h-4 mr-1" />
+                {t('resetFilters')}
+              </Button>
+            )}
           </div>
         </div>
         
-        {/* Project cards */}
+        {/* Projects Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="animate-pulse bg-white rounded-xl shadow h-64"></div>
-            ))}
-          </div>
-        ) : filteredProjects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project, index) => (
-              <div 
-                key={project.id} 
-                className="animate-slide-up" 
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <ProjectCard {...project} />
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-md p-4">
+                <Skeleton className="h-40 w-full rounded-md mb-4" />
+                <Skeleton className="h-4 w-2/3 mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-1/2" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-card p-8 text-center animate-slide-up">
-            <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Search className="h-8 w-8 text-gray-400" />
+          filteredProjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map(project => (
+                <ProjectCard 
+                  key={project.id} 
+                  project={project}
+                  userName={(project as unknown as PublicProjectView).user_name}
+                  userAvatar={(project as unknown as PublicProjectView).user_avatar}
+                  isOwner={user && project.user_id === user.id}
+                  onClick={() => navigate(`/dashboard?projectId=${project.id}`)}
+                />
+              ))}
             </div>
-            <h3 className="font-display text-lg font-semibold mb-2">{t('noProjectsFound')}</h3>
-            <p className="text-gray-600 mb-4">{t('noProjectsMessage') || 'No projects match your search criteria.'}</p>
-            <Button onClick={() => {
-              setSearchQuery('');
-              setStatusFilter('all');
-              setCropFilter('all');
-            }}>
-              {t('resetFilters')}
-            </Button>
-          </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">{t('noProjectsFound')}</p>
+              {user && (
+                <Button 
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  variant="outline"
+                  className="border-agri-green-500 text-agri-green-500 hover:bg-agri-green-50"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  {t('createProject')}
+                </Button>
+              )}
+            </div>
+          )
         )}
       </main>
       
+      {/* Create Project Dialog */}
       <CreateProjectDialog 
-        open={createDialogOpen} 
-        onOpenChange={setCreateDialogOpen}
-        onProjectCreated={handleProjectCreated}
+        open={isCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen}
+        onCreateProject={handleCreateProject}
       />
-      
-      <AuthDialog 
-        open={authDialogOpen} 
-        onOpenChange={setAuthDialogOpen}
-        initialView="login"
-      />
-      
-      <Footer />
     </div>
   );
 };

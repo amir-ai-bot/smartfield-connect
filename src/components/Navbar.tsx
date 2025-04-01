@@ -1,13 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LogOut } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import BottomNavbar from './BottomNavbar';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Navbar = () => {
   const { isAuthenticated, logout } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -60,31 +64,35 @@ const Navbar = () => {
           
           {!isMobile ? (
             <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>Accueil</Link>
-              <Link to="/projects" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>Projets</Link>
-              <Link to="/suppliers" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>Marchands</Link>
-              <Link to="/weather" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>Météo</Link>
+              <Link to="/" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>{t('home')}</Link>
+              <Link to="/projects" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>{t('projects')}</Link>
+              <Link to="/suppliers" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>{t('suppliers')}</Link>
+              <Link to="/weather" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>{t('weather')}</Link>
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>Profil</Link>
+                  <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
                   <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300">
                     <LogOut className="inline-block h-5 w-5 mr-1 align-text-top" />
-                    Déconnexion
+                    {t('logout')}
                   </button>
                 </>
               ) : (
                 <Link to="/auth" className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
-                  Se connecter
+                  {t('login')}
                 </Link>
               )}
+              <LanguageSwitcher />
             </nav>
           ) : (
-            <button onClick={toggleMenu} className="md:hidden text-gray-500 hover:text-gray-700 focus:outline-none">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-              </svg>
-            </button>
+            <div className="flex items-center space-x-2">
+              <LanguageSwitcher />
+              <button onClick={toggleMenu} className="md:hidden text-gray-500 hover:text-gray-700 focus:outline-none">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -101,21 +109,21 @@ const Navbar = () => {
             </div>
             
             <nav className="flex flex-col items-center space-y-4 p-4">
-              <Link to="/" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>Accueil</Link>
-              <Link to="/projects" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>Projets</Link>
-              <Link to="/suppliers" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>Marchands</Link>
-              <Link to="/weather" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>Météo</Link>
+              <Link to="/" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>{t('home')}</Link>
+              <Link to="/projects" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>{t('projects')}</Link>
+              <Link to="/suppliers" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>{t('suppliers')}</Link>
+              <Link to="/weather" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>{t('weather')}</Link>
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>Profil</Link>
+                  <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
                   <button onClick={() => { closeMenu(); handleLogout(); }} className="hover:text-agri-green-500 transition duration-300">
-                    Déconnexion
+                    {t('logout')}
                   </button>
                 </>
               ) : (
                 <Link to="/auth" onClick={closeMenu} className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
-                  Se connecter
+                  {t('login')}
                 </Link>
               )}
             </nav>

@@ -1,4 +1,3 @@
-
 // Type definitions for the dashboard data
 
 export interface Project {
@@ -39,6 +38,23 @@ export interface DashboardData {
   moistureData: { day: string; value: number }[];
   yieldData: { year: string; value: number }[];
   lastUpdated: Date;
+}
+
+export interface ProjectData {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  progress: number;
+  status: string;
+  image: string;
+  description: string;
+  user_id: string;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DashboardContextType {
