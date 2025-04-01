@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProjectWithUser } from '@/types/supabase';
@@ -93,35 +92,8 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // First fetch and delete all projects by this user to prevent orphaned data
-    const { data: userProjects, error: projectsError } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('user_id', userId);
-      
-    if (projectsError) {
-      console.error('Error fetching user projects:', projectsError);
-      toast.error('Erreur lors de la récupération des projets de l\'utilisateur');
-      throw new Error(projectsError.message);
-    }
-    
-    // Delete all projects by this user
-    if (userProjects && userProjects.length > 0) {
-      const projectIds = userProjects.map(project => project.id);
-      const { error: deleteProjectsError } = await supabase
-        .from('projects')
-        .delete()
-        .in('id', projectIds);
-        
-      if (deleteProjectsError) {
-        console.error('Error deleting user projects:', deleteProjectsError);
-        toast.error('Erreur lors de la suppression des projets de l\'utilisateur');
-        throw new Error(deleteProjectsError.message);
-      }
-    }
-    
-    // Now delete the user
-    const { error } = await supabase.rpc('admin_delete_user', { 
+    // Call the RPC function directly to handle user deletion properly
+    const { data, error } = await supabase.rpc('admin_delete_user', { 
       user_id: userId
     });
     

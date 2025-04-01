@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,12 +32,13 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser, createUser } from '@/services/adminService';
+import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser } from '@/services/adminService';
 
 const Admin = () => {
   const { user } = useAuth();
   const [isVerifyingUser, setIsVerifyingUser] = useState<string | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState<string | null>(null);
   const [newUserDialog, setNewUserDialog] = useState(false);
   const [newUserData, setNewUserData] = useState({
     name: '',
@@ -77,9 +79,14 @@ const Admin = () => {
   const handleDeleteUser = async (userId: string) => {
     try {
       setIsDeletingUser(userId);
-      await deleteUser(userId);
-      toast.success('Utilisateur supprimé avec succès');
-      refetchUsers();
+      
+      // Confirm before deleting
+      if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur? Cette action supprimera également tous ses projets.')) {
+        await deleteUser(userId);
+        toast.success('Utilisateur supprimé avec succès');
+        refetchUsers();
+        refetchProjects(); // Also refresh projects as they might have been deleted
+      }
     } catch (error) {
       console.error('Error in deleteUser:', error);
       toast.error('Échec de la suppression: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
@@ -88,46 +95,21 @@ const Admin = () => {
     }
   };
 
-  const handleCreateNewUser = async () => {
-    try {
-      setIsCreatingUser(true);
-      
-      if (!newUserData.name || !newUserData.email || !newUserData.password) {
-        throw new Error('Veuillez remplir tous les champs requis');
-      }
-      
-      await createUser(
-        newUserData.name,
-        newUserData.email,
-        newUserData.password,
-        newUserData.role
-      );
-      
-      toast.success('Nouvel utilisateur créé avec succès');
-      setNewUserDialog(false);
-      setNewUserData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'user'
-      });
-      refetchUsers();
-    } catch (error) {
-      console.error('Error in createNewUser:', error);
-      toast.error('Échec de la création: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
-    } finally {
-      setIsCreatingUser(false);
-    }
-  };
-
   const handleDeleteProject = async (projectId: string) => {
     try {
-      await deleteProject(projectId);
-      toast.success('Projet supprimé avec succès');
-      refetchProjects();
+      setIsDeletingProject(projectId);
+      
+      // Confirm before deleting
+      if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet?')) {
+        await deleteProject(projectId);
+        toast.success('Projet supprimé avec succès');
+        refetchProjects();
+      }
     } catch (error) {
       console.error('Error in deleteProject:', error);
       toast.error('Échec de la suppression: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
+    } finally {
+      setIsDeletingProject(null);
     }
   };
 
@@ -192,10 +174,7 @@ const Admin = () => {
                     Consultez et gérez les comptes utilisateurs de l'application
                   </CardDescription>
                 </div>
-                <Button size="sm" onClick={() => setNewUserDialog(true)}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Ajouter
-                </Button>
+                {/* Removed add user button as requested */}
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border overflow-hidden">
@@ -284,87 +263,6 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
-
-            <Dialog open={newUserDialog} onOpenChange={setNewUserDialog}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Ajouter un utilisateur</DialogTitle>
-                  <DialogDescription>
-                    Créez un nouveau compte utilisateur pour l'application
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Nom
-                    </Label>
-                    <Input
-                      id="name"
-                      className="col-span-3"
-                      value={newUserData.name}
-                      onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      className="col-span-3"
-                      value={newUserData.email}
-                      onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">
-                      Mot de passe
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      className="col-span-3"
-                      value={newUserData.password}
-                      onChange={(e) => setNewUserData({...newUserData, password: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Rôle
-                    </Label>
-                    <Select 
-                      value={newUserData.role} 
-                      onValueChange={(value) => setNewUserData({...newUserData, role: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Sélectionner un rôle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">Utilisateur</SelectItem>
-                        <SelectItem value="fournisseur">Fournisseur</SelectItem>
-                        <SelectItem value="admin">Administrateur</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setNewUserDialog(false)}>
-                    Annuler
-                  </Button>
-                  <Button onClick={handleCreateNewUser} disabled={isCreatingUser}>
-                    {isCreatingUser ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Création...
-                      </>
-                    ) : (
-                      'Créer utilisateur'
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </TabsContent>
           
           <TabsContent value="projects" className="mt-4">
@@ -419,8 +317,13 @@ const Admin = () => {
                                     variant="outline" 
                                     size="icon"
                                     onClick={() => handleDeleteProject(project.id)}
+                                    disabled={!!isDeletingProject}
                                   >
-                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                    {isDeletingProject === project.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    )}
                                   </Button>
                                 </div>
                               </TableCell>

@@ -2,17 +2,14 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Sprout, ShoppingCart, Cloud, User, LogOut, Settings } from 'lucide-react';
-
-// Add useAuth import
 import { useAuth } from '@/contexts/AuthContext';
 
 const BottomNavbar = () => {
   const { pathname } = useLocation();
-  // Add this line to get the logout function
   const { logout, isAuthenticated, isAdmin } = useAuth();
 
   const isActive = (path: string) => {
-    return pathname === path;
+    return pathname === path ? 'text-agri-green-500' : 'text-gray-500';
   };
 
   // Handle logout
