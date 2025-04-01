@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { setupAdminAccount } from '@/scripts/createAdminAccount';
 
 const Index = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -19,22 +18,6 @@ const Index = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'verify-email'>('login');
   const [showMobileAuth, setShowMobileAuth] = useState(true);
-  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
-
-  // Create admin account function
-  const createAdminAccount = async () => {
-    setIsCreatingAdmin(true);
-    try {
-      await setupAdminAccount();
-      // After creating admin account, open the login dialog
-      setAuthDialogView('login');
-      setShowAuthDialog(true);
-    } catch (error) {
-      console.error('Failed to create admin account:', error);
-    } finally {
-      setIsCreatingAdmin(false);
-    }
-  };
 
   // Handle scroll position to hide/show the mobile auth buttons
   useEffect(() => {
@@ -94,20 +77,7 @@ const Index = () => {
         <>
           <WelcomeSection id="welcome-section" />
           
-          {/* Admin account creation button */}
-          <div className="fixed top-20 right-4 z-50">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createAdminAccount}
-              disabled={isCreatingAdmin}
-              className="text-xs"
-            >
-              {isCreatingAdmin ? 'Création en cours...' : 'Créer compte admin'}
-            </Button>
-          </div>
-          
-          {/* Add mobile-specific auth buttons */}
+          {/* Mobile-specific auth buttons - only show if we're not already showing buttons in the welcome section */}
           {isMobile && showMobileAuth && (
             <div className="fixed bottom-20 left-0 right-0 flex justify-center gap-4 p-4 z-40">
               <Button 

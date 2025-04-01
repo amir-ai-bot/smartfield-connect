@@ -1,5 +1,6 @@
 
 import axios from 'axios';
+import { toast } from 'sonner';
 
 export interface CurrentWeather {
   temp: number;
@@ -77,16 +78,16 @@ const mapWeatherData = (data: any): WeatherForecast => {
   };
 
   // Map the daily forecast to include compatibility fields
-  const daily = data.daily.slice(0, 5).map((day: any) => {
+  const daily = data.daily.slice(0, 7).map((day: any) => {
     const date = new Date(day.dt * 1000);
     return {
       ...day,
-      date: date.toISOString().split('T')[0],
+      date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric' }),
       day_name: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
       max_temp: Math.round(day.temp.max),
       min_temp: Math.round(day.temp.min),
       wind_speed: Math.round(day.wind_speed),
-      condition: day.weather[0].description
+      condition: day.weather[0].main.toLowerCase()
     };
   });
 
@@ -132,6 +133,23 @@ export const fetchCurrentWeather = async (location?: string, country?: string): 
   }
 };
 
+// Map weather conditions to our condition types
+export const mapWeatherCondition = (condition: string): 'sunny' | 'cloudy' | 'rainy' | 'partly-cloudy' => {
+  const conditionLower = condition.toLowerCase();
+  
+  if (conditionLower.includes('clear') || conditionLower.includes('sun')) {
+    return 'sunny';
+  } else if (conditionLower.includes('rain') || conditionLower.includes('shower') || conditionLower.includes('drizzle')) {
+    return 'rainy';
+  } else if (conditionLower.includes('cloud') && (conditionLower.includes('scattered') || conditionLower.includes('few') || conditionLower.includes('partly'))) {
+    return 'partly-cloudy';
+  } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+    return 'cloudy';
+  }
+  
+  return 'sunny'; // default
+};
+
 // Added for Weather.tsx compatibility - overload the function to accept different param formats
 export const getCurrentWeather = async (location?: string): Promise<WeatherForecast> => {
   return fetchCurrentWeather(location);
@@ -157,5 +175,19 @@ export const getDefaultCities = async (): Promise<WeatherForecast[]> => {
   } catch (error) {
     console.error('Error fetching default cities weather:', error);
     throw new Error('Failed to fetch default cities weather data. Please try again later.');
+  }
+};
+
+// Handle geolocation error with meaningful messages
+export const handleGeolocationError = (error: GeolocationPositionError): string => {
+  switch (error.code) {
+    case error.PERMISSION_DENIED:
+      return "Vous avez refusé l'accès à votre position. Veuillez modifier les autorisations de votre navigateur pour utiliser cette fonctionnalité.";
+    case error.POSITION_UNAVAILABLE:
+      return "Votre position n'est pas disponible actuellement.";
+    case error.TIMEOUT:
+      return "La demande de géolocalisation a expiré.";
+    default:
+      return "Une erreur inconnue s'est produite lors de la géolocalisation.";
   }
 };

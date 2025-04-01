@@ -19,3 +19,9 @@ CREATE POLICY IF NOT EXISTS "Users can update their own verification codes"
 ON public.verification_codes
 FOR UPDATE
 USING (auth.uid() = user_id);
+
+-- Allow service role to manage all verification codes (for admin operations)
+CREATE POLICY IF NOT EXISTS "Service role can manage all verification codes"
+ON public.verification_codes
+FOR ALL
+USING (auth.role() = 'service_role');

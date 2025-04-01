@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Sprout, ShoppingCart, Cloud, User, LogOut } from 'lucide-react';
+import { Home, Sprout, ShoppingCart, Cloud, User, LogOut, Settings } from 'lucide-react';
 
 // Add useAuth import
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const BottomNavbar = () => {
   const { pathname } = useLocation();
   // Add this line to get the logout function
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, isAdmin } = useAuth();
 
   const isActive = (path: string) => {
     return pathname === path;
@@ -48,13 +49,21 @@ const BottomNavbar = () => {
         </Link>
         
         {isAuthenticated ? (
-          <button 
-            onClick={handleLogout}
-            className="flex flex-col items-center py-2 px-3 text-gray-500"
-          >
-            <LogOut className="h-6 w-6" />
-            <span className="text-xs mt-1">Déconnexion</span>
-          </button>
+          <>
+            {isAdmin() && (
+              <Link to="/admin" className={`flex flex-col items-center py-2 px-3 ${isActive('/admin') ? 'text-agri-green-500' : 'text-gray-500'}`}>
+                <Settings className="h-6 w-6" />
+                <span className="text-xs mt-1">Admin</span>
+              </Link>
+            )}
+            <button 
+              onClick={handleLogout}
+              className="flex flex-col items-center py-2 px-3 text-gray-500"
+            >
+              <LogOut className="h-6 w-6" />
+              <span className="text-xs mt-1">Déconnexion</span>
+            </button>
+          </>
         ) : (
           <Link to="/profile" className={`flex flex-col items-center py-2 px-3 ${isActive('/profile') ? 'text-agri-green-500' : 'text-gray-500'}`}>
             <User className="h-6 w-6" />

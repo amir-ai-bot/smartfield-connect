@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -98,6 +97,43 @@ export interface ProjectData {
   user_id: string;
   isPublic: boolean;
 }
+
+export const CROP_TYPES = [
+  'Blé',
+  'Orge',
+  'Maïs',
+  'Avoine',
+  'Tomates',
+  'Pommes de terre',
+  'Carottes',
+  'Oignons',
+  'Olives',
+  'Agrumes',
+  'Dattes',
+  'Amandes',
+  'Raisins',
+  'Figues',
+  'Pastèques',
+  'Melons',
+  'Piments',
+  'Concombres',
+  'Aubergines',
+  'Courgettes',
+  'Poivrons',
+  'Laitue',
+  'Épinards',
+  'Haricots',
+  'Pois',
+  'Lentilles',
+  'Fèves',
+  'Pois chiches',
+  'Tournesol',
+  'Colza',
+  'Soja',
+  'Luzerne',
+  'Trèfle',
+  'Autre'
+];
 
 export interface SupportMessage {
   id: string;

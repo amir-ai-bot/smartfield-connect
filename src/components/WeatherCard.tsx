@@ -8,9 +8,10 @@ type WeatherCardProps = {
   humidity: number;
   windSpeed: number;
   condition: 'sunny' | 'cloudy' | 'rainy' | 'partly-cloudy';
+  isToday?: boolean;
 };
 
-const WeatherCard = ({ date, day, temp, humidity, windSpeed, condition }: WeatherCardProps) => {
+const WeatherCard = ({ date, day, temp, humidity, windSpeed, condition, isToday = false }: WeatherCardProps) => {
   const getWeatherIcon = () => {
     switch (condition) {
       case 'sunny':
@@ -57,11 +58,11 @@ const WeatherCard = ({ date, day, temp, humidity, windSpeed, condition }: Weathe
   };
 
   return (
-    <div className="glass rounded-xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
+    <div className={`glass rounded-xl overflow-hidden transform ${isToday ? 'scale-105 shadow-lg' : 'hover:scale-[1.02]'} transition-all duration-300`}>
       <div className={`p-4 bg-gradient-to-br ${getGradient()} text-white`}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium opacity-90">{day}</p>
+            <p className="text-sm font-medium opacity-90">{isToday ? 'Aujourd\'hui' : day}</p>
             <p className="text-xs opacity-80">{date}</p>
           </div>
           {getWeatherIcon()}

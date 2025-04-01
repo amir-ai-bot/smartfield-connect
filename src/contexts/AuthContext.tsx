@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, AuthState, User } from '@/types/auth';
 import * as authService from '@/services/authService';
@@ -223,6 +222,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const becomeFournisseur = async (): Promise<void> => {
     try {
       if (!state.user) throw new Error('Not authenticated');
+      
+      // Prevent admins from becoming suppliers
+      if (state.user.role === 'admin') {
+        toast.error("Un administrateur ne peut pas devenir fournisseur");
+        throw new Error("Admins cannot become suppliers");
+      }
       
       const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'fournisseur' });
       

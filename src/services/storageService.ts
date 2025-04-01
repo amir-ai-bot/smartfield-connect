@@ -64,8 +64,31 @@ export const deleteAvatar = async (avatarUrl: string): Promise<void> => {
   }
 };
 
+// A default list of vegetable images from GitHub
+const DEFAULT_PROJECT_IMAGES = [
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/aspear-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/cheri-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/chesto-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/leppa-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/pecha-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/persim-berry.png',
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rawst-berry.png',
+];
+
+// Get a random default image
+export const getDefaultProjectImage = (): string => {
+  const randomIndex = Math.floor(Math.random() * DEFAULT_PROJECT_IMAGES.length);
+  return DEFAULT_PROJECT_IMAGES[randomIndex];
+};
+
 // Function to upload a project image
-export const uploadProjectImage = async (file: File, userId: string): Promise<string> => {
+export const uploadProjectImage = async (file: File | null, userId: string): Promise<string> => {
+  // If no file is provided, return a default image
+  if (!file) {
+    return getDefaultProjectImage();
+  }
+  
   try {
     // Create a unique file name
     const fileExt = file.name.split('.').pop();
