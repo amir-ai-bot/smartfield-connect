@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { useState } from 'react';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import { ProjectData } from '@/types/dashboard';
 
 type DashboardHeaderProps = {
   isLoading: boolean;
@@ -39,9 +40,10 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
     }
   };
 
-  // Handle project creation success
-  const handleProjectCreated = () => {
-    refreshData();
+  // Handle project creation success - make this return a Promise
+  const handleProjectCreated = async (projectData: Omit<ProjectData, "id" | "created_at" | "updated_at" | "user_id">) => {
+    await refreshData();
+    return Promise.resolve();
   };
 
   return (

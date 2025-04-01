@@ -14,11 +14,31 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Define the public project view type to match what we created in the database
-interface PublicProjectView extends ProjectData {
-  user_name: string;
-  user_avatar: string | null;
-}
+// Define the mapper function to transform database fields to our ProjectData interface
+const mapDbProjectToProjectData = (dbProject: any): ProjectData => {
+  return {
+    id: dbProject.id,
+    title: dbProject.title,
+    crop: dbProject.crop || '',
+    location: dbProject.location || '',
+    start_date: dbProject.start_date,
+    end_date: dbProject.end_date,
+    // For backward compatibility
+    startDate: dbProject.start_date,
+    endDate: dbProject.end_date,
+    progress: dbProject.progress || 0,
+    status: dbProject.status || 'planning',
+    image: dbProject.image,
+    description: dbProject.description,
+    user_id: dbProject.user_id,
+    is_public: dbProject.is_public,
+    created_at: dbProject.created_at,
+    updated_at: dbProject.updated_at,
+    last_modified: dbProject.last_modified,
+    user_name: dbProject.user_name,
+    user_avatar: dbProject.user_avatar
+  };
+};
 
 const Projects = () => {
   const navigate = useNavigate();
@@ -26,7 +46,7 @@ const Projects = () => {
   const { t } = useLanguage();
   
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [publicProjects, setPublicProjects] = useState<PublicProjectView[]>([]);
+  const [publicProjects, setPublicProjects] = useState<ProjectData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,11 +72,11 @@ const Projects = () => {
           .order('created_at', { ascending: false });
           
         if (error) throw error;
-        userProjectsData = userProjectsResult || [];
+        userProjectsData = (userProjectsResult || []).map(mapDbProjectToProjectData);
         setProjects(userProjectsData);
       }
       
-      // Fetch public projects using the view we created
+      // Fetch public projects using the projects view
       const { data: publicProjectsData, error: publicError } = await supabase
         .from('public_projects_view')
         .select('*')
@@ -65,12 +85,12 @@ const Projects = () => {
         
       if (publicError) throw publicError;
       
-      // Type the data correctly to match our interface
-      const typedPublicProjects = publicProjectsData as unknown as PublicProjectView[];
-      setPublicProjects(typedPublicProjects || []);
+      // Map the projects with our helper function
+      const mappedPublicProjects = (publicProjectsData || []).map(mapDbProjectToProjectData);
+      setPublicProjects(mappedPublicProjects);
       
       // Extract unique crops for filter
-      const allProjects = [...userProjectsData, ...typedPublicProjects];
+      const allProjects = [...userProjectsData, ...mappedPublicProjects];
       const crops = [...new Set(allProjects.map(p => p.crop))].filter(Boolean);
       setAvailableCrops(crops);
       
@@ -104,6 +124,9 @@ const Projects = () => {
         .from('projects')
         .insert({
           ...projectData,
+          // Convert camelCase to snake_case for database
+          start_date: projectData.startDate || projectData.start_date,
+          end_date: projectData.endDate || projectData.end_date,
           user_id: user?.id
         })
         .select()
@@ -111,7 +134,9 @@ const Projects = () => {
       
       if (error) throw error;
       
-      setProjects(prev => [data, ...prev]);
+      // Add the new project to the state
+      const newProject = mapDbProjectToProjectData(data);
+      setProjects(prev => [newProject, ...prev]);
       setIsCreateDialogOpen(false);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -227,13 +252,13 @@ const Projects = () => {
                   title={project.title}
                   crop={project.crop || ''}
                   location={project.location || ''}
-                  startDate={project.startDate || ''}
-                  endDate={project.endDate || ''}
+                  startDate={project.startDate || project.start_date || ''}
+                  endDate={project.endDate || project.end_date || ''}
                   progress={project.progress}
                   status={project.status as 'active' | 'planning' | 'completed'}
                   image={project.image}
-                  user_name={(project as PublicProjectView).user_name}
-                  user_avatar={(project as PublicProjectView).user_avatar || undefined}
+                  user_name={project.user_name}
+                  user_avatar={project.user_avatar}
                   onClick={() => navigate(`/dashboard?projectId=${project.id}`)}
                 />
               ))}

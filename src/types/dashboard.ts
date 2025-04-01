@@ -1,4 +1,3 @@
-
 // Type definitions for the dashboard data
 
 export interface Project {
@@ -41,19 +40,28 @@ export interface DashboardData {
   lastUpdated: Date;
 }
 
+// Modified ProjectData interface to match database schema
 export interface ProjectData {
   id: string;
   title: string;
   crop: string;
   location: string;
-  startDate: string;
-  endDate: string;
+  // Map directly to database field names
+  start_date?: string;
+  end_date?: string; 
+  // Keep the camelCase versions for backward compatibility
+  startDate?: string;
+  endDate?: string;
   progress: number;
   status: string;
   image?: string;
   description?: string;
   user_id: string;
   is_public?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  last_modified?: string;
+  // UI-specific fields
   user_name?: string;
   user_avatar?: string;
 }

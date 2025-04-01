@@ -3,11 +3,8 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { createProject } from '@/services/projectService';
-import { uploadProjectImage } from '@/services/storageService';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { ProjectData } from '@/types/dashboard';
 
 import {
@@ -52,7 +49,7 @@ type FormValues = z.infer<typeof formSchema>;
 export interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProjectCreated: (project: Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<void>;
+  onProjectCreated: (project: Omit<ProjectData, "id" | "created_at" | "updated_at" | "user_id">) => Promise<void>;
 }
 
 const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreateProjectDialogProps) => {
@@ -127,23 +124,12 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         endDate: format(values.endDate, 'yyyy-MM-dd'),
         description: values.description,
         image: imageUrl,
-        isPublic: values.isPublic,
+        is_public: values.isPublic,
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0
       };
       
       await onProjectCreated(projectData);
-      
-      // Then, if we have an image, upload it and update the project
-      if (selectedImage) {
-        try {
-          // Image upload would happen here via your service
-          // This is left as a placeholder as the actual implementation depends on your specific storage service
-        } catch (imageError) {
-          console.error('Error uploading image:', imageError);
-          toast.error("Projet créé mais erreur lors du téléchargement de l'image");
-        }
-      }
       
       // Reset the form
       form.reset();
