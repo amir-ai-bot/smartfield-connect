@@ -1,485 +1,341 @@
-
-import { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, MapPin, Wind, Droplets, Thermometer, SunMedium, Cloud, CloudRain, Snowflake } from 'lucide-react';
-import { toast } from 'sonner';
-import axios from 'axios';
-
-// API key from the user
-const WEATHER_API_KEY = 'a959e94a83284ade92a112741252803';
-const WEATHER_API_BASE_URL = 'https://api.weatherapi.com/v1';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/components/ui/use-toast"
+import { Sparkles } from 'lucide-react';
 
 interface WeatherData {
   location: {
     name: string;
     region: string;
     country: string;
-    lat: number;
-    lon: number;
-    localtime: string;
   };
   current: {
     temp_c: number;
-    temp_f: number;
     condition: {
       text: string;
       icon: string;
-      code: number;
     };
     wind_kph: number;
-    wind_dir: string;
     humidity: number;
-    feelslike_c: number;
-    uv: number;
-    precip_mm: number;
-  };
-  forecast?: {
-    forecastday: {
-      date: string;
-      day: {
-        maxtemp_c: number;
-        mintemp_c: number;
-        avgtemp_c: number;
-        condition: {
-          text: string;
-          icon: string;
-        };
-        daily_chance_of_rain: number;
-      };
-      hour: {
-        time: string;
-        temp_c: number;
-        condition: {
-          text: string;
-          icon: string;
-        };
-      }[];
-    }[];
   };
 }
 
+interface Location {
+  id: number;
+  name: string;
+  region: string;
+  country: string;
+  lat: number;
+  lon: number;
+  url: string;
+}
+
 const Weather = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('current');
-  const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [nearbyLocations, setNearbyLocations] = useState<Location[]>([]);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const { toast } = useToast()
 
-  // Get user's geolocation
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      setIsLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lon: longitude });
-          fetchWeatherByCoords(latitude, longitude);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          toast.error('Impossible d\'obtenir votre position. Veuillez essayer de rechercher un lieu.');
-          setIsLoading(false);
-        }
-      );
-    } else {
-      toast.error('La géolocalisation n\'est pas supportée par votre navigateur.');
-    }
-  };
-
-  // Fetch weather data by coordinates
-  const fetchWeatherByCoords = async (lat: number, lon: number) => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get(`${WEATHER_API_BASE_URL}/forecast.json`, {
-        params: {
-          key: WEATHER_API_KEY,
-          q: `${lat},${lon}`,
-          days: 7,
-          aqi: 'no',
-          alerts: 'no'
-        }
-      });
-      setWeatherData(response.data);
-    } catch (error) {
-      console.error('Error fetching weather data:', error);
-      toast.error('Erreur lors de la récupération des données météo');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch weather data by city name
-  const fetchWeatherByCity = async (city: string) => {
-    if (!city.trim()) return;
-    
-    try {
-      setIsLoading(true);
-      const response = await axios.get(`${WEATHER_API_BASE_URL}/forecast.json`, {
-        params: {
-          key: WEATHER_API_KEY,
-          q: city,
-          days: 7,
-          aqi: 'no',
-          alerts: 'no'
-        }
-      });
-      setWeatherData(response.data);
-    } catch (error) {
-      console.error('Error fetching weather data:', error);
-      toast.error('Lieu non trouvé. Veuillez essayer un autre lieu.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle search form submission
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchWeatherByCity(searchQuery);
-  };
-
-  // Get weather icon based on condition code
-  const getWeatherIcon = (code: number) => {
-    // Clear conditions
-    if (code === 1000) return <SunMedium className="h-8 w-8 text-yellow-500" />;
-    
-    // Cloudy conditions
-    if (code >= 1003 && code <= 1030) return <Cloud className="h-8 w-8 text-gray-500" />;
-    
-    // Rain conditions
-    if (code >= 1063 && code <= 1201) return <CloudRain className="h-8 w-8 text-blue-500" />;
-    
-    // Snow conditions
-    if (code >= 1204 && code <= 1237) return <Snowflake className="h-8 w-8 text-blue-300" />;
-    
-    // Default
-    return <Thermometer className="h-8 w-8 text-red-500" />;
-  };
-
-  // Ask for user location on component mount
   useEffect(() => {
-    document.title = 'Météo | AgriSmart';
-    
-    // Ask for geolocation permission on component mount
-    const askForGeolocation = () => {
-      toast.info(
-        'Pour obtenir des prévisions météo précises, autorisez l\'accès à votre position.',
-        {
-          duration: 5000,
-          action: {
-            label: 'Autoriser',
-            onClick: getUserLocation
-          }
+    const getCurrentPosition = () => {
+      setIsLoading(true);
+      setLocationError(null);
+      
+      if (!navigator.geolocation) {
+        setLocationError("La géolocalisation n'est pas prise en charge par votre navigateur");
+        setIsLoading(false);
+        return;
+      }
+      
+      navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+        if (permissionStatus.state === 'denied') {
+          setLocationError("L'accès à votre position a été bloqué. Veuillez autoriser l'accès à la localisation dans les paramètres de votre appareil.");
+          setIsLoading(false);
+          return;
         }
-      );
+        
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            try {
+              const { latitude, longitude } = position.coords;
+              setCurrentLocation({ lat: latitude, lon: longitude });
+              
+              // Get weather for current location
+              const currentLocationWeather = await fetchWeatherData(latitude, longitude);
+              setWeatherData(currentLocationWeather);
+              
+              // Get nearby locations
+              const nearbyLocations = await fetchNearbyLocations(latitude, longitude);
+              setNearbyLocations(nearbyLocations);
+              
+              setIsLoading(false);
+            } catch (error) {
+              console.error('Error fetching weather data:', error);
+              setError('Erreur lors de la récupération des données météo');
+              setIsLoading(false);
+            }
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            let errorMessage = "Erreur lors de l'accès à votre position";
+            
+            if (error.code === 1) {
+              errorMessage = "L'accès à votre position a été refusé. Veuillez autoriser l'accès à la localisation dans les paramètres de votre appareil.";
+            } else if (error.code === 2) {
+              errorMessage = "Impossible de déterminer votre position actuelle.";
+            } else if (error.code === 3) {
+              errorMessage = "Le temps d'attente pour obtenir votre position est dépassé.";
+            }
+            
+            setLocationError(errorMessage);
+            setIsLoading(false);
+          },
+          { 
+            enableHighAccuracy: true, 
+            timeout: 15000, 
+            maximumAge: 0 
+          }
+        );
+      });
     };
     
-    setTimeout(askForGeolocation, 1000);
+    getCurrentPosition();
   }, []);
 
-  // Format date string
-  const formatDate = (dateStr: string) => {
-    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
-    return new Date(dateStr).toLocaleDateString('fr-FR', options);
+  const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData> => {
+    const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
+    const apiUrl = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${lat},${lon}&lang=fr`;
+
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (e:any) {
+      console.error("Could not fetch weather data:", e);
+      setError("Could not fetch weather data: " + e.message);
+      throw e;
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="container mx-auto px-4 pt-24 pb-16">
-        <div className="flex flex-col space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-            <div>
-              <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Météo agricole</h1>
-              <p className="text-gray-600">Consultez les prévisions météo pour votre exploitation</p>
+  const fetchNearbyLocations = async (lat: number, lon: number): Promise<Location[]> => {
+    const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
+    const apiUrl = `https://api.weatherapi.com/v1/search.json?key=${apiKey}&q=${lat},${lon}`;
+
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (e:any) {
+      console.error("Could not fetch nearby locations:", e);
+      setError("Could not fetch nearby locations: " + e.message);
+      return [];
+    }
+  };
+
+  const handleSearch = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
+    const apiUrl = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${searchTerm}&lang=fr`;
+
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setWeatherData(data);
+      setIsLoading(false);
+    } catch (e:any) {
+      console.error("Could not fetch weather data:", e);
+      setError("Could not fetch weather data: " + e.message);
+      setIsLoading(false);
+    }
+  };
+
+  if (locationError) {
+    return (
+      <div className="container mx-auto px-4 py-8 mt-16">
+        <div className="max-w-lg mx-auto bg-white rounded-lg shadow-md p-6 mt-8">
+          <h2 className="text-xl font-semibold text-center mb-4">Problème d'accès à la localisation</h2>
+          <p className="text-gray-600 mb-6 text-center">{locationError}</p>
+          
+          <div className="space-y-4">
+            <div className="border-l-4 border-amber-500 bg-amber-50 p-4">
+              <h3 className="font-medium text-amber-800">Comment activer la localisation:</h3>
+              <ul className="list-disc ml-5 mt-2 text-sm text-gray-600 space-y-1">
+                <li>Vérifiez que le GPS est activé sur votre appareil</li>
+                <li>Dans les paramètres de votre téléphone, assurez-vous que l'application a la permission d'accéder à votre localisation</li>
+                <li>Autorisez l'accès à la localisation lorsque le navigateur le demande</li>
+              </ul>
+            </div>
+            
+            <Button 
+              onClick={() => window.location.reload()}
+              className="w-full"
+            >
+              Réessayer
+            </Button>
+            
+            <div className="text-center mt-4">
+              <p className="text-sm text-gray-500">
+                Vous pouvez également essayer de rechercher une ville manuellement:
+              </p>
+              <div className="flex mt-2">
+                <Input
+                  placeholder="Rechercher une ville..."
+                  className="mr-2"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Button onClick={handleSearch} disabled={!searchTerm}>
+                  Rechercher
+                </Button>
+              </div>
             </div>
           </div>
-          
-          {/* Search bar */}
-          <Card>
-            <CardContent className="p-6">
-              <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input 
-                    placeholder="Rechercher un lieu..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8 mt-16">
+      {isLoading && !weatherData ? (
+        <div className="flex flex-col items-center justify-center gap-4">
+          <Sparkles className="h-8 w-8 animate-spin text-gray-400" />
+          <p className="text-gray-500">Chargement des données météo...</p>
+        </div>
+      ) : error ? (
+        <div className="max-w-lg mx-auto bg-white rounded-lg shadow-md p-6 mt-8">
+          <h2 className="text-xl font-semibold text-center mb-4">Erreur</h2>
+          <p className="text-red-500 text-center">{error}</p>
+        </div>
+      ) : weatherData ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="bg-white shadow-md rounded-lg overflow-hidden">
+            <CardHeader className="p-4">
+              <CardTitle className="text-lg font-semibold">
+                {weatherData.location.name}, {weatherData.location.region}
+              </CardTitle>
+              <CardDescription>{weatherData.location.country}</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <img
+                    src={weatherData.current.condition.icon}
+                    alt={weatherData.current.condition.text}
+                    className="mr-2"
                   />
+                  <span className="text-4xl font-bold">
+                    {weatherData.current.temp_c}°C
+                  </span>
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    type="submit" 
-                    className="bg-agri-green-500 hover:bg-agri-green-600 whitespace-nowrap"
-                    disabled={isLoading}
-                  >
-                    Rechercher
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={getUserLocation}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 whitespace-nowrap"
-                  >
-                    <MapPin className="h-4 w-4" />
-                    <span className="hidden md:inline">Ma position</span>
-                  </Button>
+                <div>
+                  <p className="text-gray-600">
+                    {weatherData.current.condition.text}
+                  </p>
                 </div>
-              </form>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-gray-700">
+                  Vent: {weatherData.current.wind_kph} km/h
+                </p>
+                <p className="text-gray-700">
+                  Humidité: {weatherData.current.humidity}%
+                </p>
+              </div>
             </CardContent>
           </Card>
-          
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
-            </div>
-          ) : weatherData ? (
-            <div className="space-y-6">
-              {/* Current weather card */}
-              <Card className="overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-agri-green-500 p-6 text-white">
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                      <h2 className="text-2xl font-bold">{weatherData.location.name}</h2>
-                      <p className="text-blue-100">{weatherData.location.region}, {weatherData.location.country}</p>
-                      <p className="text-sm mt-1">{new Date(weatherData.location.localtime).toLocaleString('fr-FR')}</p>
-                    </div>
-                    <div className="flex items-center">
-                      <img 
-                        src={`https:${weatherData.current.condition.icon}`} 
-                        alt={weatherData.current.condition.text}
-                        className="w-16 h-16"
-                      />
-                      <div className="text-center">
-                        <span className="text-4xl font-bold">{Math.round(weatherData.current.temp_c)}°C</span>
-                        <p className="text-blue-100">{weatherData.current.condition.text}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Thermometer className="h-6 w-6 text-amber-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Ressenti</p>
-                        <p className="font-semibold">{Math.round(weatherData.current.feelslike_c)}°C</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Wind className="h-6 w-6 text-blue-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Vent</p>
-                        <p className="font-semibold">{Math.round(weatherData.current.wind_kph)} km/h {weatherData.current.wind_dir}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Droplets className="h-6 w-6 text-blue-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Humidité</p>
-                        <p className="font-semibold">{weatherData.current.humidity}%</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <CloudRain className="h-6 w-6 text-blue-500" />
-                      <div>
-                        <p className="text-sm text-gray-500">Précipitations</p>
-                        <p className="font-semibold">{weatherData.current.precip_mm} mm</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Forecast tabs */}
-              {weatherData.forecast && (
-                <Tabs defaultValue="daily" className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="daily">Prévisions quotidiennes</TabsTrigger>
-                    <TabsTrigger value="hourly">Prévisions horaires</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="daily" className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
-                      {weatherData.forecast.forecastday.map(day => (
-                        <Card key={day.date} className="overflow-hidden">
-                          <CardHeader className="p-4 bg-gray-50">
-                            <CardTitle className="text-center text-sm font-medium">
-                              {formatDate(day.date)}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-4 text-center">
-                            <img 
-                              src={`https:${day.day.condition.icon}`} 
-                              alt={day.day.condition.text}
-                              className="w-12 h-12 mx-auto"
-                            />
-                            <p className="text-sm text-gray-500 mt-2">{day.day.condition.text}</p>
-                            <div className="flex justify-center items-center gap-2 mt-2">
-                              <span className="font-bold">{Math.round(day.day.maxtemp_c)}°</span>
-                              <span className="text-gray-400">{Math.round(day.day.mintemp_c)}°</span>
-                            </div>
-                            <p className="text-xs text-blue-500 mt-2">
-                              <CloudRain className="inline h-3 w-3 mr-1" />
-                              {day.day.daily_chance_of_rain}%
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="hourly">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Prévisions horaires</CardTitle>
-                        <CardDescription>
-                          Aujourd'hui - {formatDate(weatherData.forecast.forecastday[0].date)}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="overflow-x-auto">
-                          <div className="inline-flex gap-4 pb-4">
-                            {weatherData.forecast.forecastday[0].hour
-                              .filter((_, index) => index % 3 === 0) // Show every 3 hours
-                              .map(hour => (
-                                <div key={hour.time} className="flex flex-col items-center w-20">
-                                  <p className="text-sm font-medium">
-                                    {new Date(hour.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                  </p>
-                                  <img 
-                                    src={`https:${hour.condition.icon}`}
-                                    alt={hour.condition.text}
-                                    className="w-10 h-10 my-2"
-                                  />
-                                  <p className="font-bold">{Math.round(hour.temp_c)}°C</p>
-                                </div>
-                              ))
-                            }
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
-              )}
-              
-              {/* Agricultural advice based on weather */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Conseils agricoles</CardTitle>
-                  <CardDescription>
-                    Recommandations basées sur les conditions météorologiques actuelles
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {weatherData.current.precip_mm > 5 && (
-                      <div className="flex items-start gap-3">
-                        <CloudRain className="h-5 w-5 text-blue-500 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Fortes précipitations</h3>
-                          <p className="text-sm text-gray-600">
-                            Évitez l'irrigation aujourd'hui. Vérifiez vos systèmes de drainage pour éviter l'engorgement des cultures.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {weatherData.current.wind_kph > 20 && (
-                      <div className="flex items-start gap-3">
-                        <Wind className="h-5 w-5 text-blue-500 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Vents forts</h3>
-                          <p className="text-sm text-gray-600">
-                            Reportez les pulvérisations de pesticides ou d'engrais. Assurez-vous que les jeunes plants sont protégés.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {weatherData.current.temp_c > 30 && (
-                      <div className="flex items-start gap-3">
-                        <Thermometer className="h-5 w-5 text-red-500 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Températures élevées</h3>
-                          <p className="text-sm text-gray-600">
-                            Augmentez l'arrosage et évitez de travailler aux heures les plus chaudes. Vérifiez que vos cultures ont suffisamment d'ombre.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {weatherData.current.temp_c < 5 && (
-                      <div className="flex items-start gap-3">
-                        <Snowflake className="h-5 w-5 text-blue-300 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Températures basses</h3>
-                          <p className="text-sm text-gray-600">
-                            Risque de gel. Protégez vos cultures fragiles avec des couvertures ou des systèmes de chauffage si possible.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {weatherData.current.humidity > 80 && (
-                      <div className="flex items-start gap-3">
-                        <Droplets className="h-5 w-5 text-blue-500 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Forte humidité</h3>
-                          <p className="text-sm text-gray-600">
-                            Surveillez l'apparition de maladies fongiques. Assurez une bonne circulation d'air autour des plantes.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {weatherData.current.uv > 8 && (
-                      <div className="flex items-start gap-3">
-                        <SunMedium className="h-5 w-5 text-yellow-500 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Indice UV élevé</h3>
-                          <p className="text-sm text-gray-600">
-                            Protégez les travailleurs agricoles du soleil. Certaines cultures peuvent nécessiter un ombrage supplémentaire.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <Card className="text-center p-8">
-              <div className="mb-6">
-                <SunMedium className="h-16 w-16 mx-auto text-yellow-400" />
-              </div>
-              <CardTitle className="text-xl mb-2">Consultez les prévisions météo</CardTitle>
-              <CardDescription className="max-w-md mx-auto mb-6">
-                Recherchez un lieu ou utilisez votre position actuelle pour obtenir des prévisions météo précises et des conseils agricoles adaptés.
+
+          <Card className="bg-white shadow-md rounded-lg overflow-hidden">
+            <CardHeader className="p-4">
+              <CardTitle className="text-lg font-semibold">
+                Rechercher une autre ville
+              </CardTitle>
+              <CardDescription>
+                Entrez le nom d'une ville pour voir la météo
               </CardDescription>
-              <Button onClick={getUserLocation} className="bg-agri-green-500 hover:bg-agri-green-600">
-                <MapPin className="mr-2 h-4 w-4" />
-                Utiliser ma position
-              </Button>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="flex">
+                <Input
+                  type="text"
+                  placeholder="Nom de la ville"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="mr-2"
+                />
+                <Button onClick={handleSearch} disabled={!searchTerm}>
+                  Rechercher
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {nearbyLocations.length > 0 && (
+            <Card className="bg-white shadow-md rounded-lg overflow-hidden">
+              <CardHeader className="p-4">
+                <CardTitle className="text-lg font-semibold">
+                  Villes à proximité
+                </CardTitle>
+                <CardDescription>
+                  Météo dans les villes à proximité
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4">
+                <ul>
+                  {nearbyLocations.map((location) => (
+                    <li key={location.id} className="py-2">
+                      <Button
+                        variant="link"
+                        onClick={() => {
+                          setSearchTerm(location.name);
+                          handleSearch();
+                        }}
+                      >
+                        {location.name}, {location.region}, {location.country}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
             </Card>
           )}
         </div>
-      </main>
-      
-      <Footer />
+      ) : (
+        <div className="max-w-lg mx-auto bg-white rounded-lg shadow-md p-6 mt-8">
+          <h2 className="text-xl font-semibold text-center mb-4">Météo</h2>
+          <p className="text-gray-600 text-center">
+            Veuillez activer la géolocalisation pour voir la météo de votre
+            position actuelle.
+          </p>
+          <div className="flex mt-2">
+            <Input
+              placeholder="Rechercher une ville..."
+              className="mr-2"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button onClick={handleSearch} disabled={!searchTerm}>
+              Rechercher
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

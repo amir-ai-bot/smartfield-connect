@@ -77,6 +77,17 @@ const Index = () => {
         <>
           <WelcomeSection id="welcome-section" />
           
+          {/* Fixed login button at the center of the screen */}
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+            <Button
+              size="lg"
+              onClick={openLoginDialog}
+              className="px-8 py-6 text-lg bg-agri-green-500 hover:bg-agri-green-600 shadow-lg"
+            >
+              Connexion
+            </Button>
+          </div>
+          
           {/* Mobile-specific auth buttons - only show if we're not already showing buttons in the welcome section */}
           {isMobile && showMobileAuth && (
             <div className="fixed bottom-20 left-0 right-0 flex justify-center gap-4 p-4 z-40">

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser } from '@/services/adminService';
+import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser, createUser } from '@/services/adminService';
 
 const Admin = () => {
   const { user } = useAuth();
@@ -137,6 +136,12 @@ const Admin = () => {
     }
   };
 
+  const getVerificationBadgeColor = (isVerified: boolean) => {
+    return isVerified 
+      ? 'bg-green-100 text-green-800'
+      : 'bg-yellow-100 text-yellow-800';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 pb-20 md:pb-8 mt-14 md:mt-20">
       <div className="flex flex-col space-y-4">
@@ -174,7 +179,14 @@ const Admin = () => {
                     Consultez et gérez les comptes utilisateurs de l'application
                   </CardDescription>
                 </div>
-                {/* Removed add user button as requested */}
+                <Button 
+                  onClick={() => setNewUserDialog(true)}
+                  size="sm"
+                  className="hidden md:flex"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Ajouter un utilisateur
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border overflow-hidden">
@@ -190,6 +202,7 @@ const Admin = () => {
                             <TableHead>Utilisateur</TableHead>
                             <TableHead className="hidden md:table-cell">Email</TableHead>
                             <TableHead>Rôle</TableHead>
+                            <TableHead className="hidden md:table-cell">Statut</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -210,6 +223,11 @@ const Admin = () => {
                                   <div>
                                     <p className="font-medium">{user.name}</p>
                                     <p className="text-xs text-gray-500 md:hidden">{user.email}</p>
+                                    <div className="md:hidden mt-1">
+                                      <Badge className={getVerificationBadgeColor(user.email_verified || false)}>
+                                        {user.email_verified ? 'Vérifié' : 'Non vérifié'}
+                                      </Badge>
+                                    </div>
                                   </div>
                                 </div>
                               </TableCell>
@@ -219,20 +237,27 @@ const Admin = () => {
                                   {user.role}
                                 </Badge>
                               </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <Badge className={getVerificationBadgeColor(user.email_verified || false)}>
+                                  {user.email_verified ? 'Vérifié' : 'Non vérifié'}
+                                </Badge>
+                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="icon"
-                                    onClick={() => handleVerifyUser(user.id)}
-                                    disabled={!!isVerifyingUser}
-                                  >
-                                    {isVerifyingUser === user.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <CheckCircle className="h-4 w-4 text-green-600" />
-                                    )}
-                                  </Button>
+                                  {!user.email_verified && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="icon"
+                                      onClick={() => handleVerifyUser(user.id)}
+                                      disabled={!!isVerifyingUser}
+                                    >
+                                      {isVerifyingUser === user.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="outline" 
                                     size="icon"
@@ -251,7 +276,7 @@ const Admin = () => {
                           ))}
                           {users.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                              <TableCell colSpan={5} className="text-center py-6 text-gray-500">
                                 Aucun utilisateur trouvé
                               </TableCell>
                             </TableRow>
@@ -498,6 +523,107 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={newUserDialog} onOpenChange={setNewUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+            <DialogDescription>
+              Créez un compte utilisateur avec les informations de base.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom complet</Label>
+              <Input 
+                id="name" 
+                value={newUserData.name}
+                onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email"
+                value={newUserData.email}
+                onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input 
+                id="password" 
+                type="password"
+                value={newUserData.password}
+                onChange={(e) => setNewUserData({...newUserData, password: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Rôle</Label>
+              <Select 
+                value={newUserData.role}
+                onValueChange={(value) => setNewUserData({...newUserData, role: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un rôle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Utilisateur</SelectItem>
+                  <SelectItem value="fournisseur">Fournisseur</SelectItem>
+                  <SelectItem value="admin">Administrateur</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewUserDialog(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  setIsCreatingUser(true);
+                  await createUser(
+                    newUserData.name,
+                    newUserData.email,
+                    newUserData.password,
+                    newUserData.role
+                  );
+                  toast.success('Utilisateur créé avec succès');
+                  setNewUserDialog(false);
+                  setNewUserData({
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'user'
+                  });
+                  refetchUsers();
+                } catch (error) {
+                  console.error('Error creating user:', error);
+                  toast.error('Erreur lors de la création de l\'utilisateur: ' + 
+                    (error instanceof Error ? error.message : 'Erreur inconnue'));
+                } finally {
+                  setIsCreatingUser(false);
+                }
+              }}
+              disabled={isCreatingUser || !newUserData.name || !newUserData.email || !newUserData.password}
+            >
+              {isCreatingUser ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Création...
+                </>
+              ) : (
+                'Créer l\'utilisateur'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
