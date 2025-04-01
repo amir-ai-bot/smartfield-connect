@@ -62,7 +62,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
               onChange={handleOTPChange}
               render={({ slots }) => (
                 <InputOTPGroup className="gap-2">
-                  {slots.map((slot, index) => (
+                  {Array.isArray(slots) && slots.map((slot, index) => (
                     <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
                   ))}
                 </InputOTPGroup>
