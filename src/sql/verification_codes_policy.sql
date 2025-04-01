@@ -19,10 +19,16 @@ WITH CHECK (true);
 CREATE POLICY IF NOT EXISTS "Users can read their own verification codes"
 ON public.verification_codes
 FOR SELECT
-USING (auth.uid() = user_id);
+USING (auth.uid() = user_id OR auth.role() = 'service_role');
 
 -- Allow authenticated users to update their own verification codes
 CREATE POLICY IF NOT EXISTS "Users can update their own verification codes"
 ON public.verification_codes
 FOR UPDATE
-USING (auth.uid() = user_id);
+USING (auth.uid() = user_id OR auth.role() = 'service_role');
+
+-- Allow service role to delete verification codes (useful for cleanup)
+CREATE POLICY IF NOT EXISTS "Service role can delete verification codes"
+ON public.verification_codes
+FOR DELETE
+USING (auth.role() = 'service_role');

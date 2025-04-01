@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NewPasswordFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Loader2, Lock, ArrowLeft } from 'lucide-react';
 import {
   InputOTP,
@@ -23,8 +24,11 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   onBackToLogin
 }) => {
   const { confirmPasswordReset } = useAuth();
+  const { getTranslation } = useLanguage();
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
   const [code, setCode] = useState('');
+
+  const t = (key: string) => getTranslation(key);
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
@@ -45,14 +49,14 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-4">
         <div className="text-center mb-4">
-          <h3 className="text-lg font-medium">Créer un nouveau mot de passe</h3>
+          <h3 className="text-lg font-medium">{t('createNewPassword')}</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Entrez le code reçu par email et votre nouveau mot de passe
+            {t('enterCodeAndNewPassword')}
           </p>
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="code" className="block text-center">Code de réinitialisation</Label>
+          <Label htmlFor="code" className="block text-center">{t('resetCode')}</Label>
           <div className="flex justify-center">
             <InputOTP
               maxLength={6}
@@ -69,10 +73,10 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             <input 
               type="hidden" 
               {...register('code', { 
-                required: 'Le code est requis',
+                required: t('codeRequired'),
                 pattern: {
                   value: /^\d{6}$/,
-                  message: 'Le code doit contenir 6 chiffres'
+                  message: t('codeMustBe6Digits')
                 }
               })} 
             />
@@ -83,17 +87,17 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Nouveau mot de passe</Label>
+          <Label htmlFor="password">{t('newPassword')}</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
               id="password"
               type="password"
               className="pl-10"
-              placeholder="Nouveau mot de passe"
+              placeholder={t('newPassword')}
               {...register('password', { 
-                required: 'Le mot de passe est requis',
-                minLength: { value: 6, message: '6 caractères minimum' }
+                required: t('passwordRequired'),
+                minLength: { value: 6, message: t('passwordMinLength') }
               })}
             />
           </div>
@@ -103,17 +107,17 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+          <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
               id="confirmPassword"
               type="password"
               className="pl-10"
-              placeholder="Confirmer le mot de passe"
+              placeholder={t('confirmPassword')}
               {...register('confirmPassword', { 
-                required: 'Veuillez confirmer le mot de passe',
-                validate: value => value === watch('password') || 'Les mots de passe ne correspondent pas'
+                required: t('confirmPasswordRequired'),
+                validate: value => value === watch('password') || t('passwordsDoNotMatch')
               })}
             />
           </div>
@@ -127,10 +131,10 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Réinitialisation...
+                {t('resetting')}
               </>
             ) : (
-              'Réinitialiser le mot de passe'
+              t('resetPassword')
             )}
           </Button>
           
@@ -141,7 +145,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             className="w-full"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la connexion
+            {t('backToLogin')}
           </Button>
         </div>
       </div>
