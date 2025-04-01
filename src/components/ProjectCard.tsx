@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar, MapPin, Sprout } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface ProjectCardProps {
+export interface ProjectCardProps {
   id: string;
   title: string;
   crop: string;
@@ -18,6 +18,7 @@ interface ProjectCardProps {
   image?: string;
   user_name?: string;
   user_avatar?: string;
+  onClick?: () => void;
 }
 
 const ProjectCard = ({ 
@@ -31,7 +32,8 @@ const ProjectCard = ({
   status, 
   image,
   user_name,
-  user_avatar
+  user_avatar,
+  onClick
 }: ProjectCardProps) => {
   const { t, language } = useLanguage();
   const [imageError, setImageError] = useState(false);
@@ -75,7 +77,7 @@ const ProjectCard = ({
   };
   
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-lg">
+    <Card className="overflow-hidden transition-all hover:shadow-lg cursor-pointer" onClick={onClick}>
       <div className="relative h-48 overflow-hidden">
         <img 
           src={imageError ? placeholderImage : (image || placeholderImage)} 

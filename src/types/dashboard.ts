@@ -1,3 +1,4 @@
+
 // Type definitions for the dashboard data
 
 export interface Project {
@@ -45,16 +46,16 @@ export interface ProjectData {
   title: string;
   crop: string;
   location: string;
-  start_date: string;
-  end_date: string;
+  startDate: string;
+  endDate: string;
   progress: number;
   status: string;
-  image: string;
-  description: string;
+  image?: string;
+  description?: string;
   user_id: string;
-  is_public: boolean;
-  created_at: string;
-  updated_at: string;
+  is_public?: boolean;
+  user_name?: string;
+  user_avatar?: string;
 }
 
 export interface DashboardContextType {

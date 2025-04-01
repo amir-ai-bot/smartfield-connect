@@ -43,7 +43,6 @@ const App = () => (
                 zIndex: 50,
               }
             }} 
-            position="top-center"
           />
           <BrowserRouter>
             <Routes>

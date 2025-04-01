@@ -43,15 +43,17 @@ const Projects = () => {
     
     try {
       // Fetch user's projects
+      let userProjectsData: ProjectData[] = [];
       if (user) {
-        const { data: userProjects, error } = await supabase
+        const { data: userProjectsResult, error } = await supabase
           .from('projects')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
           
         if (error) throw error;
-        setProjects(userProjects || []);
+        userProjectsData = userProjectsResult || [];
+        setProjects(userProjectsData);
       }
       
       // Fetch public projects using the view we created
@@ -68,7 +70,7 @@ const Projects = () => {
       setPublicProjects(typedPublicProjects || []);
       
       // Extract unique crops for filter
-      const allProjects = [...(userProjects || []), ...typedPublicProjects];
+      const allProjects = [...userProjectsData, ...typedPublicProjects];
       const crops = [...new Set(allProjects.map(p => p.crop))].filter(Boolean);
       setAvailableCrops(crops);
       
@@ -221,10 +223,17 @@ const Projects = () => {
               {filteredProjects.map(project => (
                 <ProjectCard 
                   key={project.id} 
-                  project={project}
-                  userName={(project as unknown as PublicProjectView).user_name}
-                  userAvatar={(project as unknown as PublicProjectView).user_avatar}
-                  isOwner={user && project.user_id === user.id}
+                  id={project.id}
+                  title={project.title}
+                  crop={project.crop || ''}
+                  location={project.location || ''}
+                  startDate={project.startDate || ''}
+                  endDate={project.endDate || ''}
+                  progress={project.progress}
+                  status={project.status as 'active' | 'planning' | 'completed'}
+                  image={project.image}
+                  user_name={(project as PublicProjectView).user_name}
+                  user_avatar={(project as PublicProjectView).user_avatar || undefined}
                   onClick={() => navigate(`/dashboard?projectId=${project.id}`)}
                 />
               ))}
@@ -251,7 +260,7 @@ const Projects = () => {
       <CreateProjectDialog 
         open={isCreateDialogOpen} 
         onOpenChange={setIsCreateDialogOpen}
-        onCreateProject={handleCreateProject}
+        onProjectCreated={handleCreateProject}
       />
     </div>
   );
