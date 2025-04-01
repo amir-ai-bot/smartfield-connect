@@ -181,6 +181,7 @@ export type Database = {
           id: string
           image: string | null
           is_public: boolean | null
+          last_modified: string | null
           location: string | null
           progress: number | null
           start_date: string | null
@@ -197,6 +198,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_public?: boolean | null
+          last_modified?: string | null
           location?: string | null
           progress?: number | null
           start_date?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           id?: string
           image?: string | null
           is_public?: boolean | null
+          last_modified?: string | null
           location?: string | null
           progress?: number | null
           start_date?: string | null
@@ -271,6 +274,26 @@ export type Database = {
           title: string | null
           updated_at: string | null
           user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Relationships: []
+      }
+      public_projects_view: {
+        Row: {
+          created_at: string | null
+          crop: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          image: string | null
+          is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
+          title: string | null
+          user_avatar: string | null
           user_id: string | null
           user_name: string | null
         }

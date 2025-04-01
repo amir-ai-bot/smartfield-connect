@@ -1,202 +1,213 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
-type LanguageType = 'fr' | 'en' | 'ar';
-
-interface Translations {
-  [key: string]: {
-    [key: string]: string
-  }
-}
-
-// Define translations
-const translations: Translations = {
-  fr: {
-    home: 'Accueil',
-    projects: 'Projets',
-    suppliers: 'Marchands',
-    weather: 'Météo',
-    profile: 'Profil',
-    admin: 'Admin',
-    logout: 'Déconnexion',
-    submit: 'Soumettre',
-    cancel: 'Annuler',
-    email: 'Email',
-    password: 'Mot de passe',
-    login: 'Connexion',
-    signup: 'S\'inscrire',
-    resetPassword: 'Réinitialiser le mot de passe',
-    verifyEmail: 'Vérifier l\'email',
-    name: 'Nom',
-    phone: 'Téléphone',
-    address: 'Adresse',
-    bio: 'Bio',
-    save: 'Enregistrer',
-    createProject: 'Créer un projet',
-    title: 'Titre',
-    description: 'Description',
-    crop: 'Culture',
-    location: 'Localisation',
-    startDate: 'Date de début',
-    endDate: 'Date de fin',
-    progress: 'Progrès',
-    status: 'Statut',
-    public: 'Public',
-    private: 'Privé',
-    create: 'Créer',
-    edit: 'Modifier',
-    delete: 'Supprimer',
-    confirm: 'Confirmer',
-    welcomeMessage: 'Bienvenue sur AgriSmart',
-    temperatureFeelsLike: 'Ressenti',
-    wind: 'Vent',
-    humidity: 'Humidité',
-    weekForecast: 'Prévisions pour la semaine',
-    upcomingTasks: 'Tâches à venir'
-  },
+// Define the translations
+const translations = {
   en: {
-    home: 'Home',
-    projects: 'Projects',
-    suppliers: 'Suppliers',
-    weather: 'Weather',
-    profile: 'Profile',
-    admin: 'Admin',
-    logout: 'Logout',
-    submit: 'Submit',
-    cancel: 'Cancel',
-    email: 'Email',
-    password: 'Password',
-    login: 'Login',
-    signup: 'Sign up',
-    resetPassword: 'Reset Password',
-    verifyEmail: 'Verify Email',
-    name: 'Name',
-    phone: 'Phone',
-    address: 'Address',
-    bio: 'Bio',
-    save: 'Save',
-    createProject: 'Create Project',
-    title: 'Title',
-    description: 'Description',
-    crop: 'Crop',
-    location: 'Location',
-    startDate: 'Start Date',
-    endDate: 'End Date',
-    progress: 'Progress',
-    status: 'Status',
-    public: 'Public',
-    private: 'Private',
-    create: 'Create',
-    edit: 'Edit',
-    delete: 'Delete',
-    confirm: 'Confirm',
-    welcomeMessage: 'Welcome to AgriSmart',
-    temperatureFeelsLike: 'Feels like',
-    wind: 'Wind',
-    humidity: 'Humidity',
-    weekForecast: 'Week forecast',
-    upcomingTasks: 'Upcoming tasks'
+    welcome: "Welcome to AgriTech",
+    projects: "Projects",
+    dashboard: "Dashboard",
+    profile: "Profile",
+    weather: "Weather",
+    suppliers: "Suppliers",
+    conversations: "Conversations",
+    createProject: "Create Project",
+    login: "Log in",
+    signup: "Sign up",
+    logout: "Log out",
+    searchProjects: "Search projects...",
+    status: "Status",
+    crop: "Crop",
+    all: "All",
+    active: "Active",
+    planning: "Planning",
+    completed: "Completed",
+    noProjectsFound: "No projects found",
+    resetFilters: "Reset filters",
+    addProject: "New project",
+    projectDetails: "Project details",
+    startDate: "Start date",
+    endDate: "End date",
+    location: "Location",
+    description: "Description",
+    progress: "Progress",
+    delete: "Delete",
+    edit: "Edit",
+    save: "Save",
+    cancel: "Cancel"
+  },
+  fr: {
+    welcome: "Bienvenue à AgriTech",
+    projects: "Projets",
+    dashboard: "Tableau de bord",
+    profile: "Profil",
+    weather: "Météo",
+    suppliers: "Fournisseurs",
+    conversations: "Conversations",
+    createProject: "Créer un projet",
+    login: "Connexion",
+    signup: "Inscription",
+    logout: "Déconnexion",
+    searchProjects: "Rechercher des projets...",
+    status: "Statut",
+    crop: "Culture",
+    all: "Tous",
+    active: "Actifs",
+    planning: "Planification",
+    completed: "Complétés",
+    noProjectsFound: "Aucun projet trouvé",
+    resetFilters: "Réinitialiser les filtres",
+    addProject: "Nouveau projet",
+    projectDetails: "Détails du projet",
+    startDate: "Date de début",
+    endDate: "Date de fin",
+    location: "Emplacement",
+    description: "Description",
+    progress: "Progression",
+    delete: "Supprimer",
+    edit: "Modifier",
+    save: "Enregistrer",
+    cancel: "Annuler"
   },
   ar: {
-    home: 'الرئيسية',
-    projects: 'المشاريع',
-    suppliers: 'الموردين',
-    weather: 'الطقس',
-    profile: 'الملف الشخصي',
-    admin: 'المشرف',
-    logout: 'تسجيل الخروج',
-    submit: 'إرسال',
-    cancel: 'إلغاء',
-    email: 'البريد الإلكتروني',
-    password: 'كلمة المرور',
-    login: 'تسجيل الدخول',
-    signup: 'التسجيل',
-    resetPassword: 'إعادة تعيين كلمة المرور',
-    verifyEmail: 'تأكيد البريد الإلكتروني',
-    name: 'الاسم',
-    phone: 'الهاتف',
-    address: 'العنوان',
-    bio: 'نبذة',
-    save: 'حفظ',
-    createProject: 'إنشاء مشروع',
-    title: 'العنوان',
-    description: 'الوصف',
-    crop: 'المحصول',
-    location: 'الموقع',
-    startDate: 'تاريخ البدء',
-    endDate: 'تاريخ الانتهاء',
-    progress: 'التقدم',
-    status: 'الحالة',
-    public: 'عام',
-    private: 'خاص',
-    create: 'إنشاء',
-    edit: 'تعديل',
-    delete: 'حذف',
-    confirm: 'تأكيد',
-    welcomeMessage: 'مرحبا بكم في أغريسمارت',
-    temperatureFeelsLike: 'يشعر وكأنه',
-    wind: 'الرياح',
-    humidity: 'الرطوبة',
-    weekForecast: 'توقعات الأسبوع',
-    upcomingTasks: 'المهام القادمة'
+    welcome: "مرحبًا بك في أجريتيك",
+    projects: "المشاريع",
+    dashboard: "لوحة التحكم",
+    profile: "الملف الشخصي",
+    weather: "الطقس",
+    suppliers: "الموردون",
+    conversations: "المحادثات",
+    createProject: "إنشاء مشروع",
+    login: "تسجيل الدخول",
+    signup: "إنشاء حساب",
+    logout: "تسجيل الخروج",
+    searchProjects: "البحث عن المشاريع...",
+    status: "الحالة",
+    crop: "المحصول",
+    all: "الكل",
+    active: "نشط",
+    planning: "تخطيط",
+    completed: "مكتمل",
+    noProjectsFound: "لم يتم العثور على مشاريع",
+    resetFilters: "إعادة تعيين التصفية",
+    addProject: "مشروع جديد",
+    projectDetails: "تفاصيل المشروع",
+    startDate: "تاريخ البدء",
+    endDate: "تاريخ الانتهاء",
+    location: "الموقع",
+    description: "الوصف",
+    progress: "التقدم",
+    delete: "حذف",
+    edit: "تعديل",
+    save: "حفظ",
+    cancel: "إلغاء"
   }
 };
 
-interface LanguageContextType {
+type LanguageType = 'en' | 'fr' | 'ar';
+type LanguageContextType = {
   language: LanguageType;
   setLanguage: (lang: LanguageType) => void;
-  getTranslation: (key: string) => string;
-}
+  t: (key: string) => string;
+  dir: 'ltr' | 'rtl';
+};
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export const useLanguage = () => {
+type LanguageProviderProps = {
+  children: ReactNode;
+};
+
+export const LanguageProvider = ({ children }: LanguageProviderProps) => {
+  const [language, setLanguage] = useState<LanguageType>('fr');
+  
+  useEffect(() => {
+    // Try to get saved language preference from localStorage
+    const savedLanguage = localStorage.getItem('preferredLanguage') as LanguageType | null;
+    if (savedLanguage && ['en', 'fr', 'ar'].includes(savedLanguage)) {
+      setLanguage(savedLanguage);
+    }
+
+    // Also try to get user's preference from DB if user is logged in
+    const getCurrentUserPreference = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('preferences')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.preferences?.language && ['en', 'fr', 'ar'].includes(data.preferences.language)) {
+          setLanguage(data.preferences.language);
+          localStorage.setItem('preferredLanguage', data.preferences.language);
+        }
+      }
+    };
+
+    getCurrentUserPreference();
+  }, []);
+
+  // Update language and save preference
+  const changeLanguage = async (lang: LanguageType) => {
+    setLanguage(lang);
+    localStorage.setItem('preferredLanguage', lang);
+    
+    // Update user preference in DB if logged in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .single();
+      
+      const updatedPreferences = { 
+        ...data?.preferences || {},
+        language: lang 
+      };
+      
+      await supabase
+        .from('profiles')
+        .update({ preferences: updatedPreferences })
+        .eq('id', user.id);
+    }
+  };
+
+  // Get text for a given key in current language
+  const t = (key: string): string => {
+    const langObj = translations[language] as Record<string, string>;
+    return langObj[key] || key;
+  };
+
+  // Set text direction based on language
+  const dir = language === 'ar' ? 'rtl' : 'ltr';
+
+  useEffect(() => {
+    // Apply direction to html element
+    document.documentElement.dir = dir;
+    document.documentElement.lang = language;
+    
+    // Add appropriate class for RTL styling if needed
+    if (dir === 'rtl') {
+      document.documentElement.classList.add('rtl');
+    } else {
+      document.documentElement.classList.remove('rtl');
+    }
+  }, [dir, language]);
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage: changeLanguage, t, dir }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export const useLanguage = (): LanguageContextType => {
   const context = useContext(LanguageContext);
   if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-};
-
-export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<LanguageType>('fr');
-
-  // Load language preference from localStorage on mount
-  useEffect(() => {
-    const savedLanguage = localStorage.getItem('agrismart_language') as LanguageType;
-    if (savedLanguage && ['fr', 'en', 'ar'].includes(savedLanguage)) {
-      setLanguage(savedLanguage);
-    }
-  }, []);
-
-  // Save language preference to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('agrismart_language', language);
-    
-    // Set document direction for Arabic language
-    if (language === 'ar') {
-      document.documentElement.dir = 'rtl';
-      document.documentElement.lang = 'ar';
-    } else {
-      document.documentElement.dir = 'ltr';
-      document.documentElement.lang = language;
-    }
-  }, [language]);
-
-  const getTranslation = (key: string): string => {
-    if (translations[language] && translations[language][key]) {
-      return translations[language][key];
-    }
-    // Fallback to French if translation is missing
-    if (translations['fr'] && translations['fr'][key]) {
-      return translations['fr'][key];
-    }
-    return key; // Return key as fallback
-  };
-
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage, getTranslation }}>
-      {children}
-    </LanguageContext.Provider>
-  );
 };

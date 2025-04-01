@@ -8,11 +8,11 @@ ON public.verification_codes
 FOR ALL
 USING (auth.role() = 'service_role');
 
--- Allow authenticated users to create verification codes 
--- This policy has been modified to not check user_id when creating
-CREATE POLICY IF NOT EXISTS "Users can create verification codes"
+-- Allow anyone to create verification codes
+CREATE POLICY IF NOT EXISTS "Anyone can create verification codes"
 ON public.verification_codes
 FOR INSERT
+TO authenticated, anon
 WITH CHECK (true);
 
 -- Allow authenticated users to read their own verification codes
@@ -27,8 +27,10 @@ ON public.verification_codes
 FOR UPDATE
 USING (auth.uid() = user_id OR auth.role() = 'service_role');
 
--- Allow service role to delete verification codes (useful for cleanup)
-CREATE POLICY IF NOT EXISTS "Service role can delete verification codes"
+-- Allow users and admins to delete verification codes
+CREATE POLICY IF NOT EXISTS "Users can delete their verification codes or admins can delete any"
 ON public.verification_codes
 FOR DELETE
-USING (auth.role() = 'service_role');
+USING (auth.uid() = user_id OR auth.role() = 'service_role' OR EXISTS (
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+));

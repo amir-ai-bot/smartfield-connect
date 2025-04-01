@@ -21,15 +21,30 @@ import Conversations from "./pages/Conversations";
 import ConversationDetail from "./pages/ConversationDetail";
 import Favorites from "./pages/Favorites";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
         <LanguageProvider>
-          <Toaster />
-          <Sonner />
+          <Toaster position="top-center" />
+          <Sonner 
+            position="top-center" 
+            toastOptions={{ 
+              duration: 3000,
+              style: { 
+                zIndex: 50,
+              }
+            }} 
+          />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />

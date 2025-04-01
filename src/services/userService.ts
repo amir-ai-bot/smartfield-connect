@@ -3,6 +3,7 @@ import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { deleteAvatar } from './storageService';
 import { toast } from 'sonner';
+import { isImageUrlValid, getAvatarUrl } from '@/utils/imageUtils';
 
 // Function to fetch a user's profile
 export const fetchUserProfile = async (userId: string): Promise<User> => {
@@ -39,16 +40,18 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
     // Verify if the avatar URL is valid
     if (user.avatar) {
       try {
-        // Check if the URL is accessible
-        const response = await fetch(user.avatar, { method: 'HEAD' });
-        if (!response.ok) {
+        const isValid = await isImageUrlValid(user.avatar);
+        if (!isValid) {
           console.warn(`Avatar URL is not accessible: ${user.avatar}`);
-          user.avatar = undefined; // Reset avatar if not accessible
+          user.avatar = user.name ? getAvatarUrl(user.name) : undefined;
         }
       } catch (e) {
         console.warn(`Error checking avatar URL: ${user.avatar}`, e);
-        user.avatar = undefined; // Reset avatar on error
+        user.avatar = user.name ? getAvatarUrl(user.name) : undefined;
       }
+    } else if (user.name) {
+      // If no avatar but we have a name, use a generated avatar
+      user.avatar = getAvatarUrl(user.name);
     }
 
     // Check if email is verified
