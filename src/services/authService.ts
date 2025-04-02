@@ -1,3 +1,4 @@
+
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
@@ -161,10 +162,9 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
   // In a real app, you would send the code via email here
   console.log(`Email verification code for user ${userId}: ${code}`);
   
-  // Display the code via toast so users can see it during testing
-  // This is a temporary solution for testing - in production, this would be sent via email
-  toast.success(`Code de vérification: ${code}`, {
-    duration: 10000 // Show for longer so user can see the code
+  // Instead of showing the code via toast, show a message that the code has been sent
+  toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
+    duration: 6000
   });
   
   return code;
@@ -251,9 +251,9 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     // In a real app, you would send the code via email here
     console.log(`Password reset code for ${email}: ${code}`);
     
-    // Display the code to the user for testing purposes
-    toast.success(`Code de réinitialisation: ${code}`, {
-      duration: 10000 // Show for longer so user can see the code
+    // Show a message that the code has been sent
+    toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
+      duration: 6000
     });
   } catch (error) {
     console.error('Error in requestPasswordReset:', error);

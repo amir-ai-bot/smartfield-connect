@@ -1,3 +1,4 @@
+
 import { WeatherData } from '@/types/dashboard';
 import { initialDashboardData } from '@/data/dashboardMockData';
 import { toast } from 'sonner';
@@ -16,7 +17,10 @@ export const fetchWeatherData = async (location: string = "Tunis, Tunisia"): Pro
       // If we get a 403, it's likely an API key issue
       if (response.status === 403) {
         console.warn('Using mock weather data due to API access issue');
-        toast.warning('Données météo simulées - clé API non configurée');
+        toast.warning('Données météo simulées - clé API non configurée', {
+          id: 'mock-weather-data',
+          duration: 5000
+        });
         return initialDashboardData.weatherData;
       }
       
@@ -40,7 +44,10 @@ export const fetchWeatherData = async (location: string = "Tunis, Tunisia"): Pro
   } catch (error) {
     console.error('Could not fetch weather data:', error);
     // Return mock data as fallback
-    console.log('Using mock weather data as fallback');
+    toast.warning('Utilisation des données météo simulées', {
+      id: 'mock-weather-data',
+      duration: 5000
+    });
     return initialDashboardData.weatherData;
   }
 };

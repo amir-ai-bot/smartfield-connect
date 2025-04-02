@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
   Users, Clipboard, Settings, DatabaseZap, 
-  CheckCircle, XCircle, Trash2, Edit, Loader2, UserPlus, UserX
+  CheckCircle, Loader2, UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -84,6 +84,11 @@ const Admin = () => {
       return;
     }
     
+    if (userEmail === 'bahapro30@gmail.com') {
+      toast.error("Ce compte ne peut pas être supprimé");
+      return;
+    }
+    
     setUserToDelete({
       id: userId,
       name: userName,
@@ -159,6 +164,13 @@ const Admin = () => {
     return isVerified 
       ? 'bg-green-100 text-green-800'
       : 'bg-yellow-100 text-yellow-800';
+  };
+
+  const shouldAllowUserDeletion = (userEmail: string) => {
+    if (userEmail === 'bahapro30@gmail.com') {
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -278,15 +290,16 @@ const Admin = () => {
                                       )}
                                     </Button>
                                   )}
-                                  <Button 
-                                    variant="outline" 
-                                    className="h-7 text-xs"
-                                    onClick={() => openDeleteUserDialog(user.id, user.name || '', user.email || '')}
-                                    disabled={!!isDeletingUser || user.id === user?.id}
-                                  >
-                                    <UserX className="h-3 w-3 text-red-600 mr-1" />
-                                    Supprimer
-                                  </Button>
+                                  {shouldAllowUserDeletion(user.email || '') && (
+                                    <Button 
+                                      variant="destructive" 
+                                      className="h-7 text-xs"
+                                      onClick={() => openDeleteUserDialog(user.id, user.name || '', user.email || '')}
+                                      disabled={!!isDeletingUser || user.id === user?.id}
+                                    >
+                                      Supprimer
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>

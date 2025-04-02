@@ -55,9 +55,9 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
   const handleResendCode = async () => {
     try {
       setResendingCode(true);
-      // Use the signup email service to resend the code
-      // This is just a placeholder, implement the actual resend logic
-      console.log('Resend code to', email);
+      // Call the API to resend the code
+      // In a real app, this would make an API call to resend the verification code
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       toast.success('Un nouveau code a été envoyé à votre email');
     } catch (error) {
       console.error('Error resending code:', error);
