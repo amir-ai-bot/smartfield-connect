@@ -28,6 +28,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   const { t } = useLanguage();
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
   const [code, setCode] = useState('');
+  const [useDirectInput, setUseDirectInput] = useState(false);
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
@@ -66,30 +67,62 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         
         <div className="space-y-2">
           <Label htmlFor="code" className="block text-center">{t('resetCode')}</Label>
-          <div className="flex justify-center">
-            <InputOTP
-              maxLength={6}
-              value={code}
-              onChange={handleOTPChange}
-              render={({ slots }) => (
-                <InputOTPGroup className="gap-2">
-                  {slots.map((slot, index) => (
-                    <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
-                  ))}
-                </InputOTPGroup>
-              )}
-            />
-            <input 
-              type="hidden" 
-              {...register('code', { 
-                required: t('codeRequired'),
-                pattern: {
-                  value: /^\d{6}$/,
-                  message: t('codeMustBe6Digits')
-                }
-              })} 
-            />
-          </div>
+          
+          {!useDirectInput ? (
+            <>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={code}
+                  onChange={handleOTPChange}
+                  render={({ slots }) => (
+                    <InputOTPGroup className="gap-2">
+                      {slots.map((slot, index) => (
+                        <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
+                      ))}
+                    </InputOTPGroup>
+                  )}
+                />
+              </div>
+              
+              <div className="text-center mt-2">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-xs p-0"
+                  onClick={() => setUseDirectInput(true)}
+                >
+                  Problèmes avec le champ? Cliquez ici pour saisir manuellement
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-center">
+              <Input
+                className="text-center w-full max-w-[250px]"
+                placeholder="Entrez le code à 6 chiffres"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCode(value);
+                  setValue('code', value);
+                }}
+              />
+            </div>
+          )}
+          
+          <input 
+            type="hidden" 
+            {...register('code', { 
+              required: t('codeRequired'),
+              pattern: {
+                value: /^\d{6}$/,
+                message: t('codeMustBe6Digits')
+              }
+            })} 
+          />
+          
           {errors.code && (
             <p className="text-destructive text-sm text-center mt-2">{errors.code.message}</p>
           )}

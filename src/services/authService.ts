@@ -1,8 +1,8 @@
-
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
 import { fetchUserProfile, updateUserProfile } from './userService';
+import { toast } from 'react-toastify';
 
 // Function to login a user
 export const login = async (email: string, password: string): Promise<User> => {
@@ -212,37 +212,45 @@ export const verifyEmail = async (email: string, code: string): Promise<void> =>
 
 // Function to request password reset
 export const requestPasswordReset = async (email: string): Promise<void> => {
-  // Check if user exists
-  const { data: userData } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
+  try {
+    // Check if user exists
+    const { data: userData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
 
-  if (!userData) {
-    throw new Error('User not found');
+    if (!userData) {
+      throw new Error('User not found');
+    }
+
+    // Generate and store a random code
+    const code = generateRandomCode(6);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Code expires in 1 hour
+
+    const { error: codeError } = await supabase
+      .from('verification_codes')
+      .insert({
+        user_id: userData.id,
+        code,
+        type: 'password_reset',
+        expires_at: expiresAt.toISOString(),
+      });
+
+    if (codeError) {
+      throw new Error(codeError.message);
+    }
+
+    // In a real app, you would send the code via email here
+    console.log(`Password reset code for ${email}: ${code}`);
+    
+    // Display the code to the user for testing purposes
+    toast.success(`Code de réinitialisation: ${code}`);
+  } catch (error) {
+    console.error('Error in requestPasswordReset:', error);
+    throw error;
   }
-
-  // Generate and store a random code
-  const code = generateRandomCode(6);
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 1); // Code expires in 1 hour
-
-  const { error: codeError } = await supabase
-    .from('verification_codes')
-    .insert({
-      user_id: userData.id,
-      code,
-      type: 'password_reset',
-      expires_at: expiresAt.toISOString(),
-    });
-
-  if (codeError) {
-    throw new Error(codeError.message);
-  }
-
-  // In a real app, you would send the code via email here
-  console.log(`Password reset code for ${email}: ${code}`);
 };
 
 // Function to confirm password reset

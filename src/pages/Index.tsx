@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -8,7 +9,6 @@ import WelcomeSection from '@/components/WelcomeSection';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -53,17 +53,6 @@ const Index = () => {
         // First-time or logged-out users see the welcome section
         <>
           <WelcomeSection id="welcome-section" />
-          
-          {/* Only keep one login button at the center */}
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
-            <Button
-              size="lg"
-              onClick={openLoginDialog}
-              className="px-8 py-6 text-lg bg-agri-green-500 hover:bg-agri-green-600 shadow-lg"
-            >
-              Connexion
-            </Button>
-          </div>
           
           <AuthDialog 
             open={showAuthDialog}

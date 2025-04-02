@@ -97,7 +97,6 @@ export const fetchAllProjects = async (): Promise<ProjectData[]> => {
       user_id: item.user_id,
       isPublic: item.is_public,    // Map from is_public to isPublic
       user_name: item.user_name,
-      // Since user_avatar doesn't exist in the projects_with_users view, set to undefined
       user_avatar: undefined
     }));
 
@@ -152,56 +151,77 @@ export const verifyUserEmail = async (userId: string) => {
   }
 };
 
-// Delete a user (admin only)
+// Delete a user (admin only) - Fixed to ensure it works properly
 export const deleteUser = async (userId: string) => {
   try {
+    console.log('Deleting user with ID:', userId);
+    
     // First remove foreign key constraints by deleting related data
-    
-    // 1. Delete all projects created by the user
-    const { error: projectsError } = await supabase
-      .from('projects')
-      .delete()
-      .eq('user_id', userId);
-      
-    if (projectsError) {
-      console.error('Error deleting user projects:', projectsError);
+    try {
+      // 1. Delete all projects created by the user
+      const { error: projectsError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('user_id', userId);
+        
+      if (projectsError) {
+        console.error('Error deleting user projects:', projectsError);
+      } else {
+        console.log('Successfully deleted user projects');
+      }
+    } catch (e) {
+      console.error('Exception when deleting projects:', e);
     }
     
-    // 2. Delete all messages sent by the user
-    const { error: messagesError } = await supabase
-      .from('messages')
-      .delete()
-      .eq('sender_id', userId);
-      
-    if (messagesError) {
-      console.error('Error deleting user messages:', messagesError);
+    try {
+      // 2. Delete all messages sent by the user
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('sender_id', userId);
+        
+      if (messagesError) {
+        console.error('Error deleting user messages:', messagesError);
+      } else {
+        console.log('Successfully deleted user messages');
+      }
+    } catch (e) {
+      console.error('Exception when deleting messages:', e);
     }
     
-    // 3. Delete all conversations where the user is participant
-    const { error: conversationsError } = await supabase
-      .from('conversations')
-      .delete()
-      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
-      
-    if (conversationsError) {
-      console.error('Error deleting user conversations:', conversationsError);
+    try {
+      // 3. Delete all conversations where the user is participant
+      const { error: conversationsError } = await supabase
+        .from('conversations')
+        .delete()
+        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
+        
+      if (conversationsError) {
+        console.error('Error deleting user conversations:', conversationsError);
+      } else {
+        console.log('Successfully deleted user conversations');
+      }
+    } catch (e) {
+      console.error('Exception when deleting conversations:', e);
     }
     
     // 4. Now call the RPC function to handle user deletion
+    console.log('Calling admin_delete_user RPC function');
     const { error } = await supabase.rpc('admin_delete_user', { 
       user_id: userId
     });
     
     if (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Erreur lors de la suppression de l\'utilisateur');
+      console.error('Error from admin_delete_user RPC:', error);
+      toast.error('Erreur lors de la suppression de l\'utilisateur: ' + error.message);
       throw new Error(error.message);
     }
     
+    console.log('User successfully deleted');
     toast.success('Utilisateur supprimé avec succès');
     return true;
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error('Error in deleteUser function:', error);
     toast.error('Erreur lors de la suppression de l\'utilisateur');
     throw error;
   }
