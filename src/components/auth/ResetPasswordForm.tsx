@@ -13,6 +13,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { toast } from 'sonner';
 
 type ResetPasswordFormProps = {
   onSuccess?: () => void;
@@ -30,17 +31,27 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
+      if (!data.code || data.code.length !== 6) {
+        toast.error(t('codeMustBe6Digits'));
+        return;
+      }
+      
       await confirmPasswordReset(data.code, data.password);
       if (onSuccess) onSuccess();
     } catch (error) {
       // Error is handled in the auth context
       console.error('Password reset error:', error);
+      toast.error(t('resetPasswordFailed'));
     }
   };
 
   const handleOTPChange = (value: string) => {
-    setCode(value);
-    setValue('code', value);
+    try {
+      setCode(value);
+      setValue('code', value);
+    } catch (error) {
+      console.error('OTP change error:', error);
+    }
   };
 
   return (
@@ -62,7 +73,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
               onChange={handleOTPChange}
               render={({ slots }) => (
                 <InputOTPGroup className="gap-2">
-                  {Array.isArray(slots) && slots.map((slot, index) => (
+                  {slots.map((slot, index) => (
                     <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
                   ))}
                 </InputOTPGroup>

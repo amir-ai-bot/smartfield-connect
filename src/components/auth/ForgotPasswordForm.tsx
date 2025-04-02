@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { ResetPasswordFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Loader2, Mail, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 type ForgotPasswordFormProps = {
   onSuccess?: () => void;
@@ -20,15 +21,20 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 }) => {
   const { requestPasswordReset } = useAuth();
   const { t } = useLanguage();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ResetPasswordFormData>();
+  const [isLoading, setIsLoading] = useState(false);
+  const { register, handleSubmit, formState: { errors } } = useForm<ResetPasswordFormData>();
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
+      setIsLoading(true);
       await requestPasswordReset(data.email);
+      toast.success(t('resetCodeSent'));
       if (onSuccess) onSuccess();
     } catch (error) {
-      // Error is handled in the auth context
       console.error('Password reset request error:', error);
+      toast.error(t('resetCodeError'));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -66,8 +72,8 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
         </div>
 
         <div className="pt-4 flex flex-col space-y-4">
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? (
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('sending')}

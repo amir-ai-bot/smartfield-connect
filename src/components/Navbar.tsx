@@ -8,6 +8,7 @@ import { LogOut } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import BottomNavbar from './BottomNavbar';
 import LanguageSwitcher from './LanguageSwitcher';
+import AuthDialog from '@/components/auth/AuthDialog';
 
 const Navbar = () => {
   const { isAuthenticated, logout } = useAuth();
@@ -16,6 +17,7 @@ const Navbar = () => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,6 +49,10 @@ const Navbar = () => {
     return location.pathname === path ? 'text-agri-green-500' : 'text-gray-500';
   };
 
+  const openAuthDialog = () => {
+    setShowAuthDialog(true);
+  };
+
   return (
     <header className={isScrolled ? "fixed w-full z-50 bg-white shadow-md animate-in fade-in slide-in-from-top-2 transition-all duration-300" : "fixed w-full z-50 bg-white shadow-sm transition-all duration-300"}>
       <div className="container mx-auto px-4">
@@ -72,15 +78,18 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
-                  <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300">
+                  <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300 flex items-center">
                     <LogOut className="inline-block h-5 w-5 mr-1 align-text-top" />
-                    {t('logout')}
+                    <span>{t('logout')}</span>
                   </button>
                 </>
               ) : (
-                <Link to="/auth" className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
+                <button 
+                  onClick={openAuthDialog} 
+                  className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300"
+                >
                   {t('login')}
-                </Link>
+                </button>
               )}
               <LanguageSwitcher />
             </nav>
@@ -117,19 +126,32 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
-                  <button onClick={() => { closeMenu(); handleLogout(); }} className="hover:text-agri-green-500 transition duration-300">
+                  <button 
+                    onClick={() => { closeMenu(); handleLogout(); }} 
+                    className="hover:text-agri-green-500 transition duration-300 w-full text-center"
+                  >
                     {t('logout')}
                   </button>
                 </>
               ) : (
-                <Link to="/auth" onClick={closeMenu} className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300">
+                <button 
+                  onClick={() => { closeMenu(); openAuthDialog(); }} 
+                  className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300 w-full"
+                >
                   {t('login')}
-                </Link>
+                </button>
               )}
             </nav>
           </div>
         </div>
       )}
+      
+      {/* Add AuthDialog component */}
+      <AuthDialog 
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        initialView="login"
+      />
       
       {isMobile && <BottomNavbar />}
     </header>

@@ -21,25 +21,44 @@ export const fetchAllUsers = async (): Promise<User[]> => {
     const users: User[] = [];
     
     for (const profile of profiles) {
-      // Get auth user to check email verification status
-      const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-      
-      const user: User = {
-        id: profile.id,
-        name: profile.name || '',
-        email: profile.email || '',
-        avatar: profile.avatar,
-        role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
-        phone_number: profile.phone_number,
-        address: profile.address,
-        bio: profile.bio,
-        // Set email_verified based on whether email_confirmed_at is set
-        email_verified: authUser?.user?.email_confirmed_at !== null,
-        // Convert preferences from Json to the expected type structure
-        preferences: profile.preferences as User['preferences']
-      };
-      
-      users.push(user);
+      try {
+        // Get auth user to check email verification status
+        const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
+        
+        const user: User = {
+          id: profile.id,
+          name: profile.name || '',
+          email: profile.email || '',
+          avatar: profile.avatar,
+          role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
+          phone_number: profile.phone_number,
+          address: profile.address,
+          bio: profile.bio,
+          // Set email_verified based on whether email_confirmed_at is set
+          email_verified: authUser?.user?.email_confirmed_at !== null,
+          // Convert preferences from Json to the expected type structure
+          preferences: profile.preferences as User['preferences']
+        };
+        
+        users.push(user);
+      } catch (error) {
+        console.error('Error getting auth user:', error);
+        // Add the user anyway without email verification status
+        const user: User = {
+          id: profile.id,
+          name: profile.name || '',
+          email: profile.email || '',
+          avatar: profile.avatar,
+          role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
+          phone_number: profile.phone_number,
+          address: profile.address,
+          bio: profile.bio,
+          email_verified: false,
+          preferences: profile.preferences as User['preferences']
+        };
+        
+        users.push(user);
+      }
     }
 
     return users;
@@ -136,8 +155,40 @@ export const verifyUserEmail = async (userId: string) => {
 // Delete a user (admin only)
 export const deleteUser = async (userId: string) => {
   try {
-    // Call the RPC function directly to handle user deletion properly
-    const { data, error } = await supabase.rpc('admin_delete_user', { 
+    // First remove foreign key constraints by deleting related data
+    
+    // 1. Delete all projects created by the user
+    const { error: projectsError } = await supabase
+      .from('projects')
+      .delete()
+      .eq('user_id', userId);
+      
+    if (projectsError) {
+      console.error('Error deleting user projects:', projectsError);
+    }
+    
+    // 2. Delete all messages sent by the user
+    const { error: messagesError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('sender_id', userId);
+      
+    if (messagesError) {
+      console.error('Error deleting user messages:', messagesError);
+    }
+    
+    // 3. Delete all conversations where the user is participant
+    const { error: conversationsError } = await supabase
+      .from('conversations')
+      .delete()
+      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
+      
+    if (conversationsError) {
+      console.error('Error deleting user conversations:', conversationsError);
+    }
+    
+    // 4. Now call the RPC function to handle user deletion
+    const { error } = await supabase.rpc('admin_delete_user', { 
       user_id: userId
     });
     
@@ -147,6 +198,7 @@ export const deleteUser = async (userId: string) => {
       throw new Error(error.message);
     }
     
+    toast.success('Utilisateur supprimé avec succès');
     return true;
   } catch (error) {
     console.error('Error deleting user:', error);

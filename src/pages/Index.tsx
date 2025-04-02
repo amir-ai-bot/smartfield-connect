@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -17,28 +16,6 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'verify-email'>('login');
-  const [showMobileAuth, setShowMobileAuth] = useState(true);
-
-  // Handle scroll position to hide/show the mobile auth buttons
-  useEffect(() => {
-    if (isMobile && !isAuthenticated) {
-      const handleScroll = () => {
-        // Hide the buttons when scrolled to WelcomeSection area (which already has auth buttons)
-        const welcomeSection = document.getElementById('welcome-section');
-        if (welcomeSection) {
-          const rect = welcomeSection.getBoundingClientRect();
-          const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
-          setShowMobileAuth(!isVisible);
-        }
-      };
-
-      window.addEventListener('scroll', handleScroll);
-      // Initial check
-      handleScroll();
-      
-      return () => window.removeEventListener('scroll', handleScroll);
-    }
-  }, [isMobile, isAuthenticated]);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -77,7 +54,7 @@ const Index = () => {
         <>
           <WelcomeSection id="welcome-section" />
           
-          {/* Fixed login button at the center of the screen */}
+          {/* Only keep one login button at the center */}
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
             <Button
               size="lg"
@@ -87,27 +64,6 @@ const Index = () => {
               Connexion
             </Button>
           </div>
-          
-          {/* Mobile-specific auth buttons - only show if we're not already showing buttons in the welcome section */}
-          {isMobile && showMobileAuth && (
-            <div className="fixed bottom-20 left-0 right-0 flex justify-center gap-4 p-4 z-40">
-              <Button 
-                onClick={openLoginDialog}
-                size="lg"
-                className="flex-1 max-w-40 bg-agri-green-500 hover:bg-agri-green-600"
-              >
-                Connexion
-              </Button>
-              <Button 
-                onClick={openSignupDialog}
-                size="lg" 
-                variant="outline"
-                className="flex-1 max-w-40 border-agri-green-500 text-agri-green-500"
-              >
-                S'inscrire
-              </Button>
-            </div>
-          )}
           
           <AuthDialog 
             open={showAuthDialog}
