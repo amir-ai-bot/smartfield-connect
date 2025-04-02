@@ -66,9 +66,9 @@ const SupplierCardEnhanced = ({
     
     try {
       setIsLoading(true);
-      // The issue is here - we need to make sure user.id and id are both strings
-      const conversation = await createConversation(user.id, id);
-      navigate(`/conversations/${conversation.id}`);
+      // Fix: The createConversation function returns a conversation ID string, not an object
+      const conversationId = await createConversation(user.id, id);
+      navigate(`/conversations/${conversationId}`);
     } catch (error) {
       console.error('Error creating conversation:', error);
       toast.error('Erreur lors de la création de la conversation');
