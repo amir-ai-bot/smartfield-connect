@@ -66,6 +66,7 @@ const SupplierCardEnhanced = ({
     
     try {
       setIsLoading(true);
+      // The issue is here - we need to make sure user.id and id are both strings
       const conversation = await createConversation(user.id, id);
       navigate(`/conversations/${conversation.id}`);
     } catch (error) {
