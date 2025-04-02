@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,9 +12,31 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 // Define the mapper function to transform database fields to our ProjectData interface
 const mapDbProjectToProjectData = (dbProject: any): ProjectData => {
+  // Ensure the image URL is properly formatted
+  const imageUrl = dbProject.image ? 
+    (dbProject.image.startsWith('http') ? dbProject.image : `https://iqilhrbsamcahdmklbnp.supabase.co/storage/v1/object/public/project-images/${dbProject.image}`) : 
+    null;
+
+  // Calculate progress based on current date and project dates
+  const calculateProgress = () => {
+    if (!dbProject.start_date || !dbProject.end_date) return 0;
+    
+    const start = new Date(dbProject.start_date).getTime();
+    const end = new Date(dbProject.end_date).getTime();
+    const now = new Date().getTime();
+    
+    if (now < start) return 0;
+    if (now > end) return 100;
+    
+    const totalDuration = end - start;
+    const elapsedDuration = now - start;
+    return Math.round((elapsedDuration / totalDuration) * 100);
+  };
+
   return {
     id: dbProject.id,
     title: dbProject.title,
@@ -26,9 +47,9 @@ const mapDbProjectToProjectData = (dbProject: any): ProjectData => {
     // For backward compatibility
     startDate: dbProject.start_date,
     endDate: dbProject.end_date,
-    progress: dbProject.progress || 0,
+    progress: dbProject.progress || calculateProgress(),
     status: dbProject.status || 'planning',
-    image: dbProject.image,
+    image: imageUrl,
     description: dbProject.description,
     user_id: dbProject.user_id,
     is_public: dbProject.is_public,
@@ -120,26 +141,48 @@ const Projects = () => {
 
   const handleCreateProject = async (projectData: Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     try {
+      if (!user) {
+        toast.error("Vous devez être connecté pour créer un projet");
+        return;
+      }
+
+      // Ensure dates are properly formatted
+      const formattedProjectData = {
+        ...projectData,
+        start_date: projectData.startDate || projectData.start_date,
+        end_date: projectData.endDate || projectData.end_date,
+        user_id: user.id,
+        status: 'planning',
+        progress: 0, // Initial progress will be calculated in mapDbProjectToProjectData
+        is_public: projectData.is_public || false
+      };
+
+      // Remove the camelCase date fields to avoid confusion
+      delete formattedProjectData.startDate;
+      delete formattedProjectData.endDate;
+
+      console.log('Creating project with data:', formattedProjectData);
+
       const { data, error } = await supabase
         .from('projects')
-        .insert({
-          ...projectData,
-          // Convert camelCase to snake_case for database
-          start_date: projectData.startDate || projectData.start_date,
-          end_date: projectData.endDate || projectData.end_date,
-          user_id: user?.id
-        })
+        .insert([formattedProjectData])
         .select()
         .single();
-      
-      if (error) throw error;
-      
-      // Add the new project to the state
-      const newProject = mapDbProjectToProjectData(data);
-      setProjects(prev => [newProject, ...prev]);
+
+      if (error) {
+        console.error('Error creating project:', error);
+        toast.error("Erreur lors de la création du projet");
+        return;
+      }
+
+      // Map the created project to ensure proper formatting
+      const mappedProject = mapDbProjectToProjectData(data);
+      setProjects(prev => [mappedProject, ...prev]);
+      toast.success("Projet créé avec succès");
       setIsCreateDialogOpen(false);
     } catch (error) {
       console.error('Error creating project:', error);
+      toast.error("Erreur lors de la création du projet");
     }
   };
 

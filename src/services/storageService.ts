@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -118,21 +117,27 @@ export const getDefaultProjectImage = (): string => {
 export const uploadProjectImage = async (file: File | null, userId: string): Promise<string> => {
   // If no file is provided, return a default image
   if (!file) {
+    console.log('No file provided, using default image');
     return getDefaultProjectImage();
   }
   
   try {
+    console.log('Starting image upload for user:', userId);
+    
     // Create a unique file name
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Upload the file
-    const { error: uploadError } = await supabase.storage
-      .from('projects')
+    console.log('Uploading file to path:', filePath);
+
+    // Upload the file with public access
+    const { error: uploadError, data: uploadData } = await supabase.storage
+      .from('project-images') // Changed to match the bucket name used in Projects.tsx
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        contentType: file.type
       });
 
     if (uploadError) {
@@ -141,9 +146,11 @@ export const uploadProjectImage = async (file: File | null, userId: string): Pro
       throw new Error(uploadError.message);
     }
 
+    console.log('File uploaded successfully, getting public URL');
+
     // Get the public URL
     const { data } = supabase.storage
-      .from('projects')
+      .from('project-images') // Changed to match the bucket name used in Projects.tsx
       .getPublicUrl(filePath);
 
     if (!data.publicUrl) {
@@ -151,21 +158,21 @@ export const uploadProjectImage = async (file: File | null, userId: string): Pro
       throw new Error("Couldn't get public URL");
     }
 
-    // Verify the image is accessible
+    // Verify the uploaded image is accessible
     try {
       const response = await fetch(data.publicUrl, { method: 'HEAD' });
       if (!response.ok) {
-        console.warn(`Uploaded project image is not accessible: ${data.publicUrl}`);
-        return getDefaultProjectImage(); // Fallback to default image
+        console.warn(`Uploaded image is not accessible: ${data.publicUrl}`);
+        throw new Error("Image upload failed - not accessible");
       }
     } catch (e) {
-      console.error('Error verifying project image accessibility:', e);
-      return getDefaultProjectImage(); // Fallback to default image
+      console.error('Error verifying image accessibility:', e);
+      throw new Error("Image upload verification failed");
     }
 
     return data.publicUrl;
   } catch (error) {
     console.error('Error uploading project image:', error);
-    return getDefaultProjectImage(); // Fallback to default image
+    throw error;
   }
 };

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +19,7 @@ import BottomNavbar from "./components/BottomNavbar";
 import Conversations from "./pages/Conversations";
 import ConversationDetail from "./pages/ConversationDetail";
 import Favorites from "./pages/Favorites";
+import TestEnv from "./components/TestEnv";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +35,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <LanguageProvider>
+          <TestEnv />
           <Toaster />
           <Sonner 
             toastOptions={{ 

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ProjectData } from '@/types/dashboard';
+import { uploadProjectImage } from '@/services/storageService';
 
 import {
   Dialog,
@@ -113,21 +114,34 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
     try {
       setIsSubmitting(true);
       
+      // Upload the image if one was selected
       let imageUrl = '';
+      if (selectedImage) {
+        try {
+          imageUrl = await uploadProjectImage(selectedImage, user.id);
+          console.log('Image uploaded successfully:', imageUrl);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          toast.error("Erreur lors du téléchargement de l'image. Un projet sera créé sans image.");
+          imageUrl = ''; // Use empty string to trigger default image
+        }
+      }
       
-      // First create the project without the image
+      // Create the project with the image URL
       const projectData = {
         title: values.title,
         crop: values.crop,
         location: values.location,
-        startDate: format(values.startDate, 'yyyy-MM-dd'),
-        endDate: format(values.endDate, 'yyyy-MM-dd'),
+        start_date: format(values.startDate, 'yyyy-MM-dd'),
+        end_date: format(values.endDate, 'yyyy-MM-dd'),
         description: values.description,
-        image: imageUrl,
+        image: imageUrl || getDefaultProjectImage(), // Always provide an image URL
         is_public: values.isPublic,
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0
       };
+      
+      console.log('Creating project with data:', projectData);
       
       await onProjectCreated(projectData);
       

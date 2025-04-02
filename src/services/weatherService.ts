@@ -1,92 +1,109 @@
-
 import { WeatherData } from '@/types/dashboard';
-import { initialDashboardData } from '@/data/dashboardMockData';
+import { mockWeatherData } from '@/mocks/weatherData';
 import { toast } from 'sonner';
 
-export const fetchWeatherData = async (location: string = "Tunis, Tunisia"): Promise<WeatherData> => {
+interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
+export const fetchWeatherData = async (location?: string, coordinates?: Coordinates): Promise<WeatherData> => {
   try {
-    console.log('Fetching weather data for:', location);
+    let url = 'https://api.open-meteo.com/v1/forecast?';
     
-    // Make the API request
-    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&units=metric&appid=${import.meta.env.VITE_OPENWEATHER_API_KEY}`);
-    
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Weather API error (${response.status}):`, errorBody);
+    if (coordinates) {
+      url += `latitude=${coordinates.lat}&longitude=${coordinates.lon}`;
+    } else if (location) {
+      // Geocoding API to get coordinates from location name
+      const geocodeResponse = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=fr&format=json`
+      );
       
-      // If we get a 403, it's likely an API key issue
-      if (response.status === 403) {
-        console.warn('Using mock weather data due to API access issue');
-        toast.warning('Données météo simulées - clé API non configurée', {
-          id: 'mock-weather-data',
-          duration: 5000
-        });
-        return initialDashboardData.weatherData;
+      if (!geocodeResponse.ok) {
+        throw new Error('Impossible de trouver cette localisation');
       }
       
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const geocodeData = await geocodeResponse.json();
+      
+      if (!geocodeData.results || geocodeData.results.length === 0) {
+        throw new Error('Localisation non trouvée');
+      }
+      
+      const { latitude, longitude, name } = geocodeData.results[0];
+      url += `latitude=${latitude}&longitude=${longitude}`;
+    } else {
+      // Default to Paris coordinates if no location provided
+      url += 'latitude=48.8566&longitude=2.3522';
+    }
+    
+    // Add required parameters
+    url += '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weathercode&timezone=auto';
+    
+    console.log('Fetching weather data from:', url);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération des données météo');
     }
     
     const data = await response.json();
     
-    // Transform the API response to our WeatherData format
-    const weatherData: WeatherData = {
-      temperature: Math.round(data.main.temp),
-      feelsLike: Math.round(data.main.feels_like),
-      humidity: data.main.humidity,
-      windSpeed: Math.round(data.wind.speed),
-      condition: mapWeatherCondition(data.weather[0].main),
-      location: location,
-      forecast: generateMockForecast(Math.round(data.main.temp))
+    // Transform the API response to match our WeatherData interface
+    const transformedData: WeatherData = {
+      location: location || 'Paris',
+      temperature: Math.round(data.current.temperature_2m),
+      feelsLike: Math.round(data.current.apparent_temperature),
+      humidity: data.current.relative_humidity_2m,
+      windSpeed: Math.round(data.current.wind_speed_10m),
+      condition: mapWeatherCode(data.current.weathercode),
+      forecast: data.daily.time.map((day: string, index: number) => ({
+        day: new Date(day).toLocaleDateString('fr-FR', { weekday: 'short' }),
+        temperature: Math.round((data.daily.temperature_2m_max[index] + data.daily.temperature_2m_min[index]) / 2),
+        condition: mapWeatherCode(data.daily.weathercode[index])
+      }))
     };
     
-    return weatherData;
+    return transformedData;
   } catch (error) {
-    console.error('Could not fetch weather data:', error);
-    // Return mock data as fallback
+    console.error('Error fetching weather data:', error);
+    // Fallback to mock data in case of error
     toast.warning('Utilisation des données météo simulées', {
       id: 'mock-weather-data',
       duration: 5000
     });
-    return initialDashboardData.weatherData;
+    return mockWeatherData;
   }
 };
 
-const mapWeatherCondition = (condition: string): WeatherData['condition'] => {
-  switch (condition) {
-    case 'Thunderstorm':
-      return 'stormy';
-    case 'Drizzle':
-    case 'Rain':
-      return 'rainy';
-    case 'Snow':
-      return 'snowy';
-    case 'Clouds':
-      return 'cloudy';
-    case 'Clear':
-      return 'sunny';
-    default:
-      return 'sunny';
-  }
-};
-
-const generateMockForecast = (temperature: number) => {
-  const forecast = [];
-  const conditions = ['sunny', 'cloudy', 'rainy'];
+// Map Open-Meteo weather codes to our weather conditions
+const mapWeatherCode = (code: number): string => {
+  const weatherCodes: Record<number, string> = {
+    0: 'Ensoleillé',
+    1: 'Légèrement nuageux',
+    2: 'Partiellement nuageux',
+    3: 'Nuageux',
+    45: 'Brouillard',
+    48: 'Brouillard givrant',
+    51: 'Légère bruine',
+    53: 'Bruine modérée',
+    55: 'Bruine dense',
+    61: 'Pluie légère',
+    63: 'Pluie modérée',
+    65: 'Pluie forte',
+    71: 'Neige légère',
+    73: 'Neige modérée',
+    75: 'Neige forte',
+    77: 'Grêle',
+    80: 'Averses légères',
+    81: 'Averses modérées',
+    82: 'Averses fortes',
+    85: 'Averses de neige légères',
+    86: 'Averses de neige fortes',
+    95: 'Orage',
+    96: 'Orage avec grêle légère',
+    99: 'Orage avec grêle forte'
+  };
   
-  for (let i = 1; i <= 5; i++) {
-    const day = new Date();
-    day.setDate(day.getDate() + i);
-    const dayOfWeek = day.toLocaleDateString('fr-FR', { weekday: 'short' });
-    const temp = temperature + Math.floor(Math.random() * 5) - 2;
-    const condition = conditions[Math.floor(Math.random() * conditions.length)];
-    
-    forecast.push({
-      day: dayOfWeek,
-      temperature: temp,
-      condition: condition as WeatherData['condition'],
-    });
-  }
-  
-  return forecast;
+  return weatherCodes[code] || 'Nuageux';
 };

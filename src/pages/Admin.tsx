@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
   Users, Clipboard, Settings, DatabaseZap, 
-  CheckCircle, Loader2, UserPlus
+  CheckCircle, Loader2, UserPlus, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -166,8 +166,9 @@ const Admin = () => {
       : 'bg-yellow-100 text-yellow-800';
   };
 
-  const shouldAllowUserDeletion = (userEmail: string) => {
-    if (userEmail === 'bahapro30@gmail.com') {
+  const shouldAllowUserDeletion = (userEmail: string, userRole: string) => {
+    // Don't allow deletion of admin users
+    if (userRole === 'admin') {
       return false;
     }
     return true;
@@ -290,7 +291,7 @@ const Admin = () => {
                                       )}
                                     </Button>
                                   )}
-                                  {shouldAllowUserDeletion(user.email || '') && (
+                                  {shouldAllowUserDeletion(user.email || '', user.role) && (
                                     <Button 
                                       variant="destructive" 
                                       className="h-7 text-xs"

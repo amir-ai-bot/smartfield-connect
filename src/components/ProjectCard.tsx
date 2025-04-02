@@ -1,10 +1,10 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, MapPin, Sprout } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getDefaultProjectImage } from '@/services/storageService';
 
 export interface ProjectCardProps {
   id: string;
@@ -38,8 +38,8 @@ const ProjectCard = ({
   const { t, language } = useLanguage();
   const [imageError, setImageError] = useState(false);
   
-  // Placeholder in case image fails to load
-  const placeholderImage = "https://images.unsplash.com/photo-1585004607620-ce91fd9e0f5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80";
+  // Use the default project image from storageService
+  const placeholderImage = getDefaultProjectImage();
   
   // Status badge color
   const statusColor = {
@@ -47,6 +47,25 @@ const ProjectCard = ({
     planning: "bg-blue-500 hover:bg-blue-600",
     completed: "bg-gray-500 hover:bg-gray-600"
   };
+  
+  // Debug image loading
+  useEffect(() => {
+    if (image) {
+      console.log('Project image URL:', image);
+      // Check if image is accessible
+      fetch(image, { method: 'HEAD' })
+        .then(response => {
+          if (!response.ok) {
+            console.warn('Image not accessible:', image);
+            setImageError(true);
+          }
+        })
+        .catch(error => {
+          console.error('Error checking image accessibility:', error);
+          setImageError(true);
+        });
+    }
+  }, [image]);
   
   // Status label translation
   const getStatusLabel = (status: string) => {
@@ -71,20 +90,37 @@ const ProjectCard = ({
     return statusMapping[language]?.[status] || status;
   };
   
-  // Handle image loading error
-  const handleImageError = () => {
-    setImageError(true);
-  };
-  
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg cursor-pointer" onClick={onClick}>
       <div className="relative h-48 overflow-hidden">
-        <img 
-          src={imageError ? placeholderImage : (image || placeholderImage)} 
-          alt={title} 
-          className="object-cover w-full h-full transition-transform hover:scale-105"
-          onError={handleImageError}
-        />
+        {image && !imageError ? (
+          <img
+            src={image}
+            alt={title}
+            className="object-cover w-full h-full transition-transform hover:scale-105"
+            onError={() => {
+              console.error('Image failed to load:', image);
+              setImageError(true);
+            }}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <img
+              src={placeholderImage}
+              alt={title}
+              className="w-full h-full object-cover"
+              onError={() => {
+                console.error('Placeholder image failed to load:', placeholderImage);
+                // If even the placeholder fails, show a simple div
+                return (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-400">No Image</span>
+                  </div>
+                );
+              }}
+            />
+          </div>
+        )}
         <Badge className={`absolute top-3 right-3 ${statusColor[status]}`}>
           {getStatusLabel(status)}
         </Badge>
