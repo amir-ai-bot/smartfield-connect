@@ -1,3 +1,4 @@
+
 import { User, ProjectData } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -34,7 +35,8 @@ export const fetchAllUsers = async (): Promise<User[]> => {
         bio: profile.bio,
         // Set email_verified based on whether email_confirmed_at is set
         email_verified: authUser?.user?.email_confirmed_at !== null,
-        preferences: profile.preferences
+        // Convert preferences from Json to the expected type structure
+        preferences: profile.preferences as User['preferences']
       };
       
       users.push(user);
@@ -61,7 +63,25 @@ export const fetchAllProjects = async (): Promise<ProjectData[]> => {
       throw new Error(error.message);
     }
 
-    return data || [];
+    // Transform the data to match the ProjectData type
+    const projects = (data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      crop: item.crop,
+      location: item.location,
+      startDate: item.start_date,  // Map from start_date to startDate
+      endDate: item.end_date,      // Map from end_date to endDate
+      progress: item.progress,
+      status: item.status as 'active' | 'planning' | 'completed',
+      image: item.image,
+      description: item.description,
+      user_id: item.user_id,
+      isPublic: item.is_public,    // Map from is_public to isPublic
+      user_name: item.user_name,
+      user_avatar: item.user_avatar
+    }));
+
+    return projects;
   } catch (error) {
     console.error('Error fetching projects:', error);
     toast.error('Erreur lors du chargement des projets');
