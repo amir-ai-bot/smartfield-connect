@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -231,39 +230,46 @@ export const getUnreadMessageCount = async (userId: string) => {
 // Create a new conversation
 export const createConversation = async (userId: string, fournisseurId: string) => {
   try {
+    // Validate the UUIDs before proceeding
+    if (!userId || typeof userId !== 'string' || userId.length < 36) {
+      console.error('Invalid user ID provided:', userId);
+      throw new Error('ID utilisateur invalide');
+    }
+    
+    if (!fournisseurId || typeof fournisseurId !== 'string' || fournisseurId.length < 36) {
+      console.error('Invalid fournisseur ID provided:', fournisseurId);
+      throw new Error('ID fournisseur invalide');
+    }
+    
     // Check if conversation already exists
-    const { data: existingConversations, error: checkError } = await supabase
+    const { data: existingConversation } = await supabase
       .from('conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('fournisseur_id', fournisseurId);
-
-    if (checkError) {
-      throw new Error(checkError.message);
+      .select('id')
+      .match({ user_id: userId, fournisseur_id: fournisseurId })
+      .maybeSingle();
+      
+    if (existingConversation) {
+      return existingConversation.id;
     }
-
-    if (existingConversations && existingConversations.length > 0) {
-      return existingConversations[0];
-    }
-
-    // Create new conversation
+    
+    // Create a new conversation
     const { data, error } = await supabase
       .from('conversations')
       .insert({
         user_id: userId,
         fournisseur_id: fournisseurId
       })
-      .select('*')
+      .select('id')
       .single();
-
+      
     if (error) {
-      throw new Error(error.message);
+      console.error('Error creating conversation:', error);
+      throw new Error('Erreur lors de la création de la conversation');
     }
-
-    return data;
-  } catch (error) {
-    console.error('Error creating conversation:', error);
-    toast.error('Erreur lors de la création de la conversation');
+    
+    return data.id;
+  } catch (error: any) {
+    console.error('Error in createConversation:', error);
     throw error;
   }
 };

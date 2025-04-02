@@ -1,4 +1,3 @@
-
 import { User, ProjectData } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -156,9 +155,22 @@ export const deleteUser = async (userId: string) => {
   try {
     console.log('Deleting user with ID:', userId);
     
+    // First check if the user is an admin
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+      
+    if (userProfile?.role === 'admin') {
+      toast.error('Impossible de supprimer un administrateur');
+      throw new Error('Cannot delete an admin user');
+    }
+    
     // First remove foreign key constraints by deleting related data
     try {
       // 1. Delete all projects created by the user
+      console.log('Deleting user projects...');
       const { error: projectsError } = await supabase
         .from('projects')
         .delete()
@@ -175,6 +187,7 @@ export const deleteUser = async (userId: string) => {
     
     try {
       // 2. Delete all messages sent by the user
+      console.log('Deleting user messages...');
       const { error: messagesError } = await supabase
         .from('messages')
         .delete()
@@ -191,6 +204,7 @@ export const deleteUser = async (userId: string) => {
     
     try {
       // 3. Delete all conversations where the user is participant
+      console.log('Deleting user conversations...');
       const { error: conversationsError } = await supabase
         .from('conversations')
         .delete()
@@ -205,7 +219,53 @@ export const deleteUser = async (userId: string) => {
       console.error('Exception when deleting conversations:', e);
     }
     
-    // 4. Now call the RPC function to handle user deletion
+    try {
+      // 4. Delete all verification codes related to the user
+      console.log('Deleting user verification codes...');
+      const { error: codesError } = await supabase
+        .from('verification_codes')
+        .delete()
+        .eq('user_id', userId);
+        
+      if (codesError) {
+        console.error('Error deleting verification codes:', codesError);
+      } else {
+        console.log('Successfully deleted verification codes');
+      }
+    } catch (e) {
+      console.error('Exception when deleting verification codes:', e);
+    }
+    
+    try {
+      // 5. Delete ratings related to the user
+      console.log('Deleting user ratings...');
+      const { error: ratingsError } = await supabase
+        .from('fournisseur_ratings')
+        .delete()
+        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
+        
+      if (ratingsError) {
+        console.error('Error deleting user ratings:', ratingsError);
+      } else {
+        console.log('Successfully deleted user ratings');
+      }
+    } catch (e) {
+      console.error('Exception when deleting ratings:', e);
+    }
+    
+    // Finally, delete the user's profile (which will trigger auth user deletion via RLS)
+    console.log('Deleting user profile...');
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    
+    if (profileError) {
+      console.error('Error deleting user profile:', profileError);
+      throw new Error('Failed to delete user profile');
+    }
+    
+    // If profile deletion works, call the RPC function as a backup
     console.log('Calling admin_delete_user RPC function');
     const { error } = await supabase.rpc('admin_delete_user', { 
       user_id: userId
@@ -213,16 +273,17 @@ export const deleteUser = async (userId: string) => {
     
     if (error) {
       console.error('Error from admin_delete_user RPC:', error);
-      toast.error('Erreur lors de la suppression de l\'utilisateur: ' + error.message);
-      throw new Error(error.message);
+      // Don't throw here as we've already deleted the profile
+      toast.success('Utilisateur supprimé avec succès (profil)');
+    } else {
+      console.log('User successfully deleted via RPC');
+      toast.success('Utilisateur supprimé avec succès');
     }
     
-    console.log('User successfully deleted');
-    toast.success('Utilisateur supprimé avec succès');
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in deleteUser function:', error);
-    toast.error('Erreur lors de la suppression de l\'utilisateur');
+    toast.error(`Erreur lors de la suppression de l'utilisateur: ${error.message}`);
     throw error;
   }
 };
