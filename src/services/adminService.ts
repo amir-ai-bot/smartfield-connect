@@ -1,31 +1,54 @@
+import { User, ProjectData } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ProjectWithUser } from '@/types/supabase';
 
-// Fetch all users (admin only)
-export const fetchAllUsers = async () => {
+// Function to fetch all users (for admin)
+export const fetchAllUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
+    // Get all profiles
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*');
 
-    if (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Erreur lors du chargement des utilisateurs');
-      throw new Error(error.message);
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw new Error(profilesError.message);
     }
 
-    return data || [];
+    // We need to get the email verification status from auth.users
+    // This will be done for each user by checking if email_confirmed_at is not null
+    const users: User[] = [];
+    
+    for (const profile of profiles) {
+      // Get auth user to check email verification status
+      const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
+      
+      const user: User = {
+        id: profile.id,
+        name: profile.name || '',
+        email: profile.email || '',
+        avatar: profile.avatar,
+        role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
+        phone_number: profile.phone_number,
+        address: profile.address,
+        bio: profile.bio,
+        // Set email_verified based on whether email_confirmed_at is set
+        email_verified: authUser?.user?.email_confirmed_at !== null,
+        preferences: profile.preferences
+      };
+      
+      users.push(user);
+    }
+
+    return users;
   } catch (error) {
-    console.error('Error fetching users:', error);
-    toast.error('Erreur lors du chargement des utilisateurs');
+    console.error('Error in fetchAllUsers:', error);
     throw error;
   }
 };
 
 // Fetch all projects (admin only)
-export const fetchAllProjects = async (): Promise<ProjectWithUser[]> => {
+export const fetchAllProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects_with_users')
