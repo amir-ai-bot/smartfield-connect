@@ -1,8 +1,9 @@
+
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
 import { fetchUserProfile, updateUserProfile } from './userService';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 // Function to login a user
 export const login = async (email: string, password: string): Promise<User> => {
