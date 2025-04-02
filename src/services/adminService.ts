@@ -78,7 +78,8 @@ export const fetchAllProjects = async (): Promise<ProjectData[]> => {
       user_id: item.user_id,
       isPublic: item.is_public,    // Map from is_public to isPublic
       user_name: item.user_name,
-      user_avatar: item.user_avatar
+      // Since user_avatar doesn't exist in the projects_with_users view, set to undefined
+      user_avatar: undefined
     }));
 
     return projects;
