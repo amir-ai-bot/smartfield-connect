@@ -223,22 +223,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (!state.user) throw new Error('Not authenticated');
       
-      // Prevent admins from becoming suppliers
-      if (state.user.role === 'admin') {
-        toast.error("Un administrateur ne peut pas devenir fournisseur");
-        throw new Error("Admins cannot become suppliers");
-      }
-      
-      const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'fournisseur' });
+      // Create a pending request instead of immediately becoming a fournisseur
+      const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'pending_fournisseur' });
       
       setState(prev => ({
         ...prev,
         user: updatedUser
       }));
       
-      toast.success('Vous êtes maintenant un fournisseur!');
+      toast.success('Votre demande a été envoyée! Un administrateur l\'examinera prochainement.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors du changement de rôle');
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'envoi de la demande');
       throw error;
     }
   };
@@ -251,6 +246,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return state.user?.role === 'fournisseur';
   };
 
+  const isPendingFournisseur = () => {
+    return state.user?.role === 'pending_fournisseur';
+  };
+
   const value: AuthContextType = {
     ...state,
     login,
@@ -258,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     isAdmin,
     isFournisseur,
+    isPendingFournisseur,
     updateProfile,
     verifyEmail,
     requestPasswordReset,

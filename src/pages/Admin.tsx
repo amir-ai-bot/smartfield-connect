@@ -10,7 +10,10 @@ import {
   deleteUser,
   getAnalyticsData,
   getAllProjects,
-  deleteProject
+  deleteProject,
+  approveFournisseurRequest,
+  rejectFournisseurRequest,
+  addFournisseur
 } from '@/services/adminService';
 import Navbar from '@/components/Navbar';
 import { 
@@ -40,6 +43,8 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   BarChart, 
   Bar, 
@@ -52,7 +57,7 @@ import {
   Pie, 
   Cell 
 } from 'recharts';
-import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle, Sprout } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle, Sprout, CheckCircle, XCircle, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -66,6 +71,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type User = {
   id: string;
@@ -124,7 +138,18 @@ const AdminPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
-  
+  const [showNewFournisseurDialog, setShowNewFournisseurDialog] = useState(false);
+  const [newFournisseurForm, setNewFournisseurForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    location: 'Gafsa Centre',
+    category: 'Engrais',
+    products: '',
+    password: ''
+  });
+  const [pendingFournisseurs, setPendingFournisseurs] = useState<User[]>([]);
+
   useEffect(() => {
     const checkAdmin = async () => {
       if (!user) {
@@ -151,6 +176,9 @@ const AdminPage: React.FC = () => {
         setUsers(usersData);
         setCodes(codesData);
         setAnalytics(analyticsData);
+        
+        const pendingUsers = usersData.filter(u => u.role === 'pending_fournisseur');
+        setPendingFournisseurs(pendingUsers);
         
         const typedProjects = projectsData.map(project => ({
           ...project,
@@ -235,9 +263,6 @@ const AdminPage: React.FC = () => {
     if (userRole === 'admin') {
       return false;
     }
-    if (userEmail === 'bahapro30@gmail.com') {
-      return false;
-    }
     return true;
   };
   
@@ -266,7 +291,7 @@ const AdminPage: React.FC = () => {
     <div className="flex min-h-screen flex-col">
       <Navbar />
       
-      <main className="container mx-auto flex-1 p-4 pt-20">
+      <main className="container mx-auto flex-1 p-2 sm:p-4 pt-20 overflow-x-hidden">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Administration</h1>
           <p className="text-gray-500">Gérer les utilisateurs et les données de l'application</p>
@@ -318,12 +343,15 @@ const AdminPage: React.FC = () => {
           </div>
         )}
         
-        <Tabs defaultValue="users">
-          <TabsList className="mb-4">
-            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-            <TabsTrigger value="projects">Projets</TabsTrigger>
-            <TabsTrigger value="codes">Codes de vérification</TabsTrigger>
-            <TabsTrigger value="analytics">Analytiques</TabsTrigger>
+        <Tabs defaultValue="users" className="w-full overflow-x-auto">
+          <TabsList className="mb-4 flex w-full sm:w-auto overflow-x-auto">
+            <TabsTrigger value="users" className="whitespace-nowrap">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="fournisseur-requests" className="whitespace-nowrap">Demandes fournisseur{pendingFournisseurs.length > 0 && 
+              <Badge variant="destructive" className="ml-1">{pendingFournisseurs.length}</Badge>
+            }</TabsTrigger>
+            <TabsTrigger value="projects" className="whitespace-nowrap">Projets</TabsTrigger>
+            <TabsTrigger value="codes" className="whitespace-nowrap">Codes vérification</TabsTrigger>
+            <TabsTrigger value="analytics" className="whitespace-nowrap">Analytiques</TabsTrigger>
           </TabsList>
           
           <TabsContent value="users">
@@ -386,7 +414,7 @@ const AdminPage: React.FC = () => {
                                 <SelectContent>
                                   <SelectItem value="user">Utilisateur</SelectItem>
                                   <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="moderator">Modérateur</SelectItem>
+                                  <SelectItem value="fournisseur">Fournisseur</SelectItem>
                                 </SelectContent>
                               </Select>
                               
@@ -408,20 +436,103 @@ const AdminPage: React.FC = () => {
                   </Table>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex justify-between items-center flex-wrap gap-2">
                 <div className="text-xs text-gray-500">
                   <p className="flex items-center">
                     <AlertCircle className="h-3 w-3 mr-1" />
-                    Les administrateurs et les comptes protégés ne peuvent pas être supprimés.
+                    Les administrateurs ne peuvent pas être supprimés.
                   </p>
                 </div>
-                <div className="text-xs text-gray-500">
-                  Total: {users.length} utilisateurs
-                </div>
+                <Button 
+                  variant="outline" 
+                  className="ml-auto" 
+                  onClick={() => setShowNewFournisseurDialog(true)}
+                >
+                  <UserPlus size={16} className="mr-2" />
+                  Ajouter un fournisseur
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
 
+          <TabsContent value="fournisseur-requests">
+            <Card>
+              <CardHeader>
+                <CardTitle>Demandes de fournisseurs</CardTitle>
+                <CardDescription>
+                  Gérer les demandes d'utilisateurs qui souhaitent devenir fournisseurs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingFournisseurs.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Utilisateur</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Date de demande</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingFournisseurs.map((fournisseur) => (
+                          <TableRow key={fournisseur.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                  {fournisseur.avatar ? (
+                                    <AvatarImage src={fournisseur.avatar} alt={fournisseur.name} />
+                                  ) : null}
+                                  <AvatarFallback className="bg-gray-100 text-gray-700">
+                                    {fournisseur.name ? fournisseur.name.charAt(0).toUpperCase() : 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="font-medium">{fournisseur.name || 'Unnamed User'}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{fournisseur.email}</TableCell>
+                            <TableCell>
+                              {fournisseur.created_at 
+                                ? format(new Date(fournisseur.created_at), 'dd/MM/yyyy') 
+                                : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => handleApproveFournisseur(fournisseur.id)}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Approuver
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleRejectFournisseur(fournisseur.id)}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Rejeter
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune demande de fournisseur en attente
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           <TabsContent value="projects">
             <Card>
               <CardHeader>
@@ -503,46 +614,48 @@ const AdminPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Créé le</TableHead>
-                      <TableHead>Expire le</TableHead>
-                      <TableHead>Statut</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {codes.map((code) => (
-                      <TableRow key={code.id}>
-                        <TableCell>{code.code}</TableCell>
-                        <TableCell>{code.type}</TableCell>
-                        <TableCell>
-                          {format(new Date(code.created_at), 'dd/MM/yyyy HH:mm')}
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(code.expires_at), 'dd/MM/yyyy HH:mm')}
-                        </TableCell>
-                        <TableCell>
-                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            code.used 
-                              ? 'bg-gray-100 text-gray-800' 
-                              : new Date(code.expires_at) < new Date() 
-                                ? 'bg-red-100 text-red-800' 
-                                : 'bg-green-100 text-green-800'
-                          }`}>
-                            {code.used 
-                              ? 'Utilisé' 
-                              : new Date(code.expires_at) < new Date() 
-                                ? 'Expiré' 
-                                : 'Valide'}
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Créé le</TableHead>
+                        <TableHead>Expire le</TableHead>
+                        <TableHead>Statut</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {codes.map((code) => (
+                        <TableRow key={code.id}>
+                          <TableCell>{code.code}</TableCell>
+                          <TableCell>{code.type}</TableCell>
+                          <TableCell>
+                            {format(new Date(code.created_at), 'dd/MM/yyyy HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(code.expires_at), 'dd/MM/yyyy HH:mm')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              code.used 
+                                ? 'secondary' 
+                                : new Date(code.expires_at) < new Date() 
+                                  ? 'destructive' 
+                                  : 'success'
+                            }>
+                              {code.used 
+                                ? 'Utilisé' 
+                                : new Date(code.expires_at) < new Date() 
+                                  ? 'Expiré' 
+                                  : 'Valide'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -654,6 +767,127 @@ const AdminPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showNewFournisseurDialog} onOpenChange={setShowNewFournisseurDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un nouveau fournisseur</DialogTitle>
+            <DialogDescription>
+              Créez un compte fournisseur qui apparaîtra dans la liste des fournisseurs
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="name" className="text-right text-sm font-medium">
+                Nom *
+              </label>
+              <Input
+                id="name"
+                className="col-span-3"
+                value={newFournisseurForm.name}
+                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, name: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="email" className="text-right text-sm font-medium">
+                Email *
+              </label>
+              <Input
+                id="email"
+                type="email" 
+                className="col-span-3"
+                value={newFournisseurForm.email}
+                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, email: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="password" className="text-right text-sm font-medium">
+                Mot de passe *
+              </label>
+              <Input
+                id="password"
+                type="password"
+                className="col-span-3"
+                value={newFournisseurForm.password}
+                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, password: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="phone" className="text-right text-sm font-medium">
+                Téléphone
+              </label>
+              <Input
+                id="phone" 
+                className="col-span-3"
+                value={newFournisseurForm.phone}
+                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, phone: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="category" className="text-right text-sm font-medium">
+                Catégorie
+              </label>
+              <Select 
+                value={newFournisseurForm.category} 
+                onValueChange={(value) => setNewFournisseurForm({...newFournisseurForm, category: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Engrais">Engrais</SelectItem>
+                  <SelectItem value="Semences">Semences</SelectItem>
+                  <SelectItem value="Équipement">Équipement</SelectItem>
+                  <SelectItem value="Pesticides">Pesticides</SelectItem>
+                  <SelectItem value="Machines">Machines</SelectItem>
+                  <SelectItem value="Conseil">Conseil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="location" className="text-right text-sm font-medium">
+                Localisation
+              </label>
+              <Select 
+                value={newFournisseurForm.location} 
+                onValueChange={(value) => setNewFournisseurForm({...newFournisseurForm, location: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Localisation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Gafsa Centre">Gafsa Centre</SelectItem>
+                  <SelectItem value="Gafsa Sud">Gafsa Sud</SelectItem>
+                  <SelectItem value="Gafsa Nord">Gafsa Nord</SelectItem>
+                  <SelectItem value="Gafsa Est">Gafsa Est</SelectItem>
+                  <SelectItem value="El Guettar">El Guettar</SelectItem>
+                  <SelectItem value="Metlaoui">Metlaoui</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="products" className="text-right text-sm font-medium">
+                Produits
+              </label>
+              <Textarea
+                id="products"
+                placeholder="Séparez les produits par des virgules"
+                className="col-span-3"
+                value={newFournisseurForm.products}
+                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, products: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setShowNewFournisseurDialog(false)}>
+              Annuler
+            </Button>
+            <Button type="button" onClick={handleAddFournisseur}>
+              Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

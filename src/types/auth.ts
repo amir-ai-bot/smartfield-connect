@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: 'admin' | 'user' | 'fournisseur';
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
   phone_number?: string;
   email_verified?: boolean;
   address?: string;
@@ -30,6 +30,7 @@ export interface AuthContextType extends AuthState {
   signup: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
   isAdmin: () => boolean;
   isFournisseur: () => boolean;
+  isPendingFournisseur: () => boolean;
   updateProfile: (updates: Partial<User>) => Promise<User>;
   resetPassword: (email: string) => Promise<void>;
   verifyEmail: (email: string, code: string) => Promise<void>;
@@ -171,4 +172,14 @@ export interface Message {
   content: string;
   created_at: string;
   read: boolean;
+}
+
+export interface FournisseurData {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  location: string;
+  category: string;
+  products: string[];
 }

@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { FournisseurData } from '@/types/auth';
 
 // Get all users (admin only)
 export const getAllUsers = async () => {
@@ -362,6 +362,119 @@ export const getAllProjects = async () => {
     return data;
   } catch (error) {
     console.error('Error in getAllProjects:', error);
+    throw error;
+  }
+};
+
+// Approve a fournisseur request
+export const approveFournisseurRequest = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role: 'fournisseur' })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error approving fournisseur request: ' + error.message);
+      throw error;
+    }
+
+    toast.success('Demande de fournisseur approuvée avec succès');
+    return data;
+  } catch (error) {
+    console.error('Error in approveFournisseurRequest:', error);
+    throw error;
+  }
+};
+
+// Reject a fournisseur request
+export const rejectFournisseurRequest = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role: 'user' })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error rejecting fournisseur request: ' + error.message);
+      throw error;
+    }
+
+    toast.success('Demande de fournisseur rejetée');
+    return data;
+  } catch (error) {
+    console.error('Error in rejectFournisseurRequest:', error);
+    throw error;
+  }
+};
+
+// Add a new fournisseur
+export const addFournisseur = async (fournisseurData: FournisseurData) => {
+  try {
+    // First create the user account using the admin_create_user function
+    const { error: userError } = await supabase.rpc('admin_create_user', {
+      user_name: fournisseurData.name,
+      user_email: fournisseurData.email,
+      user_password: fournisseurData.password,
+      user_role: 'fournisseur'
+    });
+
+    if (userError) {
+      toast.error('Erreur lors de la création du compte: ' + userError.message);
+      throw userError;
+    }
+
+    // Fetch the created user to get the ID
+    const { data: userData, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', fournisseurData.email)
+      .single();
+
+    if (fetchError || !userData) {
+      toast.error('Erreur lors de la récupération du compte: ' + (fetchError?.message || 'Utilisateur non trouvé'));
+      throw fetchError || new Error('User not found');
+    }
+
+    // Update additional profile information
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        phone_number: fournisseurData.phone,
+        role: 'fournisseur'
+      })
+      .eq('id', userData.id);
+
+    if (updateError) {
+      toast.error('Erreur lors de la mise à jour du profil: ' + updateError.message);
+      throw updateError;
+    }
+
+    // Create entry in suppliers table
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: userData.id,
+        category: fournisseurData.category,
+        location: fournisseurData.location,
+        products: fournisseurData.products,
+        rating: 0,
+        phone: fournisseurData.phone
+      });
+
+    if (supplierError) {
+      toast.error('Erreur lors de l\'ajout des informations fournisseur: ' + supplierError.message);
+      throw supplierError;
+    }
+
+    toast.success('Fournisseur ajouté avec succès');
+    return userData.id;
+  } catch (error) {
+    console.error('Error in addFournisseur:', error);
     throw error;
   }
 };
