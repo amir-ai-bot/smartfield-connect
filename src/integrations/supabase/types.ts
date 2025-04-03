@@ -226,6 +226,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          location: string
+          phone: string | null
+          products: string[] | null
+          rating: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          location: string
+          phone?: string | null
+          products?: string[] | null
+          rating?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          location?: string
+          phone?: string | null
+          products?: string[] | null
+          rating?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       verification_codes: {
         Row: {
           code: string

@@ -369,12 +369,9 @@ export const getAllProjects = async () => {
 // Approve a fournisseur request
 export const approveFournisseurRequest = async (userId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ role: 'fournisseur' })
-      .eq('id', userId)
-      .select()
-      .single();
+    const { error } = await supabase.rpc('approve_fournisseur_request', {
+      user_id: userId
+    });
 
     if (error) {
       toast.error('Error approving fournisseur request: ' + error.message);
@@ -382,7 +379,7 @@ export const approveFournisseurRequest = async (userId: string) => {
     }
 
     toast.success('Demande de fournisseur approuvée avec succès');
-    return data;
+    return true;
   } catch (error) {
     console.error('Error in approveFournisseurRequest:', error);
     throw error;
@@ -392,12 +389,9 @@ export const approveFournisseurRequest = async (userId: string) => {
 // Reject a fournisseur request
 export const rejectFournisseurRequest = async (userId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ role: 'user' })
-      .eq('id', userId)
-      .select()
-      .single();
+    const { error } = await supabase.rpc('reject_fournisseur_request', {
+      user_id: userId
+    });
 
     if (error) {
       toast.error('Error rejecting fournisseur request: ' + error.message);
@@ -405,7 +399,7 @@ export const rejectFournisseurRequest = async (userId: string) => {
     }
 
     toast.success('Demande de fournisseur rejetée');
-    return data;
+    return true;
   } catch (error) {
     console.error('Error in rejectFournisseurRequest:', error);
     throw error;
@@ -454,7 +448,7 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw updateError;
     }
 
-    // Create entry in suppliers table using the RPC function for type safety
+    // Create entry in suppliers table using the custom RPC function
     const { error: supplierError } = await supabase.rpc('add_supplier', {
       supplier_user_id: userData.id,
       supplier_category: fournisseurData.category,

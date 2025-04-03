@@ -287,6 +287,97 @@ const AdminPage: React.FC = () => {
     );
   }
   
+  const handleApproveFournisseur = async (userId: string) => {
+    try {
+      await approveFournisseurRequest(userId);
+      
+      // Update the users list and pending fournisseurs list
+      setUsers(users.map(u => 
+        u.id === userId 
+          ? { ...u, role: 'fournisseur' } 
+          : u
+      ));
+      
+      setPendingFournisseurs(prevPending => 
+        prevPending.filter(f => f.id !== userId)
+      );
+      
+      toast.success('Demande approuvée avec succès');
+    } catch (error) {
+      console.error('Error approving fournisseur request:', error);
+      toast.error('Erreur lors de l\'approbation de la demande');
+    }
+  };
+  
+  const handleRejectFournisseur = async (userId: string) => {
+    try {
+      await rejectFournisseurRequest(userId);
+      
+      // Update the users list and pending fournisseurs list
+      setUsers(users.map(u => 
+        u.id === userId 
+          ? { ...u, role: 'user' } 
+          : u
+      ));
+      
+      setPendingFournisseurs(prevPending => 
+        prevPending.filter(f => f.id !== userId)
+      );
+      
+      toast.success('Demande rejetée avec succès');
+    } catch (error) {
+      console.error('Error rejecting fournisseur request:', error);
+      toast.error('Erreur lors du rejet de la demande');
+    }
+  };
+
+  const handleAddFournisseur = async () => {
+    try {
+      // Validate required fields
+      if (!newFournisseurForm.name || !newFournisseurForm.email || !newFournisseurForm.password) {
+        toast.error('Veuillez remplir tous les champs obligatoires.');
+        return;
+      }
+
+      // Convert products string to array
+      const productsArray = newFournisseurForm.products
+        ? newFournisseurForm.products.split(',').map(p => p.trim())
+        : [];
+
+      // Create the supplier
+      await addFournisseur({
+        name: newFournisseurForm.name,
+        email: newFournisseurForm.email,
+        password: newFournisseurForm.password,
+        phone: newFournisseurForm.phone,
+        location: newFournisseurForm.location,
+        category: newFournisseurForm.category,
+        products: productsArray
+      });
+
+      // Close dialog and reset form
+      setShowNewFournisseurDialog(false);
+      setNewFournisseurForm({
+        name: '',
+        email: '',
+        phone: '',
+        location: 'Gafsa Centre',
+        category: 'Engrais',
+        products: '',
+        password: ''
+      });
+
+      // Fetch updated users and suppliers
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
+      
+      toast.success('Fournisseur ajouté avec succès');
+    } catch (error) {
+      console.error('Error adding fournisseur:', error);
+      toast.error('Erreur lors de l\'ajout du fournisseur');
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />

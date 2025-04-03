@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -17,7 +18,7 @@ export interface Supplier {
 // Function to fetch all suppliers
 export const getAllSuppliers = async (): Promise<Supplier[]> => {
   try {
-    // Use RPC call to handle the suppliers data since the table might not be reflected in the TypeScript types yet
+    // Use RPC call to get suppliers data
     const { data, error } = await supabase.rpc('get_all_suppliers');
 
     if (error) {
@@ -68,7 +69,6 @@ export const initializeDefaultSuppliers = async () => {
     // If no suppliers exist, add default suppliers
     const defaultSuppliers = [
       {
-        id: "1",
         name: "Ahmed Fertilité",
         category: "Engrais",
         rating: 4.8,
@@ -79,7 +79,6 @@ export const initializeDefaultSuppliers = async () => {
         image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
       },
       {
-        id: "2",
         name: "Samira Semences",
         category: "Semences",
         rating: 4.5,
@@ -90,7 +89,6 @@ export const initializeDefaultSuppliers = async () => {
         image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
       },
       {
-        id: "3",
         name: "Oasis Irrigation",
         category: "Équipement",
         rating: 4.7,
@@ -101,7 +99,6 @@ export const initializeDefaultSuppliers = async () => {
         image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
       },
       {
-        id: "4",
         name: "Eco Protect",
         category: "Pesticides",
         rating: 4.3,
@@ -112,7 +109,6 @@ export const initializeDefaultSuppliers = async () => {
         image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
       },
       {
-        id: "5",
         name: "Mecagri Machines",
         category: "Machines",
         rating: 4.9,
@@ -123,7 +119,6 @@ export const initializeDefaultSuppliers = async () => {
         image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
       },
       {
-        id: "6",
         name: "Sarah Consultante",
         category: "Conseil",
         rating: 5.0,

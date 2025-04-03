@@ -92,3 +92,84 @@ BEGIN
   );
 END;
 $$;
+
+-- Function to add a supplier
+CREATE OR REPLACE FUNCTION public.add_supplier(
+  supplier_user_id uuid,
+  supplier_category text,
+  supplier_location text,
+  supplier_products text[],
+  supplier_rating float DEFAULT 0,
+  supplier_phone text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.suppliers (
+    user_id,
+    category,
+    rating,
+    location,
+    phone,
+    products
+  ) VALUES (
+    supplier_user_id,
+    supplier_category,
+    supplier_rating,
+    supplier_location,
+    supplier_phone,
+    supplier_products
+  );
+END;
+$$;
+
+-- Function for approving a fournisseur request
+CREATE OR REPLACE FUNCTION public.approve_fournisseur_request(
+  user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Update user role to 'fournisseur'
+  UPDATE public.profiles
+  SET role = 'fournisseur'
+  WHERE id = user_id;
+  
+  -- Create default supplier entry if none exists
+  INSERT INTO public.suppliers (
+    user_id,
+    category,
+    location,
+    products
+  )
+  SELECT 
+    user_id,
+    'Autre',
+    'Gafsa Centre',
+    ARRAY[]::text[]
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.suppliers WHERE user_id = user_id
+  );
+END;
+$$;
+
+-- Function for rejecting a fournisseur request
+CREATE OR REPLACE FUNCTION public.reject_fournisseur_request(
+  user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Update user role back to 'user'
+  UPDATE public.profiles
+  SET role = 'user'
+  WHERE id = user_id;
+END;
+$$;
+
