@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +39,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { 
   BarChart, 
   Bar, 
@@ -66,7 +66,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ProjectCardProps } from '@/components/ProjectCard';
 
 type User = {
   id: string;
@@ -107,6 +106,10 @@ type Project = {
   user_name?: string;
   user_id: string;
   created_at: string;
+  description?: string;
+  is_public?: boolean;
+  updated_at?: string;
+  user_email?: string;
 };
 
 const AdminPage: React.FC = () => {
@@ -149,7 +152,16 @@ const AdminPage: React.FC = () => {
         setUsers(usersData);
         setCodes(codesData);
         setAnalytics(analyticsData);
-        setProjects(projectsData);
+        
+        // Ensure project data has the correct status type
+        const typedProjects = projectsData.map(project => ({
+          ...project,
+          status: (project.status as string).toLowerCase() === 'active' ? 'active' :
+                 (project.status as string).toLowerCase() === 'planning' ? 'planning' : 
+                 'completed'
+        })) as Project[];
+        
+        setProjects(typedProjects);
       } catch (error) {
         console.error('Error fetching admin data:', error);
         toast.error('Failed to load admin data');
@@ -214,7 +226,6 @@ const AdminPage: React.FC = () => {
     }
   };
   
-  // Format analytics data for charts
   const getRegistrationChartData = () => {
     if (!analytics?.registrationsByMonth) return [];
     
