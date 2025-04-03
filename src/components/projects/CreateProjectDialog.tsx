@@ -133,7 +133,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         start_date: format(values.startDate, 'yyyy-MM-dd'),
         end_date: format(values.endDate, 'yyyy-MM-dd'),
         description: values.description,
-        image: imageUrl || getDefaultProjectImage(),
+        image: imageUrl || getDefaultProjectImage(values.crop),
         is_public: values.isPublic,
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0

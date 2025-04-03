@@ -150,21 +150,26 @@ export const verifyUserEmail = async (userId: string) => {
   }
 };
 
-// Delete a user (admin only) - Fixed to ensure it works properly
+// Delete a user (admin only) - Fixed to ensure it works properly and handles protected users
 export const deleteUser = async (userId: string) => {
   try {
     console.log('Deleting user with ID:', userId);
     
-    // First check if the user is an admin
+    // First check if the user is an admin or protected user
     const { data: userProfile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, email')
       .eq('id', userId)
       .single();
       
     if (userProfile?.role === 'admin') {
       toast.error('Impossible de supprimer un administrateur');
       throw new Error('Cannot delete an admin user');
+    }
+    
+    if (userProfile?.email === 'bahapro30@gmail.com') {
+      toast.error('Ce compte est protégé et ne peut pas être supprimé');
+      throw new Error('Cannot delete protected user account');
     }
     
     // First remove foreign key constraints by deleting related data

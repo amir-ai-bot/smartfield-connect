@@ -75,6 +75,61 @@ export const deleteAvatar = async (avatarUrl: string): Promise<void> => {
   }
 };
 
+// Crop-specific default images from Pexels
+const CROP_SPECIFIC_IMAGES: Record<string, string[]> = {
+  'Oliviers': [
+    'https://images.pexels.com/photos/1047312/pexels-photo-1047312.jpeg'
+  ],
+  'Palmiers': [
+    'https://images.pexels.com/photos/1862695/pexels-photo-1862695.jpeg'
+  ],
+  'Pistachiers': [
+    'https://images.pexels.com/photos/18179540/pexels-photo-18179540.jpeg'
+  ],
+  'Amandiers': [
+    'https://images.pexels.com/photos/634650/pexels-photo-634650.jpeg'
+  ],
+  'Figuiers': [
+    'https://images.pexels.com/photos/28160700/pexels-photo-28160700.jpeg'
+  ],
+  'Pommiers': [
+    'https://images.pexels.com/photos/574919/pexels-photo-574919.jpeg'
+  ],
+  'Poiriers': [
+    'https://images.pexels.com/photos/8245622/pexels-photo-8245622.jpeg'
+  ],
+  'Abricotiers': [
+    'https://images.pexels.com/photos/4058752/pexels-photo-4058752.jpeg'
+  ],
+  'Vignes': [
+    'https://images.pexels.com/photos/708777/pexels-photo-708777.jpeg'
+  ],
+  'Agrumes': [
+    'https://images.pexels.com/photos/2135677/pexels-photo-2135677.jpeg'
+  ],
+  'Blé': [
+    'https://images.pexels.com/photos/326082/pexels-photo-326082.jpeg'
+  ],
+  'Orge': [
+    'https://images.pexels.com/photos/30172364/pexels-photo-30172364.jpeg'
+  ],
+  'Tomates': [
+    'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg'
+  ],
+  'Pommes de terre': [
+    'https://images.pexels.com/photos/2286776/pexels-photo-2286776.jpeg'
+  ],
+  'Oignons': [
+    'https://images.pexels.com/photos/533342/pexels-photo-533342.jpeg'
+  ],
+  'Poivrons': [
+    'https://images.pexels.com/photos/2893882/pexels-photo-2893882.jpeg'
+  ],
+  'Carottes': [
+    'https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg'
+  ]
+};
+
 // A default list of vegetable images from GitHub - more diverse and appropriate for agriculture
 const DEFAULT_PROJECT_IMAGES = [
   'https://raw.githubusercontent.com/agrismartapp/project-images/main/wheat_field.jpg',
@@ -99,9 +154,14 @@ const FALLBACK_PROJECT_IMAGES = [
   'https://cdn.pixabay.com/photo/2019/05/27/19/45/watermelon-4233029_1280.jpg',
 ];
 
-// Get a random default image
-export const getDefaultProjectImage = (): string => {
-  // First try the GitHub hosted images
+// Get a default image for a specific crop
+export const getDefaultProjectImage = (crop?: string): string => {
+  // If a crop is provided and we have a specific image for it, use that
+  if (crop && CROP_SPECIFIC_IMAGES[crop] && CROP_SPECIFIC_IMAGES[crop].length > 0) {
+    return CROP_SPECIFIC_IMAGES[crop][0];
+  }
+  
+  // Otherwise, use a random general image
   const randomIndex = Math.floor(Math.random() * DEFAULT_PROJECT_IMAGES.length);
   const image = DEFAULT_PROJECT_IMAGES[randomIndex];
   

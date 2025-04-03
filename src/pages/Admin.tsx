@@ -171,6 +171,10 @@ const Admin = () => {
     if (userRole === 'admin') {
       return false;
     }
+    // Don't allow deletion of protected users
+    if (userEmail === 'bahapro30@gmail.com') {
+      return false;
+    }
     return true;
   };
 
