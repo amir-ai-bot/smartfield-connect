@@ -130,19 +130,8 @@ const CROP_SPECIFIC_IMAGES: Record<string, string[]> = {
   ]
 };
 
-// A default list of vegetable images from GitHub - more diverse and appropriate for agriculture
-const DEFAULT_PROJECT_IMAGES = [
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/wheat_field.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/corn_field.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/tomato_plants.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/olive_trees.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/potato_field.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/carrot_harvest.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/citrus_orchard.jpg',
-  'https://raw.githubusercontent.com/agrismartapp/project-images/main/date_palms.jpg',
-];
-
-// Public domain free vegetable images that are actually accessible
+// Update to reliable public domain fallback images from Pixabay only
+// GitHub images were failing as seen in console logs
 const FALLBACK_PROJECT_IMAGES = [
   'https://cdn.pixabay.com/photo/2016/07/23/16/17/wheat-1536987_1280.jpg',
   'https://cdn.pixabay.com/photo/2016/09/21/04/46/barley-field-1684052_1280.jpg',
@@ -161,16 +150,10 @@ export const getDefaultProjectImage = (crop?: string): string => {
     return CROP_SPECIFIC_IMAGES[crop][0];
   }
   
-  // Otherwise, use a random general image
-  const randomIndex = Math.floor(Math.random() * DEFAULT_PROJECT_IMAGES.length);
-  const image = DEFAULT_PROJECT_IMAGES[randomIndex];
-  
-  // Also prepare a fallback image in case the GitHub one isn't available
-  const fallbackIndex = Math.floor(Math.random() * FALLBACK_PROJECT_IMAGES.length);
-  const fallbackImage = FALLBACK_PROJECT_IMAGES[fallbackIndex];
-  
-  // Return the image, with fetch handling fallback in the component
-  return image || fallbackImage;
+  // Otherwise, use a random fallback image directly
+  // Skip the GitHub images since they're failing
+  const randomIndex = Math.floor(Math.random() * FALLBACK_PROJECT_IMAGES.length);
+  return FALLBACK_PROJECT_IMAGES[randomIndex];
 };
 
 // Function to upload a project image

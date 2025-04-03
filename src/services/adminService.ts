@@ -1,151 +1,165 @@
-import { User, ProjectData } from '@/types/auth';
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Function to fetch all users (for admin)
-export const fetchAllUsers = async (): Promise<User[]> => {
+// Get all users (admin only)
+export const getAllUsers = async () => {
   try {
-    // Get all profiles
-    const { data: profiles, error: profilesError } = await supabase
+    // We need to join the auth.users view with our profiles table to get the roles
+    const { data, error } = await supabase
       .from('profiles')
-      .select('*');
+      .select(`
+        id,
+        email,
+        name,
+        role,
+        avatar,
+        created_at,
+        last_login
+      `)
+      .order('created_at', { ascending: false });
 
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      throw new Error(profilesError.message);
+    if (error) {
+      toast.error('Error retrieving users: ' + error.message);
+      throw error;
     }
 
-    // We need to get the email verification status from auth.users
-    // This will be done for each user by checking if email_confirmed_at is not null
-    const users: User[] = [];
-    
-    for (const profile of profiles) {
-      try {
-        // Get auth user to check email verification status
-        const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-        
-        const user: User = {
-          id: profile.id,
-          name: profile.name || '',
-          email: profile.email || '',
-          avatar: profile.avatar,
-          role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
-          phone_number: profile.phone_number,
-          address: profile.address,
-          bio: profile.bio,
-          // Set email_verified based on whether email_confirmed_at is set
-          email_verified: authUser?.user?.email_confirmed_at !== null,
-          // Convert preferences from Json to the expected type structure
-          preferences: profile.preferences as User['preferences']
-        };
-        
-        users.push(user);
-      } catch (error) {
-        console.error('Error getting auth user:', error);
-        // Add the user anyway without email verification status
-        const user: User = {
-          id: profile.id,
-          name: profile.name || '',
-          email: profile.email || '',
-          avatar: profile.avatar,
-          role: (profile.role as 'admin' | 'user' | 'fournisseur') || 'user',
-          phone_number: profile.phone_number,
-          address: profile.address,
-          bio: profile.bio,
-          email_verified: false,
-          preferences: profile.preferences as User['preferences']
-        };
-        
-        users.push(user);
-      }
-    }
-
-    return users;
+    return data;
   } catch (error) {
-    console.error('Error in fetchAllUsers:', error);
+    console.error('Error in getAllUsers:', error);
     throw error;
   }
 };
 
-// Fetch all projects (admin only)
-export const fetchAllProjects = async (): Promise<ProjectData[]> => {
+// Promote a user to admin (admin only)
+export const promoteToAdmin = async (userId: string) => {
   try {
     const { data, error } = await supabase
-      .from('projects_with_users')
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error promoting user: ' + error.message);
+      throw error;
+    }
+
+    toast.success('User promoted to admin successfully');
+    return data;
+  } catch (error) {
+    console.error('Error in promoteToAdmin:', error);
+    throw error;
+  }
+};
+
+// Demote an admin to regular user (admin only)
+export const demoteToUser = async (userId: string) => {
+  try {
+    // First check that we're not demoting the last admin
+    const { data: adminCount, error: countError } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact' })
+      .eq('role', 'admin');
+
+    if (countError) {
+      toast.error('Error checking admin count: ' + countError.message);
+      throw countError;
+    }
+
+    // Make sure we're not demoting the last admin
+    if (adminCount && adminCount.length <= 1) {
+      toast.error('Cannot demote the last admin');
+      throw new Error('Cannot demote the last admin');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role: 'user' })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error demoting admin: ' + error.message);
+      throw error;
+    }
+
+    toast.success('Admin demoted to user successfully');
+    return data;
+  } catch (error) {
+    console.error('Error in demoteToUser:', error);
+    throw error;
+  }
+};
+
+// Get all verification codes (admin only)
+export const getAllVerificationCodes = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('verification_codes')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Erreur lors du chargement des projets');
-      throw new Error(error.message);
+      toast.error('Error retrieving verification codes: ' + error.message);
+      throw error;
     }
 
-    // Transform the data to match the ProjectData type
-    const projects = (data || []).map(item => ({
-      id: item.id,
-      title: item.title,
-      crop: item.crop,
-      location: item.location,
-      startDate: item.start_date,  // Map from start_date to startDate
-      endDate: item.end_date,      // Map from end_date to endDate
-      progress: item.progress,
-      status: item.status as 'active' | 'planning' | 'completed',
-      image: item.image,
-      description: item.description,
-      user_id: item.user_id,
-      isPublic: item.is_public,    // Map from is_public to isPublic
-      user_name: item.user_name,
-      user_avatar: undefined
-    }));
-
-    return projects;
+    return data;
   } catch (error) {
-    console.error('Error fetching projects:', error);
-    toast.error('Erreur lors du chargement des projets');
+    console.error('Error in getAllVerificationCodes:', error);
     throw error;
   }
 };
 
-// Delete a project (admin only)
-export const deleteProject = async (projectId: string) => {
+// Update user role (admin only)
+export const updateUserRole = async (userId: string, role: string) => {
   try {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId);
-      
-    if (error) {
-      console.error('Error deleting project:', error);
-      toast.error('Erreur lors de la suppression du projet');
-      throw new Error(error.message);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    toast.error('Erreur lors de la suppression du projet');
-    throw error;
-  }
-};
+    // If we're demoting from admin, ensure it's not the last admin
+    if (role !== 'admin') {
+      const { data: currentRole } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
 
-// Verify a user's email (admin only)
-export const verifyUserEmail = async (userId: string) => {
-  try {
-    const { error } = await supabase.rpc('admin_verify_user', { 
-      user_id: userId 
-    });
-    
-    if (error) {
-      console.error('Error verifying user email:', error);
-      toast.error('Erreur lors de la vérification de l\'email');
-      throw new Error(error.message);
+      if (currentRole?.role === 'admin') {
+        // Check if this is the last admin
+        const { data: adminCount, error: countError } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact' })
+          .eq('role', 'admin');
+
+        if (countError) {
+          toast.error('Error checking admin count: ' + countError.message);
+          throw countError;
+        }
+
+        if (adminCount && adminCount.length <= 1) {
+          toast.error('Cannot demote the last admin');
+          throw new Error('Cannot demote the last admin');
+        }
+      }
     }
-    
-    return true;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Error updating user role: ' + error.message);
+      throw error;
+    }
+
+    toast.success('User role updated successfully');
+    return data;
   } catch (error) {
-    console.error('Error verifying user email:', error);
-    toast.error('Erreur lors de la vérification de l\'email');
+    console.error('Error in updateUserRole:', error);
     throw error;
   }
 };
@@ -156,18 +170,27 @@ export const deleteUser = async (userId: string) => {
     console.log('Deleting user with ID:', userId);
     
     // First check if the user is an admin or protected user
-    const { data: userProfile } = await supabase
+    const { data: userProfile, error: profileError } = await supabase
       .from('profiles')
       .select('role, email')
       .eq('id', userId)
       .single();
       
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      toast.error('Error fetching user profile');
+      throw profileError;
+    }
+    
     if (userProfile?.role === 'admin') {
       toast.error('Impossible de supprimer un administrateur');
       throw new Error('Cannot delete an admin user');
     }
     
-    if (userProfile?.email === 'bahapro30@gmail.com') {
+    // List of protected emails that cannot be deleted
+    const protectedEmails = ['bahapro30@gmail.com'];
+    
+    if (userProfile?.email && protectedEmails.includes(userProfile.email)) {
       toast.error('Ce compte est protégé et ne peut pas être supprimé');
       throw new Error('Cannot delete protected user account');
     }
@@ -175,7 +198,6 @@ export const deleteUser = async (userId: string) => {
     // First remove foreign key constraints by deleting related data
     try {
       // 1. Delete all projects created by the user
-      console.log('Deleting user projects...');
       const { error: projectsError } = await supabase
         .from('projects')
         .delete()
@@ -183,16 +205,19 @@ export const deleteUser = async (userId: string) => {
         
       if (projectsError) {
         console.error('Error deleting user projects:', projectsError);
-      } else {
-        console.log('Successfully deleted user projects');
       }
-    } catch (e) {
-      console.error('Exception when deleting projects:', e);
-    }
-    
-    try {
-      // 2. Delete all messages sent by the user
-      console.log('Deleting user messages...');
+      
+      // 2. Delete conversations if any
+      const { error: conversationsError } = await supabase
+        .from('conversations')
+        .delete()
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+        
+      if (conversationsError) {
+        console.error('Error deleting user conversations:', conversationsError);
+      }
+      
+      // 3. Delete messages if any
       const { error: messagesError } = await supabase
         .from('messages')
         .delete()
@@ -200,141 +225,98 @@ export const deleteUser = async (userId: string) => {
         
       if (messagesError) {
         console.error('Error deleting user messages:', messagesError);
-      } else {
-        console.log('Successfully deleted user messages');
       }
-    } catch (e) {
-      console.error('Exception when deleting messages:', e);
+      
+      // 4. Delete other related data (comments, likes, etc.)
+      // Add more delete operations for any other tables with foreign keys
+      
+    } catch (cleanupError) {
+      console.error('Error during user data cleanup:', cleanupError);
+      // Continue with deletion despite cleanup errors
     }
     
-    try {
-      // 3. Delete all conversations where the user is participant
-      console.log('Deleting user conversations...');
-      const { error: conversationsError } = await supabase
-        .from('conversations')
-        .delete()
-        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
-        
-      if (conversationsError) {
-        console.error('Error deleting user conversations:', conversationsError);
-      } else {
-        console.log('Successfully deleted user conversations');
-      }
-    } catch (e) {
-      console.error('Exception when deleting conversations:', e);
-    }
-    
-    try {
-      // 4. Delete all verification codes related to the user
-      console.log('Deleting user verification codes...');
-      const { error: codesError } = await supabase
-        .from('verification_codes')
-        .delete()
-        .eq('user_id', userId);
-        
-      if (codesError) {
-        console.error('Error deleting verification codes:', codesError);
-      } else {
-        console.log('Successfully deleted verification codes');
-      }
-    } catch (e) {
-      console.error('Exception when deleting verification codes:', e);
-    }
-    
-    try {
-      // 5. Delete ratings related to the user
-      console.log('Deleting user ratings...');
-      const { error: ratingsError } = await supabase
-        .from('fournisseur_ratings')
-        .delete()
-        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
-        
-      if (ratingsError) {
-        console.error('Error deleting user ratings:', ratingsError);
-      } else {
-        console.log('Successfully deleted user ratings');
-      }
-    } catch (e) {
-      console.error('Exception when deleting ratings:', e);
-    }
-    
-    // Finally, delete the user's profile (which will trigger auth user deletion via RLS)
-    console.log('Deleting user profile...');
-    const { error: profileError } = await supabase
+    // Now delete the user's profile
+    const { error: deleteProfileError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', userId);
-    
-    if (profileError) {
-      console.error('Error deleting user profile:', profileError);
-      throw new Error('Failed to delete user profile');
+      
+    if (deleteProfileError) {
+      console.error('Error deleting user profile:', deleteProfileError);
+      toast.error('Error deleting user profile');
+      throw deleteProfileError;
     }
     
-    // If profile deletion works, call the RPC function as a backup
-    console.log('Calling admin_delete_user RPC function');
-    const { error } = await supabase.rpc('admin_delete_user', { 
-      user_id: userId
-    });
-    
-    if (error) {
-      console.error('Error from admin_delete_user RPC:', error);
-      // Don't throw here as we've already deleted the profile
-      toast.success('Utilisateur supprimé avec succès (profil)');
-    } else {
-      console.log('User successfully deleted via RPC');
-      toast.success('Utilisateur supprimé avec succès');
-    }
-    
-    return true;
-  } catch (error: any) {
-    console.error('Error in deleteUser function:', error);
-    toast.error(`Erreur lors de la suppression de l'utilisateur: ${error.message}`);
-    throw error;
-  }
-};
-
-// Create a new user (admin only)
-export const createUser = async (name: string, email: string, password: string, role: string = 'user') => {
-  try {
-    const { error } = await supabase.rpc('admin_create_user', {
-      user_name: name,
-      user_email: email,
-      user_password: password,
-      user_role: role
-    });
-    
-    if (error) {
-      console.error('Error creating user:', error);
-      toast.error('Erreur lors de la création de l\'utilisateur');
-      throw new Error(error.message);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating user:', error);
-    toast.error('Erreur lors de la création de l\'utilisateur');
-    throw error;
-  }
-};
-
-// Set admin user password (admin only)
-export const setUserPassword = async (userId: string, newPassword: string) => {
-  try {
-    const { error } = await supabase.rpc('admin_update_user_password', {
+    // Finally delete the user from auth.users
+    const { error: deleteAuthError } = await supabase.rpc('delete_user', {
       user_id: userId,
-      new_password: newPassword
     });
     
-    if (error) {
-      console.error('Error updating user password:', error);
-      toast.error('Erreur lors de la mise à jour du mot de passe');
-      throw new Error(error.message);
+    if (deleteAuthError) {
+      console.error('Error deleting user from auth:', deleteAuthError);
+      toast.error('Error deleting user account');
+      throw deleteAuthError;
     }
     
+    toast.success('User deleted successfully');
     return true;
   } catch (error) {
-    console.error('Error updating user password:', error);
-    toast.error('Erreur lors de la mise à jour du mot de passe');
+    console.error('Error in deleteUser:', error);
+    throw error;
+  }
+};
+
+// Get analytics data (admin only)
+export const getAnalyticsData = async () => {
+  try {
+    // Get user count
+    const { count: userCount, error: userError } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (userError) {
+      throw userError;
+    }
+
+    // Get project count
+    const { count: projectCount, error: projectError } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true });
+
+    if (projectError) {
+      throw projectError;
+    }
+
+    // Get user registrations by month
+    const { data: registrations, error: regError } = await supabase
+      .from('profiles')
+      .select('created_at')
+      .order('created_at', { ascending: true });
+
+    if (regError) {
+      throw regError;
+    }
+
+    // Process registration data to count by month
+    const registrationsByMonth: Record<string, number> = {};
+    registrations?.forEach(reg => {
+      const date = new Date(reg.created_at);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!registrationsByMonth[monthYear]) {
+        registrationsByMonth[monthYear] = 0;
+      }
+      
+      registrationsByMonth[monthYear]++;
+    });
+
+    return {
+      userCount: userCount || 0,
+      projectCount: projectCount || 0,
+      registrationsByMonth
+    };
+  } catch (error) {
+    console.error('Error in getAnalyticsData:', error);
     throw error;
   }
 };

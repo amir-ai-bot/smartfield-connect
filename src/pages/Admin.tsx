@@ -1,171 +1,186 @@
-import { useEffect, useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  getAllUsers, 
+  promoteToAdmin, 
+  demoteToUser, 
+  getAllVerificationCodes, 
+  updateUserRole, 
+  deleteUser,
+  getAnalyticsData
+} from '@/services/adminService';
+import Navbar from '@/components/Navbar';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { 
+  Table, 
+  TableHeader, 
+  TableRow, 
+  TableHead, 
+  TableBody, 
+  TableCell 
+} from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
-  Users, Clipboard, Settings, DatabaseZap, 
-  CheckCircle, Loader2, UserPlus, Trash2
-} from 'lucide-react';
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
+import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format } from 'date-fns';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from '@tanstack/react-query';
-import { fetchAllUsers, fetchAllProjects, deleteProject, verifyUserEmail, deleteUser, createUser } from '@/services/adminService';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-const Admin = () => {
+type User = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  created_at: string;
+  last_login?: string;
+};
+
+type VerificationCode = {
+  id: string;
+  code: string;
+  email: string;
+  created_at: string;
+  expires_at: string;
+  used: boolean;
+};
+
+type AnalyticsData = {
+  userCount: number;
+  projectCount: number;
+  registrationsByMonth: Record<string, number>;
+};
+
+const AdminPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const [isVerifyingUser, setIsVerifyingUser] = useState<string | null>(null);
-  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
-  const [isDeletingProject, setIsDeletingProject] = useState<string | null>(null);
-  const [newUserDialog, setNewUserDialog] = useState(false);
-  const [deleteUserDialog, setDeleteUserDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<{id: string, email: string, name: string} | null>(null);
-  const [confirmEmail, setConfirmEmail] = useState('');
-  const [newUserData, setNewUserData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'user'
-  });
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
-
+  const [users, setUsers] = useState<User[]>([]);
+  const [codes, setCodes] = useState<VerificationCode[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   useEffect(() => {
-    document.title = 'Administration - AgriSmart';
-  }, []);
-
-  const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: fetchAllUsers
-  });
-
-  const { data: projects = [], isLoading: isLoadingProjects, refetch: refetchProjects } = useQuery({
-    queryKey: ['admin-projects'],
-    queryFn: fetchAllProjects
-  });
-
-  const handleVerifyUser = async (userId: string) => {
-    try {
-      setIsVerifyingUser(userId);
-      await verifyUserEmail(userId);
-      toast.success('Email de l\'utilisateur vérifié avec succès');
-      refetchUsers();
-    } catch (error) {
-      console.error('Error in verifyUser:', error);
-      toast.error('Échec de la vérification: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
-    } finally {
-      setIsVerifyingUser(null);
-    }
-  };
-
-  const openDeleteUserDialog = (userId: string, userName: string, userEmail: string) => {
-    if (userId === user?.id) {
-      toast.error("Vous ne pouvez pas supprimer votre propre compte");
-      return;
-    }
-    
-    if (userEmail === 'bahapro30@gmail.com') {
-      toast.error("Ce compte ne peut pas être supprimé");
-      return;
-    }
-    
-    setUserToDelete({
-      id: userId,
-      name: userName,
-      email: userEmail
-    });
-    setConfirmEmail('');
-    setDeleteUserDialog(true);
-  };
-
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-    
-    try {
-      setIsDeletingUser(userToDelete.id);
-      await deleteUser(userToDelete.id);
-      toast.success('Utilisateur supprimé avec succès');
-      refetchUsers();
-      refetchProjects(); // Also refresh projects as they might have been deleted
-      setDeleteUserDialog(false);
-      setUserToDelete(null);
-      setConfirmEmail('');
-    } catch (error) {
-      console.error('Error in deleteUser:', error);
-      toast.error('Échec de la suppression: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
-    } finally {
-      setIsDeletingUser(null);
-    }
-  };
-
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      setIsDeletingProject(projectId);
-      
-      // Confirm before deleting
-      if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet?')) {
-        await deleteProject(projectId);
-        toast.success('Projet supprimé avec succès');
-        refetchProjects();
+    const checkAdmin = async () => {
+      if (!user) {
+        navigate('/');
+        return;
       }
+      
+      if (user.role !== 'admin') {
+        toast.error('Access denied. Admin privileges required.');
+        navigate('/');
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        
+        // Fetch all data in parallel
+        const [usersData, codesData, analyticsData] = await Promise.all([
+          getAllUsers(),
+          getAllVerificationCodes(),
+          getAnalyticsData()
+        ]);
+        
+        setUsers(usersData);
+        setCodes(codesData);
+        setAnalytics(analyticsData);
+      } catch (error) {
+        console.error('Error fetching admin data:', error);
+        toast.error('Failed to load admin data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAdmin();
+  }, [user, navigate]);
+  
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      await updateUserRole(userId, newRole);
+      // Update the user in the local state
+      setUsers(users.map(u => 
+        u.id === userId 
+          ? { ...u, role: newRole } 
+          : u
+      ));
     } catch (error) {
-      console.error('Error in deleteProject:', error);
-      toast.error('Échec de la suppression: ' + (error instanceof Error ? error.message : 'Erreur inconnue'));
-    } finally {
-      setIsDeletingProject(null);
+      console.error('Error updating user role:', error);
     }
   };
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800';
-      case 'fournisseur':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  
+  const handleDeleteUser = async (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const confirmDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await deleteUser(selectedUser.id);
+      setUsers(users.filter(u => u.id !== selectedUser.id));
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+      toast.success(`L'utilisateur ${selectedUser.email} a été supprimé`);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      // The toast will be shown in the deleteUser function
     }
   };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'planning':
-        return 'bg-blue-100 text-blue-800';
-      case 'completed':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  
+  // Format analytics data for charts
+  const getRegistrationChartData = () => {
+    if (!analytics?.registrationsByMonth) return [];
+    
+    return Object.entries(analytics.registrationsByMonth)
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-12); // Show only the last 12 months
   };
-
-  const getVerificationBadgeColor = (isVerified: boolean) => {
-    return isVerified 
-      ? 'bg-green-100 text-green-800'
-      : 'bg-yellow-100 text-yellow-800';
-  };
-
+  
   const shouldAllowUserDeletion = (userEmail: string, userRole: string) => {
     // Don't allow deletion of admin users
     if (userRole === 'admin') {
@@ -177,562 +192,329 @@ const Admin = () => {
     }
     return true;
   };
-
+  
+  const ROLES = {
+    admin: { color: 'bg-red-100 text-red-800', icon: <ShieldAlert className="h-4 w-4" /> },
+    user: { color: 'bg-green-100 text-green-800', icon: <Shield className="h-4 w-4" /> },
+    moderator: { color: 'bg-blue-100 text-blue-800', icon: <ShieldCheck className="h-4 w-4" /> }
+  };
+  
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <main className="container mx-auto flex-1 p-4 pt-20">
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
   return (
-    <div className="container mx-auto px-2 py-4 pb-20 md:pb-8 mt-14 md:mt-16">
-      <div className="flex flex-col space-y-4">
-        <h1 className="text-xl font-bold text-gray-900">Administration</h1>
-        <p className="text-sm text-gray-600">
-          Bienvenue, {user?.name}. Gérez votre application depuis ce panneau d'administration.
-        </p>
-
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="users" className="flex items-center justify-center">
-              <Users className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline text-xs">Utilisateurs</span>
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="flex items-center justify-center">
-              <Clipboard className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline text-xs">Projets</span>
-            </TabsTrigger>
-            <TabsTrigger value="database" className="flex items-center justify-center">
-              <DatabaseZap className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline text-xs">Base de données</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center justify-center">
-              <Settings className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline text-xs">Paramètres</span>
-            </TabsTrigger>
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      
+      <main className="container mx-auto flex-1 p-4 pt-20">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Administration</h1>
+          <p className="text-gray-500">Gérer les utilisateurs et les données de l'application</p>
+        </div>
+        
+        {analytics && (
+          <div className="grid gap-4 md:grid-cols-3 mb-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex flex-col space-y-1">
+                  <CardTitle className="text-sm font-medium">Utilisateurs Total</CardTitle>
+                </div>
+                <Users className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.userCount}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex flex-col space-y-1">
+                  <CardTitle className="text-sm font-medium">Projets Total</CardTitle>
+                </div>
+                <List className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.projectCount}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex flex-col space-y-1">
+                  <CardTitle className="text-sm font-medium">
+                    Inscriptions ce mois
+                  </CardTitle>
+                </div>
+                <BarChart3 className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {getRegistrationChartData().length > 0 
+                    ? getRegistrationChartData()[getRegistrationChartData().length - 1].count 
+                    : 0}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        <Tabs defaultValue="users">
+          <TabsList className="mb-4">
+            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="codes">Codes de vérification</TabsTrigger>
+            <TabsTrigger value="analytics">Analytiques</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="users" className="mt-3">
+          <TabsContent value="users">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between px-3 py-3">
-                <div>
-                  <CardTitle className="text-base">Gestion des utilisateurs</CardTitle>
-                  <CardDescription className="text-xs">
-                    Consultez et gérez les comptes utilisateurs
+              <CardHeader>
+                <CardTitle>Gestion des utilisateurs</CardTitle>
+                <CardDescription>
+                  Voir et gérer tous les utilisateurs de l'application
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Utilisateur</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Rôle</TableHead>
+                        <TableHead>Date d'inscription</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9">
+                                {user.avatar ? (
+                                  <AvatarImage src={user.avatar} alt={user.name} />
+                                ) : null}
+                                <AvatarFallback className="bg-gray-100 text-gray-700">
+                                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="font-medium">{user.name || 'Unnamed User'}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLES[user.role as keyof typeof ROLES]?.color || 'bg-gray-100 text-gray-800'}`}>
+                              {ROLES[user.role as keyof typeof ROLES]?.icon}
+                              <span className="ml-1">{user.role}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {user.created_at 
+                              ? format(new Date(user.created_at), 'dd/MM/yyyy') 
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                value={user.role}
+                                onValueChange={(value) => handleRoleChange(user.id, value)}
+                              >
+                                <SelectTrigger className="h-8 w-28">
+                                  <SelectValue placeholder="Sélectionner" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="user">Utilisateur</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="moderator">Modérateur</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              {shouldAllowUserDeletion(user.email, user.role) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                  onClick={() => handleDeleteUser(user)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <div className="text-xs text-gray-500">
+                  <p className="flex items-center">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Les administrateurs et les comptes protégés ne peuvent pas être supprimés.
+                  </p>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Total: {users.length} utilisateurs
+                </div>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="codes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Codes de vérification</CardTitle>
+                <CardDescription>
+                  Voir tous les codes de vérification générés
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Créé le</TableHead>
+                      <TableHead>Expire le</TableHead>
+                      <TableHead>Statut</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {codes.map((code) => (
+                      <TableRow key={code.id}>
+                        <TableCell>{code.code}</TableCell>
+                        <TableCell>{code.email}</TableCell>
+                        <TableCell>
+                          {format(new Date(code.created_at), 'dd/MM/yyyy HH:mm')}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(code.expires_at), 'dd/MM/yyyy HH:mm')}
+                        </TableCell>
+                        <TableCell>
+                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            code.used 
+                              ? 'bg-gray-100 text-gray-800' 
+                              : new Date(code.expires_at) < new Date() 
+                                ? 'bg-red-100 text-red-800' 
+                                : 'bg-green-100 text-green-800'
+                          }`}>
+                            {code.used 
+                              ? 'Utilisé' 
+                              : new Date(code.expires_at) < new Date() 
+                                ? 'Expiré' 
+                                : 'Valide'}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="analytics">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Inscriptions mensuelles</CardTitle>
+                  <CardDescription>
+                    Nombre d'utilisateurs inscrits par mois
                   </CardDescription>
-                </div>
-                <Button 
-                  onClick={() => setNewUserDialog(true)}
-                  size="sm"
-                  className="text-xs"
-                >
-                  <UserPlus className="h-3 w-3 mr-1" />
-                  Ajouter
-                </Button>
-              </CardHeader>
-              <CardContent className="px-3 py-2">
-                <div className="rounded-md border overflow-hidden">
-                  <div className="overflow-x-auto">
-                    {isLoadingUsers ? (
-                      <div className="flex justify-center items-center p-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Utilisateur</TableHead>
-                            <TableHead className="hidden md:table-cell text-xs">Email</TableHead>
-                            <TableHead className="text-xs">Rôle</TableHead>
-                            <TableHead className="hidden md:table-cell text-xs">Statut</TableHead>
-                            <TableHead className="text-right text-xs">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {users.map((user) => (
-                            <TableRow key={user.id}>
-                              <TableCell className="py-2">
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    {user.avatar ? (
-                                      <AvatarImage src={user.avatar} alt={user.name} />
-                                    ) : (
-                                      <AvatarFallback className="text-xs">
-                                        {user.name?.charAt(0) || '?'}
-                                      </AvatarFallback>
-                                    )}
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-medium text-xs">{user.name}</p>
-                                    <p className="text-[10px] text-gray-500 md:hidden">{user.email}</p>
-                                    <div className="md:hidden mt-1">
-                                      <Badge className={`${getVerificationBadgeColor(user.email_verified || false)} text-[10px] px-1 py-0`}>
-                                        {user.email_verified ? 'Vérifié' : 'Non vérifié'}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell text-xs">{user.email}</TableCell>
-                              <TableCell>
-                                <Badge className={`${getRoleBadgeColor(user.role)} text-[10px] px-1 py-0`}>
-                                  {user.role}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell">
-                                <Badge className={`${getVerificationBadgeColor(user.email_verified || false)} text-[10px] px-1 py-0`}>
-                                  {user.email_verified ? 'Vérifié' : 'Non vérifié'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  {!user.email_verified && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="icon"
-                                      className="h-7 w-7"
-                                      onClick={() => handleVerifyUser(user.id)}
-                                      disabled={!!isVerifyingUser}
-                                    >
-                                      {isVerifyingUser === user.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <CheckCircle className="h-3 w-3 text-green-600" />
-                                      )}
-                                    </Button>
-                                  )}
-                                  {shouldAllowUserDeletion(user.email || '', user.role) && (
-                                    <Button 
-                                      variant="destructive" 
-                                      className="h-7 text-xs"
-                                      onClick={() => openDeleteUserDialog(user.id, user.name || '', user.email || '')}
-                                      disabled={!!isDeletingUser || user.id === user?.id}
-                                    >
-                                      Supprimer
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={getRegistrationChartData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribution des rôles</CardTitle>
+                  <CardDescription>
+                    Répartition des utilisateurs par rôle
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Admin', value: users.filter(u => u.role === 'admin').length },
+                            { name: 'User', value: users.filter(u => u.role === 'user').length },
+                            { name: 'Moderator', value: users.filter(u => u.role === 'moderator').length },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {[
+                            { name: 'Admin', value: users.filter(u => u.role === 'admin').length },
+                            { name: 'User', value: users.filter(u => u.role === 'user').length },
+                            { name: 'Moderator', value: users.filter(u => u.role === 'moderator').length },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
-                          {users.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-6 text-gray-500 text-xs">
-                                Aucun utilisateur trouvé
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    )}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="projects" className="mt-3">
-            <Card>
-              <CardHeader className="px-3 py-3">
-                <CardTitle className="text-base">Gestion des projets</CardTitle>
-                <CardDescription className="text-xs">
-                  Consultez et gérez tous les projets de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-3 py-2">
-                <div className="rounded-md border overflow-hidden">
-                  <div className="overflow-x-auto">
-                    {isLoadingProjects ? (
-                      <div className="flex justify-center items-center p-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Projet</TableHead>
-                            <TableHead className="hidden md:table-cell text-xs">Culture</TableHead>
-                            <TableHead className="hidden md:table-cell text-xs">Utilisateur</TableHead>
-                            <TableHead className="text-xs">Statut</TableHead>
-                            <TableHead className="text-right text-xs">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {projects.map((project) => (
-                            <TableRow key={project.id}>
-                              <TableCell className="py-2">
-                                <div>
-                                  <p className="font-medium text-xs">{project.title}</p>
-                                  <p className="text-[10px] text-gray-500 md:hidden">
-                                    {project.crop} • {project.user_name}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell text-xs">{project.crop}</TableCell>
-                              <TableCell className="hidden md:table-cell text-xs">
-                                {project.user_name}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={`${getStatusBadgeColor(project.status)} text-[10px] px-1 py-0`}>
-                                  {project.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button 
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => handleDeleteProject(project.id)}
-                                    disabled={!!isDeletingProject}
-                                  >
-                                    {isDeletingProject === project.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                    ) : (
-                                      <Trash2 className="h-3 w-3 text-red-600 mr-1" />
-                                    )}
-                                    Supprimer
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          {projects.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-6 text-gray-500 text-xs">
-                                Aucun projet trouvé
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="database" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Base de données</CardTitle>
-                <CardDescription>
-                  Consultez et gérez les données de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Tables principales</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Utilisateurs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-sm text-gray-600">{users.length} enregistrements</p>
-                          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => refetchUsers()}>
-                            Rafraîchir
-                          </Button>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Projets</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-sm text-gray-600">{projects.length} enregistrements</p>
-                          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => refetchProjects()}>
-                            Rafraîchir
-                          </Button>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Conversations</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-sm text-gray-600">Informations sur les messages</p>
-                          <Button variant="outline" size="sm" className="mt-2 w-full">
-                            Rafraîchir
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Statistiques</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Utilisateurs actifs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-2xl font-semibold">{users.length}</p>
-                          <p className="text-xs text-gray-600">Tous les comptes</p>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Fournisseurs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-2xl font-semibold">
-                            {users.filter(u => u.role === 'fournisseur').length}
-                          </p>
-                          <p className="text-xs text-gray-600">Tous les fournisseurs</p>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="bg-gray-50">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-base">Projets actifs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <p className="text-2xl font-semibold">
-                            {projects.filter(p => p.status === 'active').length}
-                          </p>
-                          <p className="text-xs text-gray-600">Tous les projets actifs</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="settings" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Paramètres</CardTitle>
-                <CardDescription>
-                  Configurez les paramètres généraux de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-2">Informations de l'application</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="app-name">Nom de l'application</Label>
-                          <Input id="app-name" value="AgriSmart" className="mt-1" readOnly />
-                        </div>
-                        <div>
-                          <Label htmlFor="app-version">Version</Label>
-                          <Input id="app-version" value="1.0.0" className="mt-1" readOnly />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-2">Statut du système</h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span>Base de données</span>
-                          <Badge className="bg-green-100 text-green-800">Connectée</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Stockage</span>
-                          <Badge className="bg-green-100 text-green-800">Actif</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Authentification</span>
-                          <Badge className="bg-green-100 text-green-800">Fonctionnelle</Badge>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div className="flex justify-end">
-                      <Button>Sauvegarder les paramètres</Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
-      </div>
-
-      <Dialog open={newUserDialog} onOpenChange={setNewUserDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base">Ajouter un nouvel utilisateur</DialogTitle>
-            <DialogDescription className="text-xs">
-              Créez un compte utilisateur avec les informations de base.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="name" className="text-xs">Nom complet</Label>
-              <Input 
-                id="name" 
-                value={newUserData.name}
-                onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
-                className="text-sm h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="email" className="text-xs">Email</Label>
-              <Input 
-                id="email" 
-                type="email"
-                value={newUserData.email}
-                onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
-                className="text-sm h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="password" className="text-xs">Mot de passe</Label>
-              <Input 
-                id="password" 
-                type="password"
-                value={newUserData.password}
-                onChange={(e) => setNewUserData({...newUserData, password: e.target.value})}
-                className="text-sm h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="role" className="text-xs">Rôle</Label>
-              <Select 
-                value={newUserData.role}
-                onValueChange={(value) => setNewUserData({...newUserData, role: value})}
-              >
-                <SelectTrigger className="text-sm h-8">
-                  <SelectValue placeholder="Sélectionner un rôle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user" className="text-sm">Utilisateur</SelectItem>
-                  <SelectItem value="fournisseur" className="text-sm">Fournisseur</SelectItem>
-                  <SelectItem value="admin" className="text-sm">Administrateur</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setNewUserDialog(false)}
-              className="text-xs"
-              size="sm"
+      </main>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Toutes les données associées à {selectedUser?.email} seront définitivement supprimées.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteUser} 
+              className="bg-red-500 hover:bg-red-600 text-white"
             >
-              Annuler
-            </Button>
-            <Button
-              onClick={async () => {
-                try {
-                  setIsCreatingUser(true);
-                  await createUser(
-                    newUserData.name,
-                    newUserData.email,
-                    newUserData.password,
-                    newUserData.role
-                  );
-                  toast.success('Utilisateur créé avec succès');
-                  setNewUserDialog(false);
-                  setNewUserData({
-                    name: '',
-                    email: '',
-                    password: '',
-                    role: 'user'
-                  });
-                  refetchUsers();
-                } catch (error) {
-                  console.error('Error creating user:', error);
-                  toast.error('Erreur lors de la création de l\'utilisateur: ' + 
-                    (error instanceof Error ? error.message : 'Erreur inconnue'));
-                } finally {
-                  setIsCreatingUser(false);
-                }
-              }}
-              disabled={isCreatingUser || !newUserData.name || !newUserData.email || !newUserData.password}
-              className="text-xs"
-              size="sm"
-            >
-              {isCreatingUser ? (
-                <>
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  Création...
-                </>
-              ) : (
-                'Créer l\'utilisateur'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deleteUserDialog} onOpenChange={setDeleteUserDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base text-red-600">Supprimer un utilisateur</DialogTitle>
-            <DialogDescription className="text-xs">
-              Cette action est irréversible. Toutes les données associées à cet utilisateur seront supprimées.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-              <p className="text-sm font-medium text-amber-800">Attention !</p>
-              <p className="text-xs text-amber-700">
-                Vous êtes sur le point de supprimer l'utilisateur <strong>{userToDelete?.name}</strong> ({userToDelete?.email}).
-                Cette action supprimera également tous ses projets, messages et autres données associées.
-              </p>
-            </div>
-            
-            <div className="space-y-1">
-              <Label htmlFor="confirm-email" className="text-xs">
-                Pour confirmer, saisissez l'adresse email de l'utilisateur :
-              </Label>
-              <Input 
-                id="confirm-email" 
-                type="email"
-                value={confirmEmail}
-                onChange={(e) => setConfirmEmail(e.target.value)}
-                className="text-sm h-8"
-                placeholder={userToDelete?.email}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteUserDialog(false);
-                setUserToDelete(null);
-                setConfirmEmail('');
-              }}
-              className="text-xs"
-              size="sm"
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={confirmEmail !== userToDelete?.email || isDeletingUser !== null}
-              className="text-xs"
-              size="sm"
-            >
-              {isDeletingUser ? (
-                <>
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  Suppression...
-                </>
-              ) : (
-                'Supprimer définitivement'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-export default Admin;
+export default AdminPage;

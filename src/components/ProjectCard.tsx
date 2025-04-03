@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -37,9 +38,12 @@ const ProjectCard = ({
 }: ProjectCardProps) => {
   const { t, language } = useLanguage();
   const [imageError, setImageError] = useState(false);
+  const [fallbackImage, setFallbackImage] = useState('');
   
-  // Use the default project image from storageService
-  const placeholderImage = getDefaultProjectImage();
+  // Set fallback image on component mount
+  useEffect(() => {
+    setFallbackImage(getDefaultProjectImage(crop));
+  }, [crop]);
   
   // Status badge color
   const statusColor = {
@@ -47,25 +51,6 @@ const ProjectCard = ({
     planning: "bg-blue-500 hover:bg-blue-600",
     completed: "bg-gray-500 hover:bg-gray-600"
   };
-  
-  // Debug image loading
-  useEffect(() => {
-    if (image) {
-      console.log('Project image URL:', image);
-      // Check if image is accessible
-      fetch(image, { method: 'HEAD' })
-        .then(response => {
-          if (!response.ok) {
-            console.warn('Image not accessible:', image);
-            setImageError(true);
-          }
-        })
-        .catch(error => {
-          console.error('Error checking image accessibility:', error);
-          setImageError(true);
-        });
-    }
-  }, [image]);
   
   // Status label translation
   const getStatusLabel = (status: string) => {
@@ -104,22 +89,20 @@ const ProjectCard = ({
             }}
           />
         ) : (
-          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-            <img
-              src={placeholderImage}
-              alt={title}
-              className="w-full h-full object-cover"
-              onError={() => {
-                console.error('Placeholder image failed to load:', placeholderImage);
-                // If even the placeholder fails, show a simple div
-                return (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-400">No Image</span>
-                  </div>
-                );
-              }}
-            />
-          </div>
+          <img
+            src={fallbackImage}
+            alt={title}
+            className="w-full h-full object-cover"
+            onError={() => {
+              console.error('Fallback image failed to load:', fallbackImage);
+              // If even the fallback fails, show a simple background color
+              return (
+                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-400">No Image</span>
+                </div>
+              );
+            }}
+          />
         )}
         <Badge className={`absolute top-3 right-3 ${statusColor[status]}`}>
           {getStatusLabel(status)}
