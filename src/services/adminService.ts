@@ -369,8 +369,9 @@ export const getAllProjects = async () => {
 // Approve a fournisseur request
 export const approveFournisseurRequest = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('approve_fournisseur_request', {
-      user_id: userId
+    // We need to use fetch directly since the function is not registered in the type system yet
+    const { error } = await supabase.functions.invoke('approve-fournisseur-request', {
+      body: { userId }
     });
 
     if (error) {
@@ -389,8 +390,9 @@ export const approveFournisseurRequest = async (userId: string) => {
 // Reject a fournisseur request
 export const rejectFournisseurRequest = async (userId: string) => {
   try {
-    const { error } = await supabase.rpc('reject_fournisseur_request', {
-      user_id: userId
+    // We need to use fetch directly since the function is not registered in the type system yet
+    const { error } = await supabase.functions.invoke('reject-fournisseur-request', {
+      body: { userId }
     });
 
     if (error) {
@@ -410,11 +412,13 @@ export const rejectFournisseurRequest = async (userId: string) => {
 export const addFournisseur = async (fournisseurData: FournisseurData) => {
   try {
     // First create the user account using the admin_create_user function
-    const { error: userError } = await supabase.rpc('admin_create_user', {
-      user_name: fournisseurData.name,
-      user_email: fournisseurData.email,
-      user_password: fournisseurData.password,
-      user_role: 'fournisseur'
+    const { error: userError } = await supabase.functions.invoke('admin-create-user', {
+      body: {
+        user_name: fournisseurData.name,
+        user_email: fournisseurData.email,
+        user_password: fournisseurData.password,
+        user_role: 'fournisseur'
+      }
     });
 
     if (userError) {
@@ -448,14 +452,16 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw updateError;
     }
 
-    // Create entry in suppliers table using the custom RPC function
-    const { error: supplierError } = await supabase.rpc('add_supplier', {
-      supplier_user_id: userData.id,
-      supplier_category: fournisseurData.category,
-      supplier_location: fournisseurData.location,
-      supplier_products: fournisseurData.products,
-      supplier_rating: 0,
-      supplier_phone: fournisseurData.phone
+    // Create entry in suppliers table using the functions.invoke
+    const { error: supplierError } = await supabase.functions.invoke('add-supplier', {
+      body: {
+        supplier_user_id: userData.id,
+        supplier_category: fournisseurData.category,
+        supplier_location: fournisseurData.location,
+        supplier_products: fournisseurData.products,
+        supplier_rating: 0,
+        supplier_phone: fournisseurData.phone
+      }
     });
 
     if (supplierError) {
