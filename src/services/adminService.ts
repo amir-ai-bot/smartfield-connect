@@ -454,17 +454,15 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw updateError;
     }
 
-    // Create entry in suppliers table
-    const { error: supplierError } = await supabase
-      .from('suppliers')
-      .insert({
-        user_id: userData.id,
-        category: fournisseurData.category,
-        location: fournisseurData.location,
-        products: fournisseurData.products,
-        rating: 0,
-        phone: fournisseurData.phone
-      });
+    // Create entry in suppliers table using the RPC function for type safety
+    const { error: supplierError } = await supabase.rpc('add_supplier', {
+      supplier_user_id: userData.id,
+      supplier_category: fournisseurData.category,
+      supplier_location: fournisseurData.location,
+      supplier_products: fournisseurData.products,
+      supplier_rating: 0,
+      supplier_phone: fournisseurData.phone
+    });
 
     if (supplierError) {
       toast.error('Erreur lors de l\'ajout des informations fournisseur: ' + supplierError.message);

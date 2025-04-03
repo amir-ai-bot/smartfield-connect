@@ -1,60 +1,59 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Define the Supplier type to match what's returned from the service
+export interface Supplier {
+  id: string;
+  name: string;
+  category: string;
+  rating: number;
+  location: string;
+  phone: string;
+  email: string;
+  products: string[];
+  image: string;
+}
+
 // Function to fetch all suppliers
-export const getAllSuppliers = async () => {
+export const getAllSuppliers = async (): Promise<Supplier[]> => {
   try {
-    // Join profiles with the suppliers table to get all information
-    const { data, error } = await supabase
-      .from('suppliers')
-      .select(`
-        id,
-        user_id,
-        category,
-        location,
-        products,
-        rating,
-        phone,
-        profiles:user_id (
-          name,
-          email,
-          avatar
-        )
-      `)
-      .order('rating', { ascending: false });
+    // Use RPC call to handle the suppliers data since the table might not be reflected in the TypeScript types yet
+    const { data, error } = await supabase.rpc('get_all_suppliers');
 
     if (error) {
       console.error('Error fetching suppliers:', error);
       throw error;
     }
 
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+
     // Transform data to match the expected format
     return data.map(supplier => ({
       id: supplier.id,
-      name: supplier.profiles?.name || 'Fournisseur sans nom',
+      name: supplier.name || 'Fournisseur sans nom',
       category: supplier.category,
       rating: supplier.rating || 0,
       location: supplier.location,
       phone: supplier.phone,
-      email: supplier.profiles?.email || '',
+      email: supplier.email || '',
       products: supplier.products || [],
-      image: supplier.profiles?.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80'
+      image: supplier.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80'
     }));
   } catch (error) {
     console.error('Error in getAllSuppliers:', error);
     toast.error('Erreur lors du chargement des fournisseurs');
-    throw error;
+    // Return an empty array instead of throwing to avoid breaking the UI
+    return [];
   }
 };
 
 // Add default suppliers if none exist
 export const initializeDefaultSuppliers = async () => {
   try {
-    // Check if suppliers already exist
-    const { count, error: countError } = await supabase
-      .from('suppliers')
-      .select('*', { count: 'exact', head: true });
+    // Use a direct SQL query through RPC to check if suppliers exist
+    const { data: count, error: countError } = await supabase.rpc('get_suppliers_count');
 
     if (countError) {
       console.error('Error checking suppliers count:', countError);
@@ -136,47 +135,21 @@ export const initializeDefaultSuppliers = async () => {
       }
     ];
     
-    // Add these suppliers to the database
+    // Use RPC to add suppliers safely
     for (const supplier of defaultSuppliers) {
-      // Create a user account first
-      const { error: userError } = await supabase.rpc('admin_create_user', {
-        user_name: supplier.name,
-        user_email: supplier.email,
-        user_password: 'Supplier123!',  // Default password
-        user_role: 'fournisseur'
+      const { error } = await supabase.rpc('add_default_supplier', {
+        supplier_name: supplier.name,
+        supplier_email: supplier.email,
+        supplier_password: 'Supplier123!',
+        supplier_category: supplier.category,
+        supplier_rating: supplier.rating,
+        supplier_location: supplier.location,
+        supplier_phone: supplier.phone,
+        supplier_products: supplier.products
       });
       
-      if (userError) {
-        console.error(`Error creating user for ${supplier.name}:`, userError);
-        continue;
-      }
-      
-      // Get the user ID
-      const { data: userData, error: userDataError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', supplier.email)
-        .single();
-        
-      if (userDataError || !userData) {
-        console.error(`Error fetching user ID for ${supplier.name}:`, userDataError);
-        continue;
-      }
-      
-      // Create the supplier entry
-      const { error: supplierError } = await supabase
-        .from('suppliers')
-        .insert({
-          user_id: userData.id,
-          category: supplier.category,
-          rating: supplier.rating,
-          location: supplier.location,
-          phone: supplier.phone,
-          products: supplier.products
-        });
-        
-      if (supplierError) {
-        console.error(`Error creating supplier ${supplier.name}:`, supplierError);
+      if (error) {
+        console.error(`Error creating supplier ${supplier.name}:`, error);
       }
     }
     
