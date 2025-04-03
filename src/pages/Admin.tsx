@@ -79,7 +79,7 @@ type User = {
 type VerificationCode = {
   id: string;
   code: string;
-  email: string; // This was missing in the data but expected by the type
+  email: string;
   created_at: string;
   expires_at: string;
   used: boolean;
@@ -141,7 +141,6 @@ const AdminPage: React.FC = () => {
       try {
         setLoading(true);
         
-        // Fetch all data in parallel
         const [usersData, codesData, analyticsData, projectsData] = await Promise.all([
           getAllUsers(),
           getAllVerificationCodes(),
@@ -153,7 +152,6 @@ const AdminPage: React.FC = () => {
         setCodes(codesData);
         setAnalytics(analyticsData);
         
-        // Ensure project data has the correct status type
         const typedProjects = projectsData.map(project => ({
           ...project,
           status: (project.status as string).toLowerCase() === 'active' ? 'active' :
@@ -176,7 +174,6 @@ const AdminPage: React.FC = () => {
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await updateUserRole(userId, newRole);
-      // Update the user in the local state
       setUsers(users.map(u => 
         u.id === userId 
           ? { ...u, role: newRole } 
@@ -203,7 +200,6 @@ const AdminPage: React.FC = () => {
       toast.success(`L'utilisateur ${selectedUser.email} a été supprimé`);
     } catch (error) {
       console.error('Error deleting user:', error);
-      // The toast will be shown in the deleteUser function
     }
   };
 
@@ -232,15 +228,13 @@ const AdminPage: React.FC = () => {
     return Object.entries(analytics.registrationsByMonth)
       .map(([month, count]) => ({ month, count }))
       .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-12); // Show only the last 12 months
+      .slice(-12);
   };
   
   const shouldAllowUserDeletion = (userEmail: string, userRole: string) => {
-    // Don't allow deletion of admin users
     if (userRole === 'admin') {
       return false;
     }
-    // Don't allow deletion of protected users
     if (userEmail === 'bahapro30@gmail.com') {
       return false;
     }
@@ -462,10 +456,10 @@ const AdminPage: React.FC = () => {
                           <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
                           <TableCell>
                             <Badge 
-                              className={
-                                project.status === 'active' ? "bg-green-500" :
-                                project.status === 'planning' ? "bg-blue-500" :
-                                "bg-gray-500"
+                              variant={
+                                project.status === 'active' ? "success" :
+                                project.status === 'planning' ? "info" :
+                                "secondary"
                               }
                             >
                               {project.status === 'active' ? "Actif" :
