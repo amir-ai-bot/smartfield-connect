@@ -9,7 +9,9 @@ import {
   getAllVerificationCodes, 
   updateUserRole, 
   deleteUser,
-  getAnalyticsData
+  getAnalyticsData,
+  getAllProjects,
+  deleteProject
 } from '@/services/adminService';
 import Navbar from '@/components/Navbar';
 import { 
@@ -50,7 +52,7 @@ import {
   Pie, 
   Cell 
 } from 'recharts';
-import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle, Sprout } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -64,6 +66,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ProjectCardProps } from '@/components/ProjectCard';
 
 type User = {
   id: string;
@@ -72,16 +75,17 @@ type User = {
   role: string;
   avatar?: string;
   created_at: string;
-  last_login?: string;
 };
 
 type VerificationCode = {
   id: string;
   code: string;
-  email: string;
+  email: string; // This was missing in the data but expected by the type
   created_at: string;
   expires_at: string;
   used: boolean;
+  type: string;
+  user_id: string;
 };
 
 type AnalyticsData = {
@@ -90,15 +94,33 @@ type AnalyticsData = {
   registrationsByMonth: Record<string, number>;
 };
 
+type Project = {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  progress: number;
+  status: 'active' | 'planning' | 'completed';
+  image?: string;
+  user_name?: string;
+  user_id: string;
+  created_at: string;
+};
+
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [codes, setCodes] = useState<VerificationCode[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
   
   useEffect(() => {
     const checkAdmin = async () => {
@@ -117,15 +139,17 @@ const AdminPage: React.FC = () => {
         setLoading(true);
         
         // Fetch all data in parallel
-        const [usersData, codesData, analyticsData] = await Promise.all([
+        const [usersData, codesData, analyticsData, projectsData] = await Promise.all([
           getAllUsers(),
           getAllVerificationCodes(),
-          getAnalyticsData()
+          getAnalyticsData(),
+          getAllProjects()
         ]);
         
         setUsers(usersData);
         setCodes(codesData);
         setAnalytics(analyticsData);
+        setProjects(projectsData);
       } catch (error) {
         console.error('Error fetching admin data:', error);
         toast.error('Failed to load admin data');
@@ -168,6 +192,25 @@ const AdminPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
       // The toast will be shown in the deleteUser function
+    }
+  };
+
+  const handleDeleteProject = async (project: Project) => {
+    setSelectedProject(project);
+    setIsDeleteProjectDialogOpen(true);
+  };
+  
+  const confirmDeleteProject = async () => {
+    if (!selectedProject) return;
+    
+    try {
+      await deleteProject(selectedProject.id);
+      setProjects(projects.filter(p => p.id !== selectedProject.id));
+      setIsDeleteProjectDialogOpen(false);
+      setSelectedProject(null);
+      toast.success(`Le projet ${selectedProject.title} a été supprimé`);
+    } catch (error) {
+      console.error('Error deleting project:', error);
     }
   };
   
@@ -273,6 +316,7 @@ const AdminPage: React.FC = () => {
         <Tabs defaultValue="users">
           <TabsList className="mb-4">
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="projects">Projets</TabsTrigger>
             <TabsTrigger value="codes">Codes de vérification</TabsTrigger>
             <TabsTrigger value="analytics">Analytiques</TabsTrigger>
           </TabsList>
@@ -372,6 +416,78 @@ const AdminPage: React.FC = () => {
               </CardFooter>
             </Card>
           </TabsContent>
+
+          <TabsContent value="projects">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestion des projets</CardTitle>
+                <CardDescription>
+                  Voir et gérer tous les projets de l'application
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Titre</TableHead>
+                        <TableHead>Culture</TableHead>
+                        <TableHead>Créateur</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Date de création</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projects.map((project) => (
+                        <TableRow key={project.id}>
+                          <TableCell className="font-medium">{project.title}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Sprout className="mr-1 h-4 w-4 text-green-500" />
+                              <span>{project.crop}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              className={
+                                project.status === 'active' ? "bg-green-500" :
+                                project.status === 'planning' ? "bg-blue-500" :
+                                "bg-gray-500"
+                              }
+                            >
+                              {project.status === 'active' ? "Actif" :
+                               project.status === 'planning' ? "Planification" :
+                               "Complété"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                              onClick={() => handleDeleteProject(project)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <div className="text-xs text-gray-500">
+                  Total: {projects.length} projets
+                </div>
+              </CardFooter>
+            </Card>
+          </TabsContent>
           
           <TabsContent value="codes">
             <Card>
@@ -386,7 +502,7 @@ const AdminPage: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Code</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Créé le</TableHead>
                       <TableHead>Expire le</TableHead>
                       <TableHead>Statut</TableHead>
@@ -396,7 +512,7 @@ const AdminPage: React.FC = () => {
                     {codes.map((code) => (
                       <TableRow key={code.id}>
                         <TableCell>{code.code}</TableCell>
-                        <TableCell>{code.email}</TableCell>
+                        <TableCell>{code.type}</TableCell>
                         <TableCell>
                           {format(new Date(code.created_at), 'dd/MM/yyyy HH:mm')}
                         </TableCell>
@@ -506,6 +622,26 @@ const AdminPage: React.FC = () => {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteUser} 
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer ce projet ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Toutes les données associées au projet "{selectedProject?.title}" seront définitivement supprimées.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteProject} 
               className="bg-red-500 hover:bg-red-600 text-white"
             >
               Supprimer

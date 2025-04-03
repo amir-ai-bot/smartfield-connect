@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Calendar, MapPin, Sprout } from "lucide-react";
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getDefaultProjectImage } from '@/services/storageService';
 
 export interface ProjectCardProps {
   id: string;
@@ -21,6 +20,29 @@ export interface ProjectCardProps {
   user_avatar?: string;
   onClick?: () => void;
 }
+
+const cropDefaultImages: Record<string, string> = {
+  'Oliviers': 'https://cdn.pixabay.com/photo/2021/07/14/11/31/olive-tree-6465723_1280.jpg',
+  'Palmiers': 'https://cdn.pixabay.com/photo/2019/03/11/23/51/palm-trees-4050731_1280.jpg',
+  'Pistachiers': 'https://cdn.pixabay.com/photo/2017/01/05/13/04/pistachio-1955567_1280.jpg',
+  'Amandiers': 'https://cdn.pixabay.com/photo/2018/02/25/22/06/almond-tree-3181703_1280.jpg',
+  'Figuiers': 'https://cdn.pixabay.com/photo/2018/04/21/05/57/fig-3337612_1280.jpg',
+  'Pommiers': 'https://cdn.pixabay.com/photo/2017/09/26/13/31/apple-2788616_1280.jpg',
+  'Poiriers': 'https://cdn.pixabay.com/photo/2018/08/20/11/21/pears-3618951_1280.jpg',
+  'Abricotiers': 'https://cdn.pixabay.com/photo/2017/05/19/07/50/apricots-2325656_1280.jpg',
+  'Vignes': 'https://cdn.pixabay.com/photo/2018/09/04/10/27/grapes-3653504_1280.jpg',
+  'Agrumes': 'https://cdn.pixabay.com/photo/2017/01/20/15/06/oranges-1995056_1280.jpg',
+  'Blé': 'https://cdn.pixabay.com/photo/2018/11/29/20/01/wheat-3846267_1280.jpg',
+  'Orge': 'https://cdn.pixabay.com/photo/2019/08/11/12/52/barley-field-4398758_1280.jpg',
+  'Tomates': 'https://cdn.pixabay.com/photo/2016/08/01/17/08/tomatoes-1561565_1280.jpg',
+  'Pommes de terre': 'https://cdn.pixabay.com/photo/2016/05/29/08/34/potato-1422580_1280.jpg',
+  'Oignons': 'https://cdn.pixabay.com/photo/2016/03/05/22/09/onions-1239423_1280.jpg',
+  'Poivrons': 'https://cdn.pixabay.com/photo/2018/06/14/13/13/bell-peppers-3474677_1280.jpg',
+  'Carottes': 'https://cdn.pixabay.com/photo/2018/10/03/21/57/carrots-3722517_1280.jpg'
+};
+
+// Fallback image for general use
+const defaultFallbackImage = 'https://cdn.pixabay.com/photo/2019/09/28/04/02/agriculture-4509751_1280.jpg';
 
 const ProjectCard = ({ 
   id, 
@@ -42,7 +64,12 @@ const ProjectCard = ({
   
   // Set fallback image on component mount
   useEffect(() => {
-    setFallbackImage(getDefaultProjectImage(crop));
+    // Get the appropriate image for the crop, or default if not found
+    const defaultImage = crop && cropDefaultImages[crop] 
+      ? cropDefaultImages[crop] 
+      : defaultFallbackImage;
+    
+    setFallbackImage(defaultImage);
   }, [crop]);
   
   // Status badge color
@@ -96,11 +123,7 @@ const ProjectCard = ({
             onError={() => {
               console.error('Fallback image failed to load:', fallbackImage);
               // If even the fallback fails, show a simple background color
-              return (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-gray-400">No Image</span>
-                </div>
-              );
+              setFallbackImage(defaultFallbackImage);
             }}
           />
         )}

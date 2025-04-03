@@ -14,8 +14,7 @@ export const getAllUsers = async () => {
         name,
         role,
         avatar,
-        created_at,
-        last_login
+        created_at
       `)
       .order('created_at', { ascending: false });
 
@@ -107,7 +106,11 @@ export const getAllVerificationCodes = async () => {
       throw error;
     }
 
-    return data;
+    // Format the data to match the VerificationCode type expected by the UI
+    return data.map(code => ({
+      ...code,
+      email: '' // Adding the missing email property that the UI expects
+    }));
   } catch (error) {
     console.error('Error in getAllVerificationCodes:', error);
     throw error;
@@ -211,7 +214,7 @@ export const deleteUser = async (userId: string) => {
       const { error: conversationsError } = await supabase
         .from('conversations')
         .delete()
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
         
       if (conversationsError) {
         console.error('Error deleting user conversations:', conversationsError);
@@ -247,8 +250,8 @@ export const deleteUser = async (userId: string) => {
       throw deleteProfileError;
     }
     
-    // Finally delete the user from auth.users
-    const { error: deleteAuthError } = await supabase.rpc('delete_user', {
+    // Finally delete the user from auth.users using admin_delete_user function
+    const { error: deleteAuthError } = await supabase.rpc('admin_delete_user', {
       user_id: userId,
     });
     
@@ -317,6 +320,48 @@ export const getAnalyticsData = async () => {
     };
   } catch (error) {
     console.error('Error in getAnalyticsData:', error);
+    throw error;
+  }
+};
+
+// Add a function to allow admins to delete projects
+export const deleteProject = async (projectId: string) => {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+      
+    if (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Error deleting project: ' + error.message);
+      throw error;
+    }
+    
+    toast.success('Project deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteProject:', error);
+    throw error;
+  }
+};
+
+// Get all projects for admin
+export const getAllProjects = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('projects_with_users')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      toast.error('Error retrieving projects: ' + error.message);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getAllProjects:', error);
     throw error;
   }
 };
