@@ -51,7 +51,19 @@ const SupplierProfilePage = () => {
           
           if (supplierData) {
             const ratingsData = await getFournisseurRatings(supplierData.user_id);
-            setRatings(ratingsData as Rating[]);
+            // Convert the returned data to match the Rating interface
+            const formattedRatings = ratingsData.map((rating: any) => ({
+              id: rating.id,
+              rating: rating.rating,
+              comment: rating.comment,
+              created_at: rating.created_at,
+              profiles: {
+                id: rating.profiles?.id || '',
+                name: rating.profiles?.name || 'Anonyme',
+                avatar: rating.profiles?.avatar
+              }
+            }));
+            setRatings(formattedRatings);
           }
         } catch (error) {
           console.error('Error loading supplier profile:', error);
@@ -99,7 +111,19 @@ const SupplierProfilePage = () => {
     
     try {
       const ratingsData = await getFournisseurRatings(supplier.user_id);
-      setRatings(ratingsData as Rating[]);
+      // Convert the returned data to match the Rating interface
+      const formattedRatings = ratingsData.map((rating: any) => ({
+        id: rating.id,
+        rating: rating.rating,
+        comment: rating.comment,
+        created_at: rating.created_at,
+        profiles: {
+          id: rating.profiles?.id || '',
+          name: rating.profiles?.name || 'Anonyme',
+          avatar: rating.profiles?.avatar
+        }
+      }));
+      setRatings(formattedRatings);
     } catch (error) {
       console.error('Error refreshing ratings:', error);
     }
@@ -121,17 +145,17 @@ const SupplierProfilePage = () => {
             <CardContent className="p-6">
               <div className="flex flex-col items-center">
                 <Avatar className="h-32 w-32 mb-4">
-                  <AvatarImage src={supplier.avatar || supplier.image} alt={supplier.name} />
-                  <AvatarFallback className="text-2xl">{supplier.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={supplier?.avatar || supplier?.image} alt={supplier?.name} />
+                  <AvatarFallback className="text-2xl">{supplier?.name?.charAt(0) || '?'}</AvatarFallback>
                 </Avatar>
                 
-                <h1 className="text-2xl font-bold mb-1">{supplier.name}</h1>
+                <h1 className="text-2xl font-bold mb-1">{supplier?.name || 'Fournisseur'}</h1>
                 
                 <div className="flex items-center mb-4">
-                  <Badge className="mr-2">{supplier.category}</Badge>
+                  <Badge className="mr-2">{supplier?.category || 'Non spécifié'}</Badge>
                   <div className="flex items-center text-yellow-500">
                     <Star className="h-4 w-4 fill-current" />
-                    <span className="ml-1">{supplier.rating.toFixed(1)}</span>
+                    <span className="ml-1">{supplier?.rating?.toFixed(1) || '0.0'}</span>
                   </div>
                 </div>
                 
@@ -157,17 +181,17 @@ const SupplierProfilePage = () => {
               <div className="mt-6 space-y-3">
                 <div className="flex items-center text-sm">
                   <MapPin className="h-4 w-4 mr-3 text-gray-500" />
-                  <span>{supplier.location}</span>
+                  <span>{supplier?.location || 'Non spécifié'}</span>
                 </div>
                 
-                {supplier.phone && (
+                {supplier?.phone && (
                   <div className="flex items-center text-sm">
                     <Phone className="h-4 w-4 mr-3 text-gray-500" />
                     <span>{supplier.phone}</span>
                   </div>
                 )}
                 
-                {supplier.email && (
+                {supplier?.email && (
                   <div className="flex items-center text-sm">
                     <Mail className="h-4 w-4 mr-3 text-gray-500" />
                     <span>{supplier.email}</span>
@@ -191,7 +215,7 @@ const SupplierProfilePage = () => {
                   <h2 className="text-xl font-semibold mb-4">Produits et Services</h2>
                   
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {supplier.products && supplier.products.length > 0 ? (
+                    {supplier?.products && supplier.products.length > 0 ? (
                       supplier.products.map((product, index) => (
                         <Badge key={index} variant="secondary" className="text-sm">
                           {product}

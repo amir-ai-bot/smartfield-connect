@@ -332,24 +332,20 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
 // Get ratings for a fournisseur
 export const getFournisseurRatings = async (fournisseurId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('fournisseur_ratings')
-      .select(`
-        *,
-        profiles:user_id (id, name, avatar)
-      `)
-      .eq('fournisseur_id', fournisseurId)
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.rpc(
+      'get_fournisseur_ratings',
+      { fournisseur_id: fournisseurId }
+    );
+    
     if (error) {
-      throw new Error(error.message);
+      console.error('Error fetching fournisseur ratings:', error);
+      throw error;
     }
-
+    
     return data || [];
   } catch (error) {
-    console.error('Error fetching fournisseur ratings:', error);
-    toast.error('Erreur lors du chargement des évaluations');
-    throw error;
+    console.error('Error in getFournisseurRatings:', error);
+    return [];
   }
 };
 

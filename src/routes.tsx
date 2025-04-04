@@ -1,27 +1,18 @@
 
 import { createBrowserRouter } from 'react-router-dom';
 import App from './App';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import ContactPage from './pages/ContactPage';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import TermsOfServicePage from './pages/TermsOfServicePage';
-import UserProfilePage from './pages/UserProfilePage';
-import WeatherPage from './pages/WeatherPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import AdminPage from './pages/AdminPage';
-import SuppliersPage from './pages/SuppliersPage';
+import Index from './pages/Index';
+import Dashboard from './pages/Dashboard';
+import Suppliers from './pages/Suppliers';
+import Weather from './pages/Weather';
+import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
+import Admin from './pages/Admin';
+import Conversations from './pages/Conversations';
+import ConversationDetail from './pages/ConversationDetail';
+import Favorites from './pages/Favorites';
 import SupplierProfilePage from './pages/SupplierProfilePage';
-import CreateProjectPage from './pages/CreateProjectPage';
-import ProjectPage from './pages/ProjectPage';
-import ProjectsPage from './pages/ProjectsPage';
-import ConversationPage from './pages/ConversationPage';
-import ConversationsPage from './pages/ConversationsPage';
-import CalendarPage from './pages/CalendarPage';
-import PublicProjectsPage from './pages/PublicProjectsPage';
+import Projects from './pages/Projects';
 
 const router = createBrowserRouter([
   {
@@ -30,59 +21,59 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <HomePage />
+        element: <Index />
       },
       {
         path: "/login",
-        element: <LoginPage />
+        element: <Index />
       },
       {
         path: "/register",
-        element: <RegisterPage />
+        element: <Index />
       },
       {
         path: "/dashboard",
-        element: <DashboardPage />
+        element: <Dashboard />
       },
       {
         path: "/calendar",
-        element: <CalendarPage />
+        element: <Dashboard />
       },
       {
         path: "/contact",
-        element: <ContactPage />
+        element: <Index />
       },
       {
         path: "/privacy-policy",
-        element: <PrivacyPolicyPage />
+        element: <Index />
       },
       {
         path: "/terms-of-service",
-        element: <TermsOfServicePage />
+        element: <Index />
       },
       {
         path: "/profile",
-        element: <UserProfilePage />
+        element: <Profile />
       },
       {
         path: "/weather",
-        element: <WeatherPage />
+        element: <Weather />
       },
       {
         path: "/verify-email",
-        element: <VerifyEmailPage />
+        element: <Index />
       },
       {
         path: "/reset-password",
-        element: <ResetPasswordPage />
+        element: <Index />
       },
       {
         path: "/admin",
-        element: <AdminPage />
+        element: <Admin />
       },
       {
         path: "/suppliers",
-        element: <SuppliersPage />
+        element: <Suppliers />
       },
       {
         path: "/suppliers/:id",
@@ -90,27 +81,31 @@ const router = createBrowserRouter([
       },
       {
         path: "/projects/create",
-        element: <CreateProjectPage />
+        element: <Projects />
       },
       {
         path: "/projects/:id",
-        element: <ProjectPage />
+        element: <Projects />
       },
       {
         path: "/projects",
-        element: <ProjectsPage />
+        element: <Projects />
       },
       {
         path: "/public-projects",
-        element: <PublicProjectsPage />
+        element: <Projects />
       },
       {
         path: "/conversations/:id",
-        element: <ConversationPage />
+        element: <ConversationDetail />
       },
       {
         path: "/conversations",
-        element: <ConversationsPage />
+        element: <Conversations />
+      },
+      {
+        path: "/favorites",
+        element: <Favorites />
       }
     ]
   }

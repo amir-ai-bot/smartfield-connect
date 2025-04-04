@@ -365,6 +365,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_all_suppliers: {
+        Args: Record<PropertyKey, never>
+        Returns: Json[]
+      }
+      get_fournisseur_ratings: {
+        Args: {
+          fournisseur_id: string
+        }
+        Returns: {
+          id: string
+          rating: number
+          comment: string
+          created_at: string
+          profiles: Json
+        }[]
+      }
       get_message_media: {
         Args: {
           p_message_id: string
