@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
 type VerifyEmailFormProps = {
   email: string;
@@ -31,13 +32,23 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
       code: ''
     }
   });
-  
+  const [searchParams] = useSearchParams();
   const code = watch('code');
   const [useDirectInput, setUseDirectInput] = useState(false);
   const [resendingCode, setResendingCode] = useState(false);
 
+  // Extract code from URL if available
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code');
+    if (codeFromUrl) {
+      console.log('Code found in URL:', codeFromUrl);
+      setValue('code', codeFromUrl);
+    }
+  }, [searchParams, setValue]);
+
   const onSubmit = async (data: VerifyEmailFormData) => {
     try {
+      console.log('Submitting verification code:', data.code);
       await verifyEmail(email, data.code);
       toast.success('Email vérifié avec succès');
       if (onSuccess) onSuccess();

@@ -27,6 +27,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
       setIsLoading(true);
+      console.log('Requesting password reset for email:', data.email);
       await requestPasswordReset(data.email);
       toast.success(t('resetCodeSent'));
       if (onSuccess) onSuccess();

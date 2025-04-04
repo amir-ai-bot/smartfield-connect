@@ -1,3 +1,4 @@
+
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
@@ -156,6 +157,8 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
   try {
     // Generate a random code
     const code = generateRandomCode(6);
+    console.log('Generated verification code:', code);
+    
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
 
@@ -167,31 +170,39 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
       .single();
 
     if (userError || !userData) {
+      console.error('User not found:', userError);
       throw new Error('User not found');
     }
 
+    console.log('Found user email:', userData.email);
+
     // Store the verification code
-    const { error: insertError } = await supabase
+    const { data: insertData, error: insertError } = await supabase
       .from('verification_codes')
       .insert({
         user_id: userId,
         code,
         type: 'email_verification',
         expires_at: expiresAt.toISOString(),
-      });
+      })
+      .select();
 
     if (insertError) {
       console.error('Error storing verification code:', insertError);
       throw new Error('Failed to store verification code');
     }
 
-    // Send the verification email using signInWithOtp
+    console.log('Stored verification code in database:', insertData);
+
+    // Send the verification email using signInWithOtp with a custom email template
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email: userData.email,
       options: {
-        emailRedirectTo: `${window.location.origin}/verify-email`,
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/verify-email?code=${code}`,
         data: {
-          code: code
+          code,
+          verification_code: code
         }
       }
     });
@@ -201,6 +212,8 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
       throw new Error('Failed to send verification email');
     }
 
+    console.log('Verification email sent successfully with code:', code);
+    
     toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
       duration: 6000
     });
@@ -291,6 +304,8 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
   try {
     // Generate a 6-digit code for password reset
     const code = generateRandomCode(6);
+    console.log('Generated password reset code:', code);
+    
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
     
@@ -306,24 +321,33 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
       throw new Error('User not found');
     }
     
+    console.log('Found user for password reset:', userData.id);
+    
     // Store the verification code
-    const { error: insertError } = await supabase
+    const { data: insertData, error: insertError } = await supabase
       .from('verification_codes')
       .insert({
         user_id: userData.id,
         code,
         type: 'password_reset',
         expires_at: expiresAt.toISOString(),
-      });
+      })
+      .select();
 
     if (insertError) {
       console.error('Error storing reset code:', insertError);
       throw new Error('Failed to store reset code');
     }
 
+    console.log('Stored reset code in database:', insertData);
+
     // Send the password reset email using Supabase's built-in method with updated options
+    const resetLink = `${window.location.origin}/reset-password?code=${code}`;
+    
+    console.log('Reset link generated:', resetLink);
+    
     const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password?code=${code}`
+      redirectTo: resetLink
     });
 
     if (emailError) {
@@ -331,6 +355,8 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
       throw new Error('Failed to send password reset email');
     }
 
+    console.log('Password reset email sent successfully with code:', code);
+    
     toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
       duration: 6000
     });
@@ -367,6 +393,8 @@ export const confirmPasswordReset = async (code: string, newPassword: string): P
       throw new Error('Code invalide ou expiré');
     }
 
+    console.log('Reset code verified successfully:', codeData);
+
     // Mark the code as used
     const { error: updateError } = await supabase
       .from('verification_codes')
@@ -389,6 +417,8 @@ export const confirmPasswordReset = async (code: string, newPassword: string): P
       throw new Error('User not found');
     }
 
+    console.log('Found user for password reset:', userData.email);
+
     // Update the password
     const { error } = await supabase.auth.updateUser({ password: newPassword });
 
@@ -397,6 +427,7 @@ export const confirmPasswordReset = async (code: string, newPassword: string): P
       throw new Error(error.message);
     }
     
+    console.log('Password reset successfully');
     toast.success('Mot de passe réinitialisé avec succès');
   } catch (error: any) {
     console.error('Error in confirmPasswordReset:', error);
@@ -527,3 +558,25 @@ export const deleteExpiredCodes = async (): Promise<void> => {
 
 // Call this function periodically to clean up expired codes
 setInterval(deleteExpiredCodes, 1000 * 60 * 60); // Run every hour
+
+// Debug function to show all verification codes
+export const debugShowAllCodes = async (): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching codes:', error);
+      return;
+    }
+    
+    console.log('All verification codes in database:', data);
+  } catch (error) {
+    console.error('Error in debugShowAllCodes:', error);
+  }
+};
+
+// Call this immediately for debugging
+debugShowAllCodes().catch(console.error);
