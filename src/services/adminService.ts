@@ -230,8 +230,15 @@ export const deleteUser = async (userId: string) => {
         console.error('Error deleting user messages:', messagesError);
       }
       
-      // 4. Delete other related data (comments, likes, etc.)
-      // Add more delete operations for any other tables with foreign keys
+      // 4. Delete supplier entry if any
+      const { error: supplierError } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('user_id', userId);
+        
+      if (supplierError) {
+        console.error('Error deleting supplier entry:', supplierError);
+      }
       
     } catch (cleanupError) {
       console.error('Error during user data cleanup:', cleanupError);
@@ -250,10 +257,8 @@ export const deleteUser = async (userId: string) => {
       throw deleteProfileError;
     }
     
-    // Finally delete the user from auth.users using admin_delete_user function
-    const { error: deleteAuthError } = await supabase.rpc('admin_delete_user', {
-      user_id: userId,
-    });
+    // Finally delete the user from auth.users
+    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
     
     if (deleteAuthError) {
       console.error('Error deleting user from auth:', deleteAuthError);
@@ -369,14 +374,34 @@ export const getAllProjects = async () => {
 // Approve a fournisseur request
 export const approveFournisseurRequest = async (userId: string) => {
   try {
-    // We need to use fetch directly since the function is not registered in the type system yet
-    const { error } = await supabase.functions.invoke('approve-fournisseur-request', {
-      body: { userId }
-    });
+    // First, update the user's role to 'fournisseur'
+    const { error: roleError } = await supabase
+      .from('profiles')
+      .update({ role: 'fournisseur' })
+      .eq('id', userId);
 
-    if (error) {
-      toast.error('Error approving fournisseur request: ' + error.message);
-      throw error;
+    if (roleError) {
+      console.error('Error updating user role:', roleError);
+      toast.error('Erreur lors de la mise à jour du rôle');
+      throw roleError;
+    }
+
+    // Then, create a supplier entry for the user
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: userId,
+        category: 'À définir',
+        location: 'À définir',
+        products: [],
+        rating: 0,
+        phone: ''
+      });
+
+    if (supplierError) {
+      console.error('Error creating supplier entry:', supplierError);
+      toast.error('Erreur lors de la création du compte fournisseur');
+      throw supplierError;
     }
 
     toast.success('Demande de fournisseur approuvée avec succès');
@@ -390,17 +415,30 @@ export const approveFournisseurRequest = async (userId: string) => {
 // Reject a fournisseur request
 export const rejectFournisseurRequest = async (userId: string) => {
   try {
-    // We need to use fetch directly since the function is not registered in the type system yet
-    const { error } = await supabase.functions.invoke('reject-fournisseur-request', {
-      body: { userId }
-    });
+    // First, update the user's role back to 'user'
+    const { error: roleError } = await supabase
+      .from('profiles')
+      .update({ role: 'user' })
+      .eq('id', userId);
 
-    if (error) {
-      toast.error('Error rejecting fournisseur request: ' + error.message);
-      throw error;
+    if (roleError) {
+      console.error('Error updating user role:', roleError);
+      toast.error('Erreur lors de la mise à jour du rôle');
+      throw roleError;
     }
 
-    toast.success('Demande de fournisseur rejetée');
+    // Then, delete any existing supplier entry for this user
+    const { error: deleteError } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.error('Error deleting supplier entry:', deleteError);
+      // Don't throw here as the role update was successful
+    }
+
+    toast.success('Demande de fournisseur rejetée avec succès');
     return true;
   } catch (error) {
     console.error('Error in rejectFournisseurRequest:', error);
@@ -411,66 +449,48 @@ export const rejectFournisseurRequest = async (userId: string) => {
 // Add a new fournisseur
 export const addFournisseur = async (fournisseurData: FournisseurData) => {
   try {
-    // First create the user account using the admin_create_user function
-    const { error: userError } = await supabase.functions.invoke('admin-create-user', {
-      body: {
-        user_name: fournisseurData.name,
-        user_email: fournisseurData.email,
-        user_password: fournisseurData.password,
-        user_role: 'fournisseur'
+    // First create the user account
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: fournisseurData.email,
+      password: fournisseurData.password,
+      options: {
+        data: {
+          name: fournisseurData.name,
+          role: 'fournisseur'
+        }
       }
     });
 
-    if (userError) {
-      toast.error('Erreur lors de la création du compte: ' + userError.message);
-      throw userError;
+    if (authError) {
+      console.error('Error creating user:', authError);
+      toast.error('Erreur lors de la création du compte: ' + authError.message);
+      throw authError;
     }
 
-    // Fetch the created user to get the ID
-    const { data: userData, error: fetchError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', fournisseurData.email)
-      .single();
-
-    if (fetchError || !userData) {
-      toast.error('Erreur lors de la récupération du compte: ' + (fetchError?.message || 'Utilisateur non trouvé'));
-      throw fetchError || new Error('User not found');
+    if (!authData?.user?.id) {
+      throw new Error('No user ID returned after creation');
     }
 
-    // Update additional profile information
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        phone_number: fournisseurData.phone,
-        role: 'fournisseur'
-      })
-      .eq('id', userData.id);
-
-    if (updateError) {
-      toast.error('Erreur lors de la mise à jour du profil: ' + updateError.message);
-      throw updateError;
-    }
-
-    // Create entry in suppliers table using the functions.invoke
-    const { error: supplierError } = await supabase.functions.invoke('add-supplier', {
-      body: {
-        supplier_user_id: userData.id,
-        supplier_category: fournisseurData.category,
-        supplier_location: fournisseurData.location,
-        supplier_products: fournisseurData.products,
-        supplier_rating: 0,
-        supplier_phone: fournisseurData.phone
-      }
+    // Create the supplier entry directly
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: authData.user.id,
+        category: fournisseurData.category,
+        location: fournisseurData.location,
+        products: fournisseurData.products,
+        rating: 0,
+        phone: fournisseurData.phone
     });
 
     if (supplierError) {
+      console.error('Error creating supplier:', supplierError);
       toast.error('Erreur lors de l\'ajout des informations fournisseur: ' + supplierError.message);
       throw supplierError;
     }
 
     toast.success('Fournisseur ajouté avec succès');
-    return userData.id;
+    return authData.user.id;
   } catch (error) {
     console.error('Error in addFournisseur:', error);
     throw error;

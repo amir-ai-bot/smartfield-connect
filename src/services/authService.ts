@@ -1,4 +1,3 @@
-
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
@@ -71,6 +70,7 @@ export const signup = async (
           name,
           phone_number
         },
+        emailRedirectTo: `${window.location.origin}/verify-email`
       },
     });
 
@@ -121,8 +121,19 @@ export const signup = async (
       throw new Error('Failed to create or fetch profile');
     }
 
-    // Generate and insert verification code
-    await generateEmailVerificationCode(data.user.id);
+    // Send the verification email
+    const { error: emailError } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/verify-email`
+      }
+    });
+
+    if (emailError) {
+      console.error('Error sending verification email:', emailError);
+      throw new Error('Failed to send verification email');
+    }
 
     return profile;
   } catch (error: any) {
@@ -142,120 +153,156 @@ export const logout = async (): Promise<void> => {
 
 // Helper function to generate and store email verification code
 export const generateEmailVerificationCode = async (userId: string): Promise<string> => {
-  const code = generateRandomCode(6);
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
+  try {
+    // Generate a random code
+    const code = generateRandomCode(6);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
 
-  const { error } = await supabase
-    .from('verification_codes')
-    .insert({
-      user_id: userId,
-      code,
-      type: 'email_verification',
-      expires_at: expiresAt.toISOString(),
+    // Get user's email
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error('User not found');
+    }
+
+    // Store the verification code
+    const { error: insertError } = await supabase
+      .from('verification_codes')
+      .insert({
+        user_id: userId,
+        code,
+        type: 'email_verification',
+        expires_at: expiresAt.toISOString(),
+      });
+
+    if (insertError) {
+      console.error('Error storing verification code:', insertError);
+      throw new Error('Failed to store verification code');
+    }
+
+    // Send the verification email using signInWithOtp
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email: userData.email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/verify-email`,
+        data: {
+          code: code
+        }
+      }
     });
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (emailError) {
+      console.error('Error sending verification email:', emailError);
+      throw new Error('Failed to send verification email');
+    }
 
-  // In a real app, you would send the code via email here
-  console.log(`Email verification code for user ${userId}: ${code}`);
-  
-  // Instead of showing the code via toast, show a message that the code has been sent
-  toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
-    duration: 6000
-  });
-  
-  return code;
+    toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
+      duration: 6000
+    });
+    
+    return code;
+  } catch (error: any) {
+    console.error('Error in generateEmailVerificationCode:', error);
+    throw error;
+  }
 };
 
 // Function to verify email
 export const verifyEmail = async (email: string, code: string): Promise<void> => {
-  // Get user by email
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
+  try {
+    console.log('Verifying email:', email, 'with code:', code);
 
-  if (userError || !userData) {
-    throw new Error('User not found');
-  }
+    // Get user by email
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
 
-  // Verify the code
-  const { data, error } = await supabase
-    .from('verification_codes')
-    .select('*')
-    .eq('user_id', userData.id)
-    .eq('code', code)
-    .eq('type', 'email_verification')
-    .eq('used', false)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    if (userError || !userData) {
+      console.error('User not found:', userError);
+      throw new Error('User not found');
+    }
 
-  if (error || !data) {
-    throw new Error('Invalid or expired verification code');
-  }
+    console.log('Found user:', userData.id);
 
-  // Mark the code as used
-  await supabase
-    .from('verification_codes')
-    .update({ used: true })
-    .eq('id', data.id);
+    // Verify the code
+    const { data: codeData, error: codeError } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .eq('user_id', userData.id)
+      .eq('code', code)
+      .eq('type', 'email_verification')
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  // Mark email as verified in auth
-  const { error: updateError } = await supabase.auth.updateUser({
-    data: { email_verified: true }
-  });
+    if (codeError) {
+      console.error('Error verifying code:', codeError);
+      throw new Error('Error verifying code');
+    }
 
-  if (updateError) {
-    throw new Error(updateError.message);
+    if (!codeData) {
+      console.error('Invalid or expired code');
+      throw new Error('Code invalide ou expiré');
+    }
+
+    console.log('Code verified successfully:', codeData);
+
+    // Mark the code as used
+    const { error: updateError } = await supabase
+      .from('verification_codes')
+      .update({ used: true })
+      .eq('id', codeData.id);
+
+    if (updateError) {
+      console.error('Error marking code as used:', updateError);
+      throw new Error('Error marking code as used');
+    }
+
+    // Mark email as verified in auth
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { email_verified: true }
+    });
+
+    if (authError) {
+      console.error('Error updating auth user:', authError);
+      throw new Error('Error updating auth user');
+    }
+
+    console.log('Email verified successfully');
+    toast.success('Email vérifié avec succès!');
+  } catch (error: any) {
+    console.error('Error in verifyEmail:', error);
+    toast.error(error.message || 'Erreur lors de la vérification de l\'email');
+    throw error;
   }
 };
 
 // Function to request password reset
 export const requestPasswordReset = async (email: string): Promise<void> => {
   try {
-    // Check if user exists
-    const { data: userData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
+    // Send the password reset email using Supabase's built-in method
+    const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
 
-    if (!userData) {
-      throw new Error('User not found');
+    if (emailError) {
+      console.error('Error sending password reset email:', emailError);
+      throw new Error('Failed to send password reset email');
     }
 
-    // Generate and store a random code
-    const code = generateRandomCode(6);
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // Code expires in 1 hour
-
-    const { error: codeError } = await supabase
-      .from('verification_codes')
-      .insert({
-        user_id: userData.id,
-        code,
-        type: 'password_reset',
-        expires_at: expiresAt.toISOString(),
-      });
-
-    if (codeError) {
-      throw new Error(codeError.message);
-    }
-
-    // In a real app, you would send the code via email here
-    console.log(`Password reset code for ${email}: ${code}`);
-    
-    // Show a message that the code has been sent
-    toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
+    toast.success(`Un email de réinitialisation a été envoyé à votre adresse email.`, {
       duration: 6000
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in requestPasswordReset:', error);
     throw error;
   }
@@ -383,3 +430,50 @@ export {
   isFournisseurFavorite,
   getFavoriteFournisseurs
 } from './conversationService';
+
+// Function to verify the verification_codes table structure
+export const verifyTableStructure = async () => {
+  try {
+    // Check if the table exists
+    const { data, error } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking table structure:', error);
+      throw new Error('Verification codes table does not exist. Please create it using the SQL editor.');
+    }
+    
+    console.log('Table structure verified:', data);
+  } catch (error) {
+    console.error('Error in verifyTableStructure:', error);
+    throw error;
+  }
+};
+
+// Call this function when the app starts
+verifyTableStructure().catch(console.error);
+
+// Function to delete expired verification codes
+export const deleteExpiredCodes = async (): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('verification_codes')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+
+    if (error) {
+      console.error('Error deleting expired codes:', error);
+      throw new Error('Failed to delete expired codes');
+    }
+
+    console.log('Successfully deleted expired verification codes');
+  } catch (error) {
+    console.error('Error in deleteExpiredCodes:', error);
+    throw error;
+  }
+};
+
+// Call this function periodically to clean up expired codes
+setInterval(deleteExpiredCodes, 1000 * 60 * 60); // Run every hour

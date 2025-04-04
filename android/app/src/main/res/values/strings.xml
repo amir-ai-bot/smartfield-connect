@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">AgriSmart</string>
     <string name="title_activity_main">AgriSmart</string>
-    <string name="package_name">app.Agrismart.ysn</string>
-    <string name="custom_url_scheme">app.Agrismart.ysn</string>
+    <string name="package_name">app.AgriSmart.ysn</string>
+    <string name="custom_url_scheme">app.AgriSmart.ysn</string>
 </resources>

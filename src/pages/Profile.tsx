@@ -32,6 +32,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { UserPreferences } from '@/types/auth';
+import { notificationService } from '@/services/notificationService';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
@@ -46,6 +47,16 @@ const Profile = () => {
     (user?.preferences?.language as 'fr' | 'en' | 'ar') || 'fr'
   );
   
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    weatherAlerts: notificationService.getPreference('weatherAlerts'),
+    taskReminders: notificationService.getPreference('taskReminders'),
+    agriculturalRecommendations: notificationService.getPreference('agriculturalRecommendations'),
+    irrigationAlerts: notificationService.getPreference('irrigationAlerts'),
+    supplierMessages: notificationService.getPreference('supplierMessages'),
+  });
+
+  const [notificationFrequency, setNotificationFrequency] = useState<'immediate' | 'daily' | 'weekly'>('immediate');
+
   useEffect(() => {
     if (user?.preferences?.language) {
       setSelectedLanguage(user.preferences.language as 'fr' | 'en' | 'ar');
@@ -101,6 +112,26 @@ const Profile = () => {
       toast.error('Échec de la mise à jour de la langue');
     }
   };
+
+  const handlePreferenceChange = (key: string, value: boolean) => {
+    setNotificationPreferences(prev => ({
+      ...prev,
+      [key]: value
+    }));
+    notificationService.setPreference(key, value);
+  };
+
+  const handleSavePreferences = () => {
+    // Save frequency preference
+    localStorage.setItem('notificationFrequency', notificationFrequency);
+    
+    // Show success notification
+    notificationService.show(
+      'Préférences de notification enregistrées',
+      'Succès',
+      { type: 'success' }
+    );
+  };
   
   if (!user) {
     return (
@@ -132,61 +163,50 @@ const Profile = () => {
                 Retour
               </Button>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Notifications par e-mail</h3>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Alertes météo', defaultChecked: true },
-                      { label: 'Rappels de tâches', defaultChecked: true },
-                      { label: 'Recommandations agricoles', defaultChecked: true },
-                      { label: 'Alertes d&apos;irrigation', defaultChecked: true },
-                      { label: 'Bulletins d&apos;information', defaultChecked: false },
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="text-sm">{item.label}</div>
-                        <Switch defaultChecked={item.defaultChecked} />
-                      </div>
-                    ))}
-                  </div>
+            <CardContent className="space-y-6">
+              <div>
+                <h3 className="font-semibold mb-3">Notifications sur l'application</h3>
+                <div className="space-y-3">
+                  {[
+                    { key: 'weatherAlerts', label: 'Alertes météo' },
+                    { key: 'taskReminders', label: 'Rappels de tâches' },
+                    { key: 'agriculturalRecommendations', label: 'Recommandations agricoles' },
+                    { key: 'irrigationAlerts', label: 'Alertes d\'irrigation' },
+                    { key: 'supplierMessages', label: 'Messages des fournisseurs' },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between">
+                      <div className="text-sm">{item.label}</div>
+                      <Switch
+                        checked={notificationPreferences[item.key as keyof typeof notificationPreferences]}
+                        onCheckedChange={(checked) => handlePreferenceChange(item.key, checked)}
+                      />
+                    </div>
+                  ))}
                 </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-3">Notifications sur l&apos;application</h3>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Alertes météo', defaultChecked: true },
-                      { label: 'Rappels de tâches', defaultChecked: true },
-                      { label: 'Recommandations agricoles', defaultChecked: true },
-                      { label: 'Alertes d&apos;irrigation', defaultChecked: true },
-                      { label: 'Messages des fournisseurs', defaultChecked: true },
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="text-sm">{item.label}</div>
-                        <Switch defaultChecked={item.defaultChecked} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-3">Fréquence des notifications</h3>
-                  <Tabs defaultValue="immediate">
-                    <TabsList className="w-full grid grid-cols-3">
-                      <TabsTrigger value="immediate">Immédiate</TabsTrigger>
-                      <TabsTrigger value="daily">Quotidienne</TabsTrigger>
-                      <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-3">Fréquence des notifications</h3>
+                <Tabs 
+                  value={notificationFrequency} 
+                  onValueChange={(value) => setNotificationFrequency(value as typeof notificationFrequency)}
+                >
+                  <TabsList className="w-full grid grid-cols-3">
+                    <TabsTrigger value="immediate">Immédiate</TabsTrigger>
+                    <TabsTrigger value="daily">Quotidienne</TabsTrigger>
+                    <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
             </CardContent>
             <CardFooter className="flex justify-end space-x-2">
               <Button variant="outline" onClick={goBack}>
                 Annuler
               </Button>
-              <Button className="bg-agri-green-500 hover:bg-agri-green-600">
+              <Button 
+                className="bg-agri-green-500 hover:bg-agri-green-600"
+                onClick={handleSavePreferences}
+              >
                 Enregistrer
               </Button>
             </CardFooter>

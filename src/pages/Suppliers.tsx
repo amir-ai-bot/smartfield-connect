@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -6,12 +5,12 @@ import SupplierCard from '@/components/SupplierCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { toast } from 'sonner';
-import { getAllSuppliers } from '@/services/supplierService';
+import { getAllSuppliers, initializeDefaultSuppliers } from '@/services/supplierService';
 
 const Suppliers = () => {
   const { isAuthenticated, user, becomeFournisseur, isPendingFournisseur } = useAuth();
@@ -21,15 +20,30 @@ const Suppliers = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        
+        // First try to initialize default suppliers if none exist
+        await initializeDefaultSuppliers();
+        
+        // Then fetch all suppliers
         const suppliers = await getAllSuppliers();
-        setSuppliersData(suppliers);
+        
+        // Set the suppliers data regardless of whether it's empty or not
+        setSuppliersData(suppliers || []);
+        
+        // Only show error if we have no suppliers after initialization
+        if (!suppliers || suppliers.length === 0) {
+          setError('Aucun fournisseur trouvé. Veuillez réessayer plus tard.');
+        }
       } catch (error) {
         console.error('Error fetching suppliers:', error);
+        setError('Erreur lors du chargement des fournisseurs. Veuillez réessayer plus tard.');
         toast.error('Erreur lors du chargement des fournisseurs');
       } finally {
         setIsLoading(false);
@@ -152,6 +166,17 @@ const Suppliers = () => {
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl shadow-card p-8 text-center animate-slide-up">
+            <div className="h-16 w-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="font-display text-lg font-semibold mb-2">Erreur</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Réessayer
+            </Button>
           </div>
         ) : filteredSuppliers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

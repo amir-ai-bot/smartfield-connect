@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
@@ -36,7 +35,7 @@ serve(async (req) => {
       password: user_password,
       email_confirm: true,
       user_metadata: {
-        name: user_name,
+        full_name: user_name,
         role: user_role
       }
     });
@@ -52,19 +51,20 @@ serve(async (req) => {
       );
     }
 
-    // Then ensure the profile is updated with the correct role
+    // Then create the profile
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({
-        name: user_name,
+      .insert({
+        id: authUser.user.id,
+        full_name: user_name,
+        email: user_email,
         role: user_role
-      })
-      .eq('id', authUser.user.id);
+      });
 
     if (profileError) {
-      console.error('Error updating profile:', profileError);
+      console.error('Error creating profile:', profileError);
       return new Response(
-        JSON.stringify({ error: "User created but profile update failed" }),
+        JSON.stringify({ error: "User created but profile creation failed" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: authUser.user.id }),
+      JSON.stringify({ success: true, id: authUser.user.id }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

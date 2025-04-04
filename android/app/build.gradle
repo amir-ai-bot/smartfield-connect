@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "app.Agrismart.ysn"
+    namespace "app.AgriSmart.ysn"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.Agrismart.ysn"
+        applicationId "app.AgriSmart.ysn"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

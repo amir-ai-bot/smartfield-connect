@@ -32,8 +32,7 @@ export const fetchWeatherData = async (location?: string, coordinates?: Coordina
       const { latitude, longitude, name } = geocodeData.results[0];
       url += `latitude=${latitude}&longitude=${longitude}`;
     } else {
-      // Default to Paris coordinates if no location provided
-      url += 'latitude=48.8566&longitude=2.3522';
+      throw new Error('Aucune localisation spécifiée');
     }
     
     // Add required parameters
@@ -49,9 +48,28 @@ export const fetchWeatherData = async (location?: string, coordinates?: Coordina
     
     const data = await response.json();
     
+    // Get location name from reverse geocoding if coordinates were provided
+    let locationName = location;
+    if (coordinates && !location) {
+      try {
+        const reverseGeocodeResponse = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${coordinates.lat}&longitude=${coordinates.lon}&language=fr&format=json`
+        );
+        
+        if (reverseGeocodeResponse.ok) {
+          const reverseData = await reverseGeocodeResponse.json();
+          if (reverseData.results && reverseData.results.length > 0) {
+            locationName = reverseData.results[0].name;
+          }
+        }
+      } catch (error) {
+        console.error('Error getting location name:', error);
+      }
+    }
+    
     // Transform the API response to match our WeatherData interface
     const transformedData: WeatherData = {
-      location: location || 'Paris',
+      location: locationName || 'Position actuelle',
       temperature: Math.round(data.current.temperature_2m),
       feelsLike: Math.round(data.current.apparent_temperature),
       humidity: data.current.relative_humidity_2m,
@@ -67,43 +85,24 @@ export const fetchWeatherData = async (location?: string, coordinates?: Coordina
     return transformedData;
   } catch (error) {
     console.error('Error fetching weather data:', error);
-    // Fallback to mock data in case of error
-    toast.warning('Utilisation des données météo simulées', {
-      id: 'mock-weather-data',
-      duration: 5000
-    });
-    return mockWeatherData;
+    throw error; // Let the component handle the error
   }
 };
 
-// Map Open-Meteo weather codes to our weather conditions
+// Helper function to map weather codes to conditions
 const mapWeatherCode = (code: number): string => {
-  const weatherCodes: Record<number, string> = {
-    0: 'Ensoleillé',
-    1: 'Légèrement nuageux',
-    2: 'Partiellement nuageux',
-    3: 'Nuageux',
-    45: 'Brouillard',
-    48: 'Brouillard givrant',
-    51: 'Légère bruine',
-    53: 'Bruine modérée',
-    55: 'Bruine dense',
-    61: 'Pluie légère',
-    63: 'Pluie modérée',
-    65: 'Pluie forte',
-    71: 'Neige légère',
-    73: 'Neige modérée',
-    75: 'Neige forte',
-    77: 'Grêle',
-    80: 'Averses légères',
-    81: 'Averses modérées',
-    82: 'Averses fortes',
-    85: 'Averses de neige légères',
-    86: 'Averses de neige fortes',
-    95: 'Orage',
-    96: 'Orage avec grêle légère',
-    99: 'Orage avec grêle forte'
-  };
-  
-  return weatherCodes[code] || 'Nuageux';
+  // WMO Weather interpretation codes (WW)
+  // https://open-meteo.com/en/docs
+  if (code === 0) return 'Ensoleillé';
+  if (code === 1) return 'Peu nuageux';
+  if (code === 2) return 'Partiellement nuageux';
+  if (code === 3) return 'Couvert';
+  if (code >= 45 && code <= 49) return 'Brumeux';
+  if (code >= 50 && code <= 59) return 'Brouillard';
+  if (code >= 60 && code <= 69) return 'Pluie légère';
+  if (code >= 70 && code <= 79) return 'Neige';
+  if (code >= 80 && code <= 82) return 'Averses';
+  if (code >= 85 && code <= 86) return 'Averses de neige';
+  if (code >= 95 && code <= 99) return 'Orage';
+  return 'Inconnu';
 };

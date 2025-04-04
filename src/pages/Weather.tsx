@@ -22,6 +22,7 @@ import {
   Umbrella
 } from 'lucide-react';
 import { fetchWeatherData } from '@/services/weatherService';
+import { locationService } from '@/services/locationService';
 import { WeatherData } from '@/types/dashboard';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,82 +42,53 @@ const Weather = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [locationPermission, setLocationPermission] = useState<PermissionState>('prompt');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-
-  // Check location permission status
-  useEffect(() => {
-    const checkLocationPermission = async () => {
-      try {
-        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-        setLocationPermission(permissionStatus.state);
-        
-        permissionStatus.onchange = () => {
-          setLocationPermission(permissionStatus.state);
-        };
-      } catch (error) {
-        console.error('Error checking location permission:', error);
-      }
-    };
-    
-    checkLocationPermission();
-  }, []);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Get user's current location
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("La géolocalisation n'est pas supportée par votre navigateur");
-      return;
-    }
-
-    setIsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lon: longitude });
-        
-        try {
-          const data = await fetchWeatherData(null, { lat: latitude, lon: longitude });
-          setWeatherData(data);
-        } catch (error: any) {
-          console.error('Error fetching weather data:', error);
-          setError(error.message || 'Une erreur est survenue');
-          toast.error('Impossible de charger les données météo');
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        setError("Impossible d'accéder à votre position");
-        toast.error("Veuillez autoriser l'accès à votre position");
-        setIsLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
+  const getCurrentLocation = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setLocationError(null);
+      
+      const location = await locationService.getCurrentLocation();
+      if (!location) {
+        setLocationError("Impossible d'accéder à votre position. Veuillez autoriser l'accès à votre position dans les paramètres de votre appareil.");
+        return;
       }
-    );
+      
+      setUserLocation({ latitude: location.latitude, longitude: location.longitude });
+      
+      const data = await fetchWeatherData(null, { 
+        lat: location.latitude, 
+        lon: location.longitude 
+      });
+      setWeatherData(data);
+    } catch (error: any) {
+      console.error('Error getting location:', error);
+      setLocationError(error.message || "Impossible d'accéder à votre position");
+      toast.error("Veuillez autoriser l'accès à votre position");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Initial load with user's location
   useEffect(() => {
-    if (locationPermission === 'granted') {
-      getCurrentLocation();
-    } else {
-      // Fallback to default location
-      loadDefaultWeather();
-    }
-  }, [locationPermission]);
+    getCurrentLocation();
+  }, []);
 
   const loadDefaultWeather = async () => {
     try {
       setIsLoading(true);
-      const data = await fetchWeatherData();
-      setWeatherData(data);
+      setError(null);
+      // Instead of defaulting to Paris, we'll show a message asking the user to search for a location
+      setWeatherData(null);
+      setError("Veuillez rechercher une localisation ou autoriser l'accès à votre position");
+      toast.info("Veuillez rechercher une localisation");
     } catch (error: any) {
-      console.error('Error fetching weather data:', error);
+      console.error('Error handling default weather:', error);
       setError(error.message || 'Une erreur est survenue');
       toast.error('Impossible de charger les données météo');
     } finally {
@@ -154,7 +126,7 @@ const Weather = () => {
             <p className="text-gray-600">Obtenez les prévisions météo en temps réel</p>
           </div>
           
-          <div className="mb-8 flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 mb-8">
             <div className="flex items-center gap-2 max-w-md w-full">
               <Input
                 placeholder="Rechercher une localisation..."
@@ -174,17 +146,43 @@ const Weather = () => {
             
             <Button
               onClick={getCurrentLocation}
-              disabled={isLoading || locationPermission === 'denied'}
+              disabled={isLoading}
               className="bg-green-500 hover:bg-green-600 shadow-lg"
             >
               <Navigation className="h-4 w-4 mr-2" />
               Utiliser ma position
             </Button>
             
-            {locationPermission === 'denied' && (
-              <p className="text-sm text-red-500 text-center">
-                L'accès à votre position a été refusé. Veuillez autoriser l'accès dans les paramètres de votre navigateur.
-              </p>
+            {locationError && (
+              <div className="text-center mt-2">
+                <p className="text-sm text-red-500">{locationError}</p>
+                <div className="flex flex-col gap-2 mt-2">
+                  <Button 
+                    onClick={getCurrentLocation} 
+                    variant="outline" 
+                    className="text-sm"
+                  >
+                    Réessayer avec ma position
+                  </Button>
+                  <p className="text-sm text-gray-500">ou</p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Rechercher une localisation..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-1 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-500"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                    <Button 
+                      onClick={handleSearch} 
+                      disabled={isLoading || !searchTerm.trim()}
+                      className="bg-blue-500 hover:bg-blue-600 shadow-lg"
+                    >
+                      <SearchIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 

@@ -1,17 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { LogOut } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import BottomNavbar from './BottomNavbar';
 import LanguageSwitcher from './LanguageSwitcher';
 import AuthDialog from '@/components/auth/AuthDialog';
 
 const Navbar = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, isAdmin } = useAuth();
   const { t } = useLanguage();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -78,6 +77,12 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
+                  {isAdmin() && (
+                    <Link to="/admin" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
+                      <Settings className="inline-block h-5 w-5 mr-1 align-text-top" />
+                      <span>{t('admin')}</span>
+                    </Link>
+                  )}
                   <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300 flex items-center">
                     <LogOut className="inline-block h-5 w-5 mr-1 align-text-top" />
                     <span>{t('logout')}</span>
@@ -94,9 +99,8 @@ const Navbar = () => {
               <LanguageSwitcher />
             </nav>
           ) : (
-            <div className="flex items-center space-x-2">
-              <LanguageSwitcher />
-              <button onClick={toggleMenu} className="md:hidden text-gray-500 hover:text-gray-700 focus:outline-none">
+            <div className="md:hidden">
+              <button onClick={toggleMenu} className="text-gray-500 hover:text-gray-700 focus:outline-none">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -105,9 +109,10 @@ const Navbar = () => {
           )}
         </div>
       </div>
-      
-      {isMobile && (
-        <div className={`md:hidden fixed top-0 left-0 w-full h-full bg-white z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-white md:hidden">
           <div className="flex flex-col h-full">
             <div className="p-4 flex justify-end">
               <button onClick={closeMenu} className="text-gray-500 hover:text-gray-700 focus:outline-none">
@@ -126,6 +131,12 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
+                  {isAdmin() && (
+                    <Link to="/admin" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
+                      <Settings className="inline-block h-5 w-5 mr-1 align-text-top" />
+                      <span>{t('admin')}</span>
+                    </Link>
+                  )}
                   <button 
                     onClick={() => { closeMenu(); handleLogout(); }} 
                     className="hover:text-agri-green-500 transition duration-300 w-full text-center"

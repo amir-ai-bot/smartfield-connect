@@ -1,4 +1,4 @@
-package app.Agrismart.ysn;
+package app.AgriSmart.ysn;
 
 import com.getcapacitor.BridgeActivity;
 
