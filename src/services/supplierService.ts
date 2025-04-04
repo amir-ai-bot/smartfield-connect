@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 // Define the Supplier type to match what's returned from the service
 export interface Supplier {
   id: string;
+  user_id: string;
   name: string;
   category: string;
   rating: number;
@@ -12,92 +13,149 @@ export interface Supplier {
   email: string;
   products: string[];
   image: string;
-}
-
-// Define the database supplier type to match the actual schema
-interface DbSupplier {
-  id: string;
-  user_id: string;
-  category: string;
-  location: string;
-  phone: string;
-  products: string[];
-  rating: number;
-  created_at: string;
-  updated_at: string;
+  avatar?: string;
 }
 
 // Function to fetch all suppliers
 export const getAllSuppliers = async (): Promise<Supplier[]> => {
   try {
-    // First get all suppliers
-    const { data: suppliersData, error: suppliersError } = await supabase
-      .from('suppliers')
-      .select('*');
+    // Use the get_all_suppliers function which already joins suppliers and profiles
+    const { data, error } = await supabase.rpc('get_all_suppliers');
 
-    if (suppliersError) {
-      console.error('Error fetching suppliers:', suppliersError);
-      throw suppliersError;
+    if (error) {
+      console.error('Error fetching suppliers:', error);
+      throw error;
     }
 
-    if (!suppliersData || !Array.isArray(suppliersData)) {
+    if (!data || !Array.isArray(data)) {
       return [];
     }
 
-    // Then get all profiles for these suppliers
-    const userIds = suppliersData.map(s => s.user_id);
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      // Continue even if profiles fetch fails
-    }
-
-    // Create a map of user profiles for easy lookup
-    const profilesMap = new Map(
-      (profilesData || []).map(profile => [profile.id, profile])
-    );
-
-    // Transform and combine the data
-    return suppliersData.map((supplier: any) => {
-      const profile = profilesMap.get(supplier.user_id);
-      
-      // For default suppliers without profiles, use the email as name
-      let name = profile?.name;
-      let email = profile?.email;
-      
-      // If no profile found, try to extract name from email
-      if (!name && email) {
-        const emailParts = email.split('@');
-        if (emailParts.length > 0) {
-          name = emailParts[0].replace(/\./g, ' ').replace(/([A-Z])/g, ' $1').trim();
-        }
-      }
-      
-      // If still no name, use a default
-      if (!name) {
-        name = 'Fournisseur ' + supplier.id.substring(0, 4);
-      }
-      
+    // Transform the data from jsonb to our Supplier interface
+    return data.map((supplier: any) => {
       return {
-      id: supplier.id,
-        name: name,
-      category: supplier.category,
-      rating: supplier.rating || 0,
-      location: supplier.location,
-      phone: supplier.phone,
-        email: email || '',
-      products: supplier.products || [],
-        image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80'
+        id: supplier.id,
+        user_id: supplier.user_id,
+        name: supplier.name || `Fournisseur ${supplier.id.substring(0, 4)}`,
+        category: supplier.category,
+        rating: supplier.rating || 0,
+        location: supplier.location,
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        products: supplier.products || [],
+        image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80',
+        avatar: supplier.avatar
       };
     });
   } catch (error) {
     console.error('Error in getAllSuppliers:', error);
     toast.error('Erreur lors du chargement des fournisseurs');
     return [];
+  }
+};
+
+// Get a supplier by ID
+export const getSupplierById = async (supplierId: string): Promise<Supplier | null> => {
+  try {
+    console.log('Fetching supplier with ID:', supplierId);
+    
+    // First get the supplier
+    const { data: supplierData, error: supplierError } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('id', supplierId)
+      .single();
+
+    if (supplierError) {
+      console.error('Error fetching supplier:', supplierError);
+      throw supplierError;
+    }
+
+    if (!supplierData) {
+      console.error('No supplier found with ID:', supplierId);
+      return null;
+    }
+
+    // Then get the profile for this supplier
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('name, email, avatar')
+      .eq('id', supplierData.user_id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching supplier profile:', profileError);
+      // Continue even if profile fetch fails
+    }
+
+    // Transform and combine the data
+    return {
+      id: supplierData.id,
+      user_id: supplierData.user_id,
+      name: profileData?.name || `Fournisseur ${supplierData.id.substring(0, 4)}`,
+      category: supplierData.category,
+      rating: supplierData.rating || 0,
+      location: supplierData.location,
+      phone: supplierData.phone || '',
+      email: profileData?.email || '',
+      products: supplierData.products || [],
+      image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80',
+      avatar: profileData?.avatar
+    };
+  } catch (error) {
+    console.error('Error in getSupplierById:', error);
+    toast.error('Erreur lors du chargement du fournisseur');
+    return null;
+  }
+};
+
+// Fix the conversation creation in SupplierCard
+export const createSupplierConversation = async (userId: string, supplierId: string): Promise<string> => {
+  try {
+    // Get the supplier record to get the user_id (fournisseur_id)
+    const { data: supplier, error: supplierError } = await supabase
+      .from('suppliers')
+      .select('user_id')
+      .eq('id', supplierId)
+      .single();
+
+    if (supplierError) {
+      console.error('Error fetching supplier:', supplierError);
+      throw new Error('Fournisseur non trouvé');
+    }
+
+    const fournisseurId = supplier.user_id;
+
+    // Check if conversation already exists
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .match({ user_id: userId, fournisseur_id: fournisseurId })
+      .maybeSingle();
+      
+    if (existingConversation) {
+      return existingConversation.id;
+    }
+    
+    // Create a new conversation
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: userId,
+        fournisseur_id: fournisseurId
+      })
+      .select('id')
+      .single();
+      
+    if (error) {
+      console.error('Error creating conversation:', error);
+      throw new Error('Erreur lors de la création de la conversation');
+    }
+    
+    return data.id;
+  } catch (error: any) {
+    console.error('Error in createSupplierConversation:', error);
+    throw error;
   }
 };
 

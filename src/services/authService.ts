@@ -1,4 +1,3 @@
-
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateRandomCode } from '@/lib/utils';
@@ -342,7 +341,7 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     console.log('Stored reset code in database:', insertData);
 
     // Send the password reset email using Supabase's built-in method with updated options
-    const resetLink = `${window.location.origin}/reset-password?code=${code}`;
+    const resetLink = `${window.location.origin}/reset-password?code=${code}&email=${encodeURIComponent(email)}`;
     
     console.log('Reset link generated:', resetLink);
     

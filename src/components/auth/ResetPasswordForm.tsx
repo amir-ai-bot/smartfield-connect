@@ -36,6 +36,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   useEffect(() => {
     const codeFromUrl = searchParams.get('code');
     if (codeFromUrl) {
+      console.log("Code found in URL:", codeFromUrl);
       setCode(codeFromUrl);
       setValue('code', codeFromUrl);
     }
@@ -48,6 +49,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         return;
       }
       
+      console.log("Submitting reset with code:", data.code);
       await confirmPasswordReset(data.code, data.password);
       if (onSuccess) onSuccess();
     } catch (error) {
