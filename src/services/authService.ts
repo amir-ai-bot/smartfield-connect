@@ -321,13 +321,9 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
       throw new Error('Failed to store reset code');
     }
 
-    // Send the password reset email using Supabase's built-in method
+    // Send the password reset email using Supabase's built-in method with updated options
     const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password?code=${code}`,
-      data: {
-        reset_code: code,
-        reset_url: `${window.location.origin}/reset-password?code=${code}`
-      }
+      redirectTo: `${window.location.origin}/reset-password?code=${code}`
     });
 
     if (emailError) {

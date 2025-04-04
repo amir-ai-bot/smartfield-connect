@@ -45,7 +45,6 @@ const Weather = () => {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Get user's current location
   const getCurrentLocation = async () => {
     try {
       setIsLoading(true);
@@ -74,7 +73,6 @@ const Weather = () => {
     }
   };
 
-  // Initial load with user's location
   useEffect(() => {
     getCurrentLocation();
   }, []);
@@ -83,7 +81,6 @@ const Weather = () => {
     try {
       setIsLoading(true);
       setError(null);
-      // Instead of defaulting to Paris, we'll show a message asking the user to search for a location
       setWeatherData(null);
       setError("Veuillez rechercher une localisation ou autoriser l'accès à votre position");
       toast.info("Veuillez rechercher une localisation");
