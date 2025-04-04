@@ -289,9 +289,42 @@ export const verifyEmail = async (email: string, code: string): Promise<void> =>
 // Function to request password reset
 export const requestPasswordReset = async (email: string): Promise<void> => {
   try {
+    // Generate a 6-digit code for password reset
+    const code = generateRandomCode(6);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
+    
+    // Get user by email
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (userError || !userData) {
+      console.error('User not found:', userError);
+      throw new Error('User not found');
+    }
+    
+    // Store the verification code
+    const { error: insertError } = await supabase
+      .from('verification_codes')
+      .insert({
+        user_id: userData.id,
+        code,
+        type: 'password_reset',
+        expires_at: expiresAt.toISOString(),
+      });
+
+    if (insertError) {
+      console.error('Error storing reset code:', insertError);
+      throw new Error('Failed to store reset code');
+    }
+
     // Send the password reset email using Supabase's built-in method
+    // with the code in the email body
     const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${window.location.origin}/reset-password?code=${code}`
     });
 
     if (emailError) {
@@ -299,7 +332,7 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
       throw new Error('Failed to send password reset email');
     }
 
-    toast.success(`Un email de réinitialisation a été envoyé à votre adresse email.`, {
+    toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
       duration: 6000
     });
   } catch (error: any) {
@@ -310,47 +343,63 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 
 // Function to confirm password reset
 export const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
-  // Verify the code
-  const { data: codeData, error: codeError } = await supabase
-    .from('verification_codes')
-    .select('*')
-    .eq('code', code)
-    .eq('type', 'password_reset')
-    .eq('used', false)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  try {
+    // Verify the code
+    const { data: codeData, error: codeError } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('type', 'password_reset')
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (codeError || !codeData) {
-    throw new Error('Invalid or expired reset code');
-  }
+    if (codeError) {
+      console.error('Error verifying reset code:', codeError);
+      throw new Error('Error verifying reset code');
+    }
 
-  // Mark the code as used
-  await supabase
-    .from('verification_codes')
-    .update({ used: true })
-    .eq('id', codeData.id);
+    if (!codeData) {
+      console.error('Invalid or expired reset code');
+      throw new Error('Code invalide ou expiré');
+    }
 
-  // Get the user's email from the profile
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('email')
-    .eq('id', codeData.user_id)
-    .maybeSingle();
+    // Mark the code as used
+    const { error: updateError } = await supabase
+      .from('verification_codes')
+      .update({ used: true })
+      .eq('id', codeData.id);
 
-  if (userError || !userData || !userData.email) {
-    throw new Error('User not found');
-  }
+    if (updateError) {
+      console.error('Error marking code as used:', updateError);
+      throw new Error('Error marking code as used');
+    }
 
-  // Update the password
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    userData.email,
-    { redirectTo: window.location.origin }
-  );
+    // Get the user's email from the profile
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', codeData.user_id)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
+    if (userError || !userData || !userData.email) {
+      throw new Error('User not found');
+    }
+
+    // Update the password
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      console.error('Error updating password:', error);
+      throw new Error(error.message);
+    }
+    
+    toast.success('Mot de passe réinitialisé avec succès');
+  } catch (error: any) {
+    console.error('Error in confirmPasswordReset:', error);
+    throw error;
   }
 };
 

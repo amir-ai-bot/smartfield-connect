@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
 type ResetPasswordFormProps = {
   onSuccess?: () => void;
@@ -26,9 +27,19 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
 }) => {
   const { confirmPasswordReset } = useAuth();
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
   const [code, setCode] = useState('');
   const [useDirectInput, setUseDirectInput] = useState(false);
+  
+  // Auto-fill code from URL parameter
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code');
+    if (codeFromUrl) {
+      setCode(codeFromUrl);
+      setValue('code', codeFromUrl);
+    }
+  }, [searchParams, setValue]);
 
   const onSubmit = async (data: NewPasswordFormData) => {
     try {
