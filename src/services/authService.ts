@@ -322,9 +322,12 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     }
 
     // Send the password reset email using Supabase's built-in method
-    // with the code in the email body
     const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password?code=${code}`
+      redirectTo: `${window.location.origin}/reset-password?code=${code}`,
+      data: {
+        reset_code: code,
+        reset_url: `${window.location.origin}/reset-password?code=${code}`
+      }
     });
 
     if (emailError) {
@@ -344,6 +347,8 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 // Function to confirm password reset
 export const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
   try {
+    console.log('Confirming password reset with code:', code);
+    
     // Verify the code
     const { data: codeData, error: codeError } = await supabase
       .from('verification_codes')
