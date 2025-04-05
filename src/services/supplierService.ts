@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -139,21 +138,24 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
 
     if (!data) return null;
     
-    // Handle the case where profiles might be an error or null
+    // Handle the case where profiles might be null or not an object
     const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
+    const profileName = profileData ? String(profileData.name || '') : '';
+    const profileEmail = profileData ? String(profileData.email || '') : '';
+    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
 
     return {
       id: data.id,
       user_id: data.user_id,
-      name: profileData?.name ?? 'Fournisseur',
+      name: profileName || 'Fournisseur',
       category: data.category || 'Divers',
       rating: data.rating || 0,
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
-      email: profileData?.email ?? 'Non spécifié',
+      email: profileEmail || 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar ?? '',
-      image: profileData?.avatar ?? '', // For backward compatibility
+      avatar: profileAvatar || '',
+      image: profileAvatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierById:', error);
@@ -324,21 +326,24 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
 
     if (!data) return null;
     
-    // Handle the case where profiles might be an error or null
+    // Handle the case where profiles might be null or not an object
     const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
+    const profileName = profileData ? String(profileData.name || '') : '';
+    const profileEmail = profileData ? String(profileData.email || '') : '';
+    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
 
     return {
       id: data.id,
       user_id: data.user_id,
-      name: profileData?.name ?? 'Fournisseur',
+      name: profileName || 'Fournisseur',
       category: data.category || 'Divers',
       rating: data.rating || 0,
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
-      email: profileData?.email ?? 'Non spécifié',
+      email: profileEmail || 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar ?? '',
-      image: profileData?.avatar ?? '', // For backward compatibility
+      avatar: profileAvatar || '',
+      image: profileAvatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierByUserId:', error);
