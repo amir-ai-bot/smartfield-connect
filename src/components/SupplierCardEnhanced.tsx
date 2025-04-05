@@ -13,17 +13,17 @@ import { toast } from 'sonner';
 import AuthDialog from './auth/AuthDialog';
 import RatingDialog from './conversation/RatingDialog';
 
-interface SupplierCardEnhancedProps {
+export interface SupplierCardEnhancedProps {
   id: string;
   user_id: string;
   name: string;
   category: string;
   rating: number;
   location: string;
-  phone: string;
-  email: string;
-  products: string[];
-  image: string;
+  phone?: string;  // Make phone optional
+  email?: string;
+  products?: string[];
+  image?: string;
   avatar?: string;
   isFavorite?: boolean;
 }
@@ -37,7 +37,7 @@ const SupplierCardEnhanced = ({
   location,
   phone,
   email,
-  products,
+  products = [],
   image,
   avatar,
   isFavorite: initialIsFavorite

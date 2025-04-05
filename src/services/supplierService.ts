@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 export interface Supplier {
   id: string;
@@ -8,7 +10,7 @@ export interface Supplier {
   category: string;
   rating: number;
   location: string;
-  phone?: string;
+  phone: string;
   email?: string;
   products?: string[];
   image?: string;
@@ -32,7 +34,7 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
       category: item.category || 'Divers',
       rating: item.rating || 0,
       location: item.location || 'Non spécifié',
-      phone: item.phone,
+      phone: item.phone || 'Non spécifié',
       email: item.email,
       products: item.products || [],
       avatar: item.avatar,
@@ -43,6 +45,9 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
     return [];
   }
 };
+
+// Add alias for getSuppliers to maintain backward compatibility with existing code
+export const getAllSuppliers = getSuppliers;
 
 export const getSupplierById = async (id: string): Promise<Supplier | null> => {
   try {
@@ -66,6 +71,7 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
 
     if (!data) return null;
 
+    // Use optional chaining to avoid errors when properties don't exist
     return {
       id: data.id,
       user_id: data.user_id,
@@ -76,8 +82,8 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       phone: data.phone || 'Non spécifié',
       email: data.profiles?.email || 'Non spécifié',
       products: data.products || [],
-      avatar: data.profiles?.avatar,
-      image: data.profiles?.avatar, // For backward compatibility
+      avatar: data.profiles?.avatar || '',
+      image: data.profiles?.avatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierById:', error);
@@ -228,6 +234,7 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
 
     if (!data) return null;
 
+    // Use optional chaining to avoid errors when properties don't exist
     return {
       id: data.id,
       user_id: data.user_id,
@@ -238,11 +245,38 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
       phone: data.phone || 'Non spécifié',
       email: data.profiles?.email || 'Non spécifié',
       products: data.products || [],
-      avatar: data.profiles?.avatar,
-      image: data.profiles?.avatar, // For backward compatibility
+      avatar: data.profiles?.avatar || '',
+      image: data.profiles?.avatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierByUserId:', error);
     return null;
+  }
+};
+
+// Add mock function for initializing default suppliers
+export const initializeDefaultSuppliers = async (): Promise<boolean> => {
+  try {
+    // Check if we have any suppliers
+    const { count, error: countError } = await supabase
+      .from('suppliers')
+      .select('id', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error checking suppliers:', countError);
+      return false;
+    }
+    
+    // If we already have suppliers, don't initialize default ones
+    if (count && count > 0) {
+      return true;
+    }
+    
+    // In a real implementation, this would add some default suppliers
+    console.log('No suppliers found, would initialize defaults in a real implementation');
+    return true;
+  } catch (error) {
+    console.error('Error in initializeDefaultSuppliers:', error);
+    return false;
   }
 };
