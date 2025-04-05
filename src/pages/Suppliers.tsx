@@ -28,16 +28,12 @@ const Suppliers = () => {
         setIsLoading(true);
         setError(null);
         
-        // First try to initialize default suppliers if none exist
         await initializeDefaultSuppliers();
         
-        // Then fetch all suppliers
         const suppliers = await getAllSuppliers();
         
-        // Set the suppliers data regardless of whether it's empty or not
         setSuppliersData(suppliers || []);
         
-        // Only show error if we have no suppliers after initialization
         if (!suppliers || suppliers.length === 0) {
           setError('Aucun fournisseur trouvé. Veuillez réessayer plus tard.');
         }
@@ -115,7 +111,6 @@ const Suppliers = () => {
           </Button>
         </div>
         
-        {/* Search and filter */}
         <div className="bg-white rounded-xl shadow-card mb-8 p-4 animate-slide-up">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-grow">
@@ -149,7 +144,6 @@ const Suppliers = () => {
           </div>
         </div>
         
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8 animate-slide-up">
           <TabsList className="grid grid-cols-3 w-full sm:w-80">
             <TabsTrigger value="all">Tous</TabsTrigger>
@@ -162,7 +156,6 @@ const Suppliers = () => {
           <TabsContent value="recent"></TabsContent>
         </Tabs>
         
-        {/* Supplier cards */}
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>

@@ -44,6 +44,72 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
   }
 };
 
+export const getAllSuppliers = getSuppliers; // Alias for getSuppliers
+
+export const initializeDefaultSuppliers = async (): Promise<boolean> => {
+  try {
+    // Check if there are any existing suppliers
+    const { count, error: countError } = await supabase
+      .from('suppliers')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error checking suppliers:', countError);
+      return false;
+    }
+    
+    // If there are already suppliers, no need to initialize
+    if (count && count > 0) {
+      return true;
+    }
+    
+    // Create some default suppliers if none exist
+    const defaultSuppliers = [
+      {
+        name: 'AgriEquipment',
+        category: 'Matériel agricole',
+        rating: 4.5,
+        location: 'Tunis, Tunisia',
+        phone: '+216 71 123 456',
+        user_id: '00000000-0000-0000-0000-000000000001', // Mock user ID
+        products: ['Tracteurs', 'Moissonneuses', 'Pulvérisateurs']
+      },
+      {
+        name: 'BioAgri',
+        category: 'Agriculture biologique',
+        rating: 4.7,
+        location: 'Sousse, Tunisia',
+        phone: '+216 73 654 321',
+        user_id: '00000000-0000-0000-0000-000000000002', // Mock user ID
+        products: ['Fertilisants bio', 'Pesticides naturels', 'Semences bio']
+      },
+      {
+        name: 'AgroSolutions',
+        category: 'Irrigation',
+        rating: 4.3,
+        location: 'Sfax, Tunisia',
+        phone: '+216 74 987 654',
+        user_id: '00000000-0000-0000-0000-000000000003', // Mock user ID
+        products: ['Systèmes d\'irrigation', 'Pompes', 'Filtres']
+      }
+    ];
+    
+    const { error: insertError } = await supabase
+      .from('suppliers')
+      .insert(defaultSuppliers);
+    
+    if (insertError) {
+      console.error('Error creating default suppliers:', insertError);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in initializeDefaultSuppliers:', error);
+    return false;
+  }
+};
+
 export const getSupplierById = async (id: string): Promise<Supplier | null> => {
   try {
     const { data, error } = await supabase
