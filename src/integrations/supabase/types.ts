@@ -446,9 +446,16 @@ export type Database = {
           creator_avatar: string | null
           creator_email: string | null
           creator_name: string | null
+          crop: string | null
           description: string | null
+          end_date: string | null
           id: string | null
+          image: string | null
           is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
           title: string | null
           updated_at: string | null
           user_id: string | null

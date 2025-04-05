@@ -40,7 +40,7 @@ const SuppliersPage = () => {
   const filteredSuppliers = suppliers
     .filter(supplier => {
       const matchesSearch = supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-        supplier.products.some(p => p.toLowerCase().includes(search.toLowerCase()));
+        supplier.products?.some(p => p.toLowerCase().includes(search.toLowerCase())) || false;
       const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
       return matchesSearch && matchesCategory;
     })
@@ -106,7 +106,10 @@ const SuppliersPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSuppliers.map((supplier) => (
                 <Link to={`/suppliers/${supplier.id}`} key={supplier.id} className="block">
-                  <SupplierCard {...supplier} />
+                  <SupplierCard 
+                    {...supplier} 
+                    phone={supplier.phone || ''} // Provide default value for required prop
+                  />
                 </Link>
               ))}
             </div>

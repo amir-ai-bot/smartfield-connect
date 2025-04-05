@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Conversation } from '@/types/supabase';
+import { toast } from 'sonner';
 
 // Get all conversations for a user
 export const getUserConversations = async (userId: string) => {

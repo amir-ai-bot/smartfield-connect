@@ -374,34 +374,15 @@ export const getAllProjects = async () => {
 // Approve a fournisseur request
 export const approveFournisseurRequest = async (userId: string) => {
   try {
-    // First, update the user's role to 'fournisseur'
-    const { error: roleError } = await supabase
-      .from('profiles')
-      .update({ role: 'fournisseur' })
-      .eq('id', userId);
+    // Use the RPC function for approving a fournisseur request
+    const { error } = await supabase.rpc('approve_fournisseur_request', {
+      user_id: userId
+    });
 
-    if (roleError) {
-      console.error('Error updating user role:', roleError);
-      toast.error('Erreur lors de la mise à jour du rôle');
-      throw roleError;
-    }
-
-    // Then, create a supplier entry for the user
-    const { error: supplierError } = await supabase
-      .from('suppliers')
-      .insert({
-        user_id: userId,
-        category: 'À définir',
-        location: 'À définir',
-        products: [],
-        rating: 0,
-        phone: ''
-      });
-
-    if (supplierError) {
-      console.error('Error creating supplier entry:', supplierError);
-      toast.error('Erreur lors de la création du compte fournisseur');
-      throw supplierError;
+    if (error) {
+      console.error('Error approving fournisseur request:', error);
+      toast.error('Erreur lors de l\'approbation de la demande');
+      throw error;
     }
 
     toast.success('Demande de fournisseur approuvée avec succès');
@@ -471,16 +452,13 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw new Error('No user ID returned after creation');
     }
 
-    // Create the supplier entry directly
-    const { error: supplierError } = await supabase
-      .from('suppliers')
-      .insert({
-        user_id: authData.user.id,
-        category: fournisseurData.category,
-        location: fournisseurData.location,
-        products: fournisseurData.products,
-        rating: 0,
-        phone: fournisseurData.phone
+    // Create the supplier entry using the rpc function that is compatible with our schema
+    const { error: supplierError } = await supabase.rpc('add_supplier', {
+      supplier_user_id: authData.user.id,
+      supplier_category: fournisseurData.category,
+      supplier_location: fournisseurData.location,
+      supplier_products: fournisseurData.products,
+      supplier_phone: fournisseurData.phone
     });
 
     if (supplierError) {

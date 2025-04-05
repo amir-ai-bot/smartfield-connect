@@ -20,10 +20,10 @@ interface SupplierCardEnhancedProps {
   category: string;
   rating: number;
   location: string;
-  phone: string;
-  email: string;
-  products: string[];
-  image: string;
+  phone: string; // Required in props but might be empty
+  email?: string;
+  products?: string[];
+  image?: string;
   avatar?: string;
   isFavorite?: boolean;
 }
@@ -37,7 +37,7 @@ const SupplierCardEnhanced = ({
   location,
   phone,
   email,
-  products,
+  products = [], // Provide default empty array
   image,
   avatar,
   isFavorite: initialIsFavorite
