@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -139,10 +140,14 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
     if (!data) return null;
     
     // Handle the case where profiles might be null or not an object
-    const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
-    const profileName = profileData ? String(profileData.name || '') : '';
-    const profileEmail = profileData ? String(profileData.email || '') : '';
-    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
+    const profileData = data.profiles && typeof data.profiles === 'object' 
+      ? data.profiles as Record<string, unknown>
+      : null;
+
+    // Safely extract profile data with proper type casting
+    const profileName = profileData && typeof profileData.name === 'string' ? profileData.name : '';
+    const profileEmail = profileData && typeof profileData.email === 'string' ? profileData.email : '';
+    const profileAvatar = profileData && typeof profileData.avatar === 'string' ? profileData.avatar : '';
 
     return {
       id: data.id,
@@ -327,10 +332,14 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
     if (!data) return null;
     
     // Handle the case where profiles might be null or not an object
-    const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
-    const profileName = profileData ? String(profileData.name || '') : '';
-    const profileEmail = profileData ? String(profileData.email || '') : '';
-    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
+    const profileData = data.profiles && typeof data.profiles === 'object' 
+      ? data.profiles as Record<string, unknown>
+      : null;
+
+    // Safely extract profile data with proper type casting
+    const profileName = profileData && typeof profileData.name === 'string' ? profileData.name : '';
+    const profileEmail = profileData && typeof profileData.email === 'string' ? profileData.email : '';
+    const profileAvatar = profileData && typeof profileData.avatar === 'string' ? profileData.avatar : '';
 
     return {
       id: data.id,
