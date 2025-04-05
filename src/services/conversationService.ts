@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { Message, Conversation } from '@/types/supabase';
 
 // Get all conversations for a user
 export const getUserConversations = async (userId: string) => {
@@ -332,17 +332,41 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
 // Get ratings for a fournisseur
 export const getFournisseurRatings = async (fournisseurId: string) => {
   try {
-    const { data, error } = await supabase.rpc(
-      'get_fournisseur_ratings',
-      { fournisseur_id: fournisseurId }
-    );
-    
+    const { data, error } = await supabase
+      .from('fournisseur_ratings')
+      .select(`
+        id,
+        rating,
+        comment,
+        created_at,
+        profiles:user_id (
+          id,
+          name,
+          avatar
+        )
+      `)
+      .eq('fournisseur_id', fournisseurId)
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.error('Error fetching fournisseur ratings:', error);
+      console.error('Error fetching supplier ratings:', error);
       throw error;
     }
-    
-    return data || [];
+
+    // Format the data to match the expected structure
+    const formattedData = data.map(rating => ({
+      id: rating.id,
+      rating: rating.rating,
+      comment: rating.comment,
+      created_at: rating.created_at,
+      profiles: {
+        id: rating.profiles?.id || '',
+        name: rating.profiles?.name || 'Anonyme',
+        avatar: rating.profiles?.avatar
+      }
+    }));
+
+    return formattedData;
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
     return [];
