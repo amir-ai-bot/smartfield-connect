@@ -126,8 +126,26 @@ type Project = {
   user_email?: string;
 };
 
-type ProjectWithUser = Project & {
-  user: User;
+type ProjectWithUser = {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  progress: number;
+  status: 'active' | 'planning' | 'completed';
+  image?: string;
+  user_name?: string;
+  user_id: string;
+  created_at: string;
+  description?: string;
+  is_public?: boolean;
+  updated_at?: string;
+  user_email?: string;
+  creator_name?: string;
+  creator_email?: string;
+  creator_avatar?: string;
 };
 
 const AdminPage: React.FC = () => {
@@ -186,8 +204,10 @@ const AdminPage: React.FC = () => {
         
         const typedProjects = projectsData.map(project => ({
           ...project,
-          status: (project.status as string).toLowerCase() === 'active' ? 'active' :
-                 (project.status as string).toLowerCase() === 'planning' ? 'planning' : 
+          user_name: project.creator_name || 'Unknown',
+          user_email: project.creator_email,
+          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
+                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
                  'completed'
         })) as ProjectWithUser[];
         
@@ -295,7 +315,6 @@ const AdminPage: React.FC = () => {
     try {
       await approveFournisseurRequest(userId);
       
-      // Update the users list and pending fournisseurs list
       setUsers(users.map(u => 
         u.id === userId 
           ? { ...u, role: 'fournisseur' } 
@@ -317,7 +336,6 @@ const AdminPage: React.FC = () => {
     try {
       await rejectFournisseurRequest(userId);
       
-      // Update the users list and pending fournisseurs list
       setUsers(users.map(u => 
         u.id === userId 
           ? { ...u, role: 'user' } 
@@ -337,18 +355,15 @@ const AdminPage: React.FC = () => {
 
   const handleAddFournisseur = async () => {
     try {
-      // Validate required fields
       if (!newFournisseurForm.name || !newFournisseurForm.email || !newFournisseurForm.password) {
         toast.error('Veuillez remplir tous les champs obligatoires.');
         return;
       }
 
-      // Convert products string to array
       const productsArray = newFournisseurForm.products
         ? newFournisseurForm.products.split(',').map(p => p.trim())
         : [];
 
-      // Create the supplier
       await addFournisseur({
         name: newFournisseurForm.name,
         email: newFournisseurForm.email,
@@ -359,7 +374,6 @@ const AdminPage: React.FC = () => {
         products: productsArray
       });
 
-      // Close dialog and reset form
       setShowNewFournisseurDialog(false);
       setNewFournisseurForm({
         name: '',
@@ -371,7 +385,6 @@ const AdminPage: React.FC = () => {
         password: ''
       });
 
-      // Fetch updated users and suppliers
       const updatedUsers = await getAllUsers();
       setUsers(updatedUsers);
       
@@ -927,8 +940,18 @@ const ProjectsTab = () => {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
-        const allProjects = await getAllProjectsWithUsers();
-        setProjects(allProjects as unknown as ProjectWithUser[]);
+        const allProjects = await getAllProjects();
+        
+        const typedProjects = allProjects.map(project => ({
+          ...project,
+          user_name: project.creator_name || 'Unknown',
+          user_email: project.creator_email,
+          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
+                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
+                 'completed'
+        })) as ProjectWithUser[];
+        
+        setProjects(typedProjects);
       } catch (error) {
         console.error('Error fetching projects:', error);
       } finally {
@@ -982,7 +1005,7 @@ const ProjectsTab = () => {
                       <span>{project.crop}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
+                  <TableCell>{project.user_name || project.creator_name || "Utilisateur inconnu"}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={
@@ -1004,7 +1027,7 @@ const ProjectsTab = () => {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                      onClick={() => handleDeleteProject(project)}
+                      onClick={() => deleteProject(project.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

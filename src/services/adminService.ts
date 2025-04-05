@@ -464,14 +464,18 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw new Error('No user ID returned after creation');
     }
 
-    // Create the supplier entry using the rpc function that is compatible with our schema
-    const { error: supplierError } = await supabase.rpc('add_supplier', {
-      supplier_user_id: authData.user.id,
-      supplier_category: fournisseurData.category,
-      supplier_location: fournisseurData.location,
-      supplier_products: fournisseurData.products,
-      supplier_phone: fournisseurData.phone
-    });
+    // Instead of using a non-existent RPC function, directly insert into the suppliers table
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: authData.user.id,
+        name: fournisseurData.name, // Required field
+        category: fournisseurData.category,
+        location: fournisseurData.location,
+        products: fournisseurData.products,
+        phone: fournisseurData.phone,
+        rating: 0 // Default rating
+      });
 
     if (supplierError) {
       console.error('Error creating supplier:', supplierError);
@@ -499,7 +503,7 @@ export const addSupplier = async (
     // Check if the user exists
     const { data: userData, error: userError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, name')
       .eq('id', userId)
       .single();
 
@@ -516,7 +520,8 @@ export const addSupplier = async (
         category: category,
         location: location,
         products: products,
-        rating: 0
+        rating: 0,
+        name: name || userData.name || 'Supplier' // Include the required name field
       })
       .select('id')
       .single();

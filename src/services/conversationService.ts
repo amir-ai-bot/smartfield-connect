@@ -1,5 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { Message, Conversation } from '@/types/supabase';
+import { Message, Conversation, Rating } from '@/types/supabase';
 import { toast } from 'sonner';
 
 // Get all conversations for a user
@@ -343,22 +344,30 @@ export const getFournisseurRatings = async (fournisseurId: string): Promise<Rati
       return [];
     }
     
-    // Safely transform the data
-    const ratings = data?.map(rating => ({
-      id: rating.id || '',
-      rating: rating.rating || 0,
-      comment: rating.comment || '',
-      created_at: rating.created_at || '',
-      profiles: {
-        id: rating.profiles?.id || '',
-        name: rating.profiles?.name || 'Anonymous',
-        avatar: rating.profiles?.avatar || ''
-      }
-    })) || [];
+    // Safely transform the data with proper type checking
+    const ratings: Rating[] = (data || []).map(rating => {
+      // Safely extract profile data, handling all possible formats
+      const profiles = typeof rating.profiles === 'object' && rating.profiles !== null
+        ? rating.profiles
+        : { id: '', name: 'Anonymous', avatar: '' };
+        
+      return {
+        id: rating.id?.toString() || '',
+        rating: typeof rating.rating === 'number' ? rating.rating : 0,
+        comment: rating.comment?.toString() || '',
+        created_at: rating.created_at?.toString() || '',
+        profiles: {
+          id: profiles.id?.toString() || '',
+          name: profiles.name?.toString() || 'Anonymous',
+          avatar: profiles.avatar?.toString() || ''
+        }
+      };
+    });
     
     return ratings;
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
+    toast.error('Failed to load ratings');
     return [];
   }
 };

@@ -10,6 +10,18 @@ export interface ConversationMedia {
   created_at: string;
 }
 
+export interface Rating {
+  id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+}
+
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Message = Database['public']['Tables']['messages']['Row'];
 export type Conversation = Database['public']['Tables']['conversations']['Row'];
@@ -31,6 +43,9 @@ export interface ProjectWithUser {
   progress: number;
   created_at: string;
   updated_at: string;
-  user_name: string;
-  user_email: string;
+  creator_name: string;
+  creator_email: string;
+  creator_avatar: string;
+  // Compatibility field to match the Admin component's expected structure
+  user_name?: string;
 }
