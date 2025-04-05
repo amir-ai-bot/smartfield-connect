@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -11,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { toast } from 'sonner';
-import { getSuppliers, initializeDefaultSuppliers } from '@/services/supplierService';
+import { getAllSuppliers, initializeDefaultSuppliers } from '@/services/supplierService';
 
 const Suppliers = () => {
   const { isAuthenticated, user, becomeFournisseur, isPendingFournisseur } = useAuth();
@@ -33,7 +32,7 @@ const Suppliers = () => {
         await initializeDefaultSuppliers();
         
         // Then fetch all suppliers
-        const suppliers = await getSuppliers();
+        const suppliers = await getAllSuppliers();
         
         // Set the suppliers data regardless of whether it's empty or not
         setSuppliersData(suppliers || []);

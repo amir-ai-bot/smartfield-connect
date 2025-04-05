@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getSuppliers, Supplier } from '@/services/supplierService';
+import { getAllSuppliers, Supplier } from '@/services/supplierService';
 import SupplierCard from '@/components/SupplierCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,11 +20,11 @@ const SuppliersPage = () => {
     const fetchSuppliers = async () => {
       try {
         setLoading(true);
-        const data = await getSuppliers();
+        const data = await getAllSuppliers();
         setSuppliers(data);
         
         // Extract unique categories
-        const uniqueCategories = [...new Set(data.map(s => s.category))].filter(Boolean) as string[];
+        const uniqueCategories = [...new Set(data.map(s => s.category))];
         setCategories(uniqueCategories);
       } catch (error) {
         console.error('Error fetching suppliers:', error);
@@ -40,7 +40,7 @@ const SuppliersPage = () => {
   const filteredSuppliers = suppliers
     .filter(supplier => {
       const matchesSearch = supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-        (supplier.products?.some(p => p.toLowerCase().includes(search.toLowerCase())) ?? false);
+        supplier.products.some(p => p.toLowerCase().includes(search.toLowerCase()));
       const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
       return matchesSearch && matchesCategory;
     })
@@ -106,19 +106,7 @@ const SuppliersPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSuppliers.map((supplier) => (
                 <Link to={`/suppliers/${supplier.id}`} key={supplier.id} className="block">
-                  <SupplierCard 
-                    id={supplier.id}
-                    user_id={supplier.user_id}
-                    name={supplier.name}
-                    category={supplier.category}
-                    rating={supplier.rating}
-                    location={supplier.location}
-                    phone={supplier.phone || ''}
-                    email={supplier.email || ''}
-                    products={supplier.products || []}
-                    image={supplier.image || ''}
-                    avatar={supplier.avatar}
-                  />
+                  <SupplierCard {...supplier} />
                 </Link>
               ))}
             </div>
