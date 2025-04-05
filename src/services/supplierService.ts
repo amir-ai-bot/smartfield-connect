@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -71,7 +70,7 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
 
     if (!data) return null;
 
-    // Use optional chaining to avoid errors when properties don't exist
+    // Use optional chaining and nullish coalescing to avoid errors
     return {
       id: data.id,
       user_id: data.user_id,
@@ -173,7 +172,7 @@ export const createSupplierConversation = async (userId: string, supplierId: str
       .eq('user_id', userId)
       .eq('fournisseur_id', supplierId)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (fetchError && fetchError.code !== 'PGRST116') {
       // PGRST116 is "No rows returned" - that's expected if there's no existing conversation
@@ -221,20 +220,16 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
         )
       `)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No supplier found for this user
-        return null;
-      }
       console.error('Error fetching supplier by user ID:', error);
       throw error;
     }
 
     if (!data) return null;
 
-    // Use optional chaining to avoid errors when properties don't exist
+    // Use optional chaining and nullish coalescing to avoid errors
     return {
       id: data.id,
       user_id: data.user_id,

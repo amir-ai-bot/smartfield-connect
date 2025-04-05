@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -20,7 +19,7 @@ export interface SupplierCardEnhancedProps {
   category: string;
   rating: number;
   location: string;
-  phone?: string;  // Make phone optional
+  phone: string;  // Make phone optional
   email?: string;
   products?: string[];
   image?: string;
@@ -49,7 +48,6 @@ const SupplierCardEnhanced = ({
   const [isFavorite, setIsFavorite] = useState(initialIsFavorite || false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Check if supplier is in favorites when component mounts
   useEffect(() => {
     if (user && id) {
       const checkFavoriteStatus = async () => {
@@ -73,7 +71,6 @@ const SupplierCardEnhanced = ({
     
     try {
       setIsLoading(true);
-      // Use the enhanced createSupplierConversation function
       const conversationId = await createSupplierConversation(user.id, id);
       navigate(`/conversations/${conversationId}`);
     } catch (error) {

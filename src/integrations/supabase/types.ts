@@ -129,29 +129,41 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar: string | null
+          bio: string | null
           created_at: string | null
           email: string | null
           id: string
           name: string | null
+          phone_number: string | null
+          preferences: Json | null
           role: string | null
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
           avatar?: string | null
+          bio?: string | null
           created_at?: string | null
           email?: string | null
           id: string
           name?: string | null
+          phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
           avatar?: string | null
+          bio?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           name?: string | null
+          phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           updated_at?: string | null
         }
@@ -160,27 +172,48 @@ export type Database = {
       projects: {
         Row: {
           created_at: string | null
+          crop: string | null
           description: string | null
+          end_date: string | null
           id: string
+          image: string | null
           is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
           title: string
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          crop?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
+          image?: string | null
           is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
           title: string
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          crop?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
+          image?: string | null
           is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
@@ -272,30 +305,39 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          category: string | null
           contact_info: string | null
           created_at: string | null
           id: string
+          location: string | null
           name: string
+          phone: string | null
           products: string[] | null
           rating: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          category?: string | null
           contact_info?: string | null
           created_at?: string | null
           id?: string
+          location?: string | null
           name: string
+          phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          category?: string | null
           contact_info?: string | null
           created_at?: string | null
           id?: string
+          location?: string | null
           name?: string
+          phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null

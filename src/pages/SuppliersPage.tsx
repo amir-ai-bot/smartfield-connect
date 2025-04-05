@@ -24,7 +24,7 @@ const SuppliersPage = () => {
         setSuppliers(data);
         
         // Extract unique categories
-        const uniqueCategories = [...new Set(data.map(s => s.category))];
+        const uniqueCategories = [...new Set(data.map(s => s.category))].filter(Boolean) as string[];
         setCategories(uniqueCategories);
       } catch (error) {
         console.error('Error fetching suppliers:', error);
@@ -113,7 +113,7 @@ const SuppliersPage = () => {
                     category={supplier.category}
                     rating={supplier.rating}
                     location={supplier.location}
-                    phone={supplier.phone}
+                    phone={supplier.phone || ''}
                     email={supplier.email || ''}
                     products={supplier.products || []}
                     image={supplier.image || ''}
