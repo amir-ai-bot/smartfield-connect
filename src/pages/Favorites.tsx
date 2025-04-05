@@ -67,7 +67,7 @@ const Favorites = () => {
                 >
                   <SupplierCard 
                     id={supplier.id}
-                    user_id={supplier.user_id || supplier.id} // Add the missing user_id property
+                    user_id={supplier.user_id || supplier.id}
                     name={supplier.name || "Fournisseur"}
                     category={supplier.tags?.[0] || "Divers"}
                     rating={4.5}
