@@ -176,15 +176,27 @@ export const addSupplier = async (
   phone?: string
 ): Promise<string | null> => {
   try {
-    // First, get the user's name to satisfy the name requirement
+    // First, check if the user already has a supplier profile
+    const existingSupplier = await getSupplierByUserId(userId);
+    if (existingSupplier) {
+      console.log('User already has a supplier profile:', existingSupplier.id);
+      return existingSupplier.id;
+    }
+    
+    // Get the user's name to satisfy the name requirement
     const { data: userData, error: userError } = await supabase
       .from('profiles')
       .select('name')
       .eq('id', userId)
       .single();
     
-    if (userError || !userData) {
+    if (userError) {
       console.error('Error getting user data:', userError);
+      return null;
+    }
+    
+    if (!userData) {
+      console.error('No user data found for ID:', userId);
       return null;
     }
     
