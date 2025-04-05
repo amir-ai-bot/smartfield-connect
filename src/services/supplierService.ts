@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -144,15 +145,15 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
     return {
       id: data.id,
       user_id: data.user_id,
-      name: profileData?.name || 'Fournisseur',
+      name: profileData?.name ?? 'Fournisseur',
       category: data.category || 'Divers',
       rating: data.rating || 0,
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
-      email: profileData?.email || 'Non spécifié',
+      email: profileData?.email ?? 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar || '',
-      image: profileData?.avatar || '', // For backward compatibility
+      avatar: profileData?.avatar ?? '',
+      image: profileData?.avatar ?? '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierById:', error);
@@ -329,15 +330,15 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
     return {
       id: data.id,
       user_id: data.user_id,
-      name: profileData?.name || 'Fournisseur',
+      name: profileData?.name ?? 'Fournisseur',
       category: data.category || 'Divers',
       rating: data.rating || 0,
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
-      email: profileData?.email || 'Non spécifié',
+      email: profileData?.email ?? 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar || '',
-      image: profileData?.avatar || '', // For backward compatibility
+      avatar: profileData?.avatar ?? '',
+      image: profileData?.avatar ?? '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierByUserId:', error);

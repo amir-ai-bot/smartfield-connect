@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Conversation, Rating } from '@/types/supabase';
 import { toast } from 'sonner';
+import { Json } from '@/integrations/supabase/types';
 
 // Get all conversations for a user
 export const getUserConversations = async (userId: string) => {
@@ -345,21 +345,19 @@ export const getFournisseurRatings = async (fournisseurId: string): Promise<Rati
     }
     
     // Safely transform the data with proper type checking
-    const ratings: Rating[] = (data || []).map(rating => {
+    const ratings: Rating[] = (data || []).map((rating: any) => {
       // Safely extract profile data, handling all possible formats
-      const profiles = typeof rating.profiles === 'object' && rating.profiles !== null
-        ? rating.profiles
-        : { id: '', name: 'Anonymous', avatar: '' };
-        
+      const profilesData = rating.profiles && typeof rating.profiles === 'object' ? rating.profiles : {};
+      
       return {
-        id: rating.id?.toString() || '',
+        id: String(rating.id || ''),
         rating: typeof rating.rating === 'number' ? rating.rating : 0,
         comment: rating.comment?.toString() || '',
         created_at: rating.created_at?.toString() || '',
         profiles: {
-          id: profiles.id?.toString() || '',
-          name: profiles.name?.toString() || 'Anonymous',
-          avatar: profiles.avatar?.toString() || ''
+          id: String(profilesData.id || ''),
+          name: String(profilesData.name || 'Anonymous'),
+          avatar: String(profilesData.avatar || '')
         }
       };
     });
