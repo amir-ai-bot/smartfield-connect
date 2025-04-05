@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -152,8 +151,8 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       phone: data.phone || 'Non spécifié',
       email: profileData?.email || 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar,
-      image: profileData?.avatar, // For backward compatibility
+      avatar: profileData?.avatar || '',
+      image: profileData?.avatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierById:', error);
@@ -169,6 +168,18 @@ export const addSupplier = async (
   phone?: string
 ): Promise<string | null> => {
   try {
+    // First, get the user's name to satisfy the name requirement
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', userId)
+      .single();
+    
+    if (userError || !userData) {
+      console.error('Error getting user data:', userError);
+      return null;
+    }
+    
     const { data, error } = await supabase
       .from('suppliers')
       .insert({
@@ -176,7 +187,9 @@ export const addSupplier = async (
         category,
         location,
         products,
-        phone
+        phone,
+        // name is required but we're using profiles for actual names, so use a placeholder
+        name: userData.name || 'Supplier'
       })
       .select('id')
       .single();
@@ -323,8 +336,8 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
       phone: data.phone || 'Non spécifié',
       email: profileData?.email || 'Non spécifié',
       products: data.products || [],
-      avatar: profileData?.avatar,
-      image: profileData?.avatar, // For backward compatibility
+      avatar: profileData?.avatar || '',
+      image: profileData?.avatar || '', // For backward compatibility
     };
   } catch (error) {
     console.error('Error in getSupplierByUserId:', error);

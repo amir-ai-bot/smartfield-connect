@@ -331,43 +331,32 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
 };
 
 // Get ratings for a fournisseur
-export const getFournisseurRatings = async (fournisseurId: string) => {
+export const getFournisseurRatings = async (fournisseurId: string): Promise<Rating[]> => {
   try {
+    // Use the RPC function that's already defined in the database
     const { data, error } = await supabase
-      .from('fournisseur_ratings')
-      .select(`
-        id,
-        rating,
-        comment,
-        created_at,
-        profiles:user_id (
-          id,
-          name,
-          avatar
-        )
-      `)
-      .eq('fournisseur_id', fournisseurId)
-      .order('created_at', { ascending: false });
-
+      .rpc('get_fournisseur_ratings', { fournisseur_id: fournisseurId });
+    
     if (error) {
-      console.error('Error fetching supplier ratings:', error);
-      throw error;
+      console.error('Error fetching fournisseur ratings:', error);
+      toast.error('Error fetching ratings');
+      return [];
     }
-
-    // Format the data to match the expected structure
-    const formattedData = data.map(rating => ({
-      id: rating.id,
-      rating: rating.rating,
-      comment: rating.comment,
-      created_at: rating.created_at,
+    
+    // Safely transform the data
+    const ratings = data?.map(rating => ({
+      id: rating.id || '',
+      rating: rating.rating || 0,
+      comment: rating.comment || '',
+      created_at: rating.created_at || '',
       profiles: {
         id: rating.profiles?.id || '',
-        name: rating.profiles?.name || 'Anonyme',
-        avatar: rating.profiles?.avatar
+        name: rating.profiles?.name || 'Anonymous',
+        avatar: rating.profiles?.avatar || ''
       }
-    }));
-
-    return formattedData;
+    })) || [];
+    
+    return ratings;
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
     return [];

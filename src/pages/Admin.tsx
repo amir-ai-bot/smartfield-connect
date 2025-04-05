@@ -126,16 +126,20 @@ type Project = {
   user_email?: string;
 };
 
+type ProjectWithUser = Project & {
+  user: User;
+};
+
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [codes, setCodes] = useState<VerificationCode[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithUser | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
   const [showNewFournisseurDialog, setShowNewFournisseurDialog] = useState(false);
@@ -185,7 +189,7 @@ const AdminPage: React.FC = () => {
           status: (project.status as string).toLowerCase() === 'active' ? 'active' :
                  (project.status as string).toLowerCase() === 'planning' ? 'planning' : 
                  'completed'
-        })) as Project[];
+        })) as ProjectWithUser[];
         
         setProjects(typedProjects);
       } catch (error) {
@@ -231,7 +235,7 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleDeleteProject = async (project: Project) => {
+  const handleDeleteProject = async (project: ProjectWithUser) => {
     setSelectedProject(project);
     setIsDeleteProjectDialogOpen(true);
   };
@@ -625,75 +629,7 @@ const AdminPage: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="projects">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion des projets</CardTitle>
-                <CardDescription>
-                  Voir et gérer tous les projets de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Titre</TableHead>
-                        <TableHead>Culture</TableHead>
-                        <TableHead>Créateur</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Date de création</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {projects.map((project) => (
-                        <TableRow key={project.id}>
-                          <TableCell className="font-medium">{project.title}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Sprout className="mr-1 h-4 w-4 text-green-500" />
-                              <span>{project.crop}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                project.status === 'active' ? "success" :
-                                project.status === 'planning' ? "info" :
-                                "secondary"
-                              }
-                            >
-                              {project.status === 'active' ? "Actif" :
-                               project.status === 'planning' ? "Planification" :
-                               "Complété"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                              onClick={() => handleDeleteProject(project)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <div className="text-xs text-gray-500">
-                  Total: {projects.length} projets
-                </div>
-              </CardFooter>
-            </Card>
+            <ProjectsTab />
           </TabsContent>
           
           <TabsContent value="codes">
@@ -980,6 +916,111 @@ const AdminPage: React.FC = () => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+const ProjectsTab = () => {
+  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        const allProjects = await getAllProjectsWithUsers();
+        setProjects(allProjects as unknown as ProjectWithUser[]);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
+
+  const getStatusBadgeClass = (status: string | undefined) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      case 'planning':
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion des projets</CardTitle>
+        <CardDescription>
+          Voir et gérer tous les projets de l'application
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Titre</TableHead>
+                <TableHead>Culture</TableHead>
+                <TableHead>Créateur</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Date de création</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projects.map((project) => (
+                <TableRow key={project.id}>
+                  <TableCell className="font-medium">{project.title}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Sprout className="mr-1 h-4 w-4 text-green-500" />
+                      <span>{project.crop}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={
+                        project.status === 'active' ? "success" :
+                        project.status === 'planning' ? "info" :
+                        "secondary"
+                      }
+                    >
+                      {project.status === 'active' ? "Actif" :
+                       project.status === 'planning' ? "Planification" :
+                       "Complété"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                      onClick={() => handleDeleteProject(project)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <div className="text-xs text-gray-500">
+          Total: {projects.length} projets
+        </div>
+      </CardFooter>
+    </Card>
   );
 };
 

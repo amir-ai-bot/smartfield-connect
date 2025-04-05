@@ -107,8 +107,8 @@ const SuppliersPage = () => {
               {filteredSuppliers.map((supplier) => (
                 <Link to={`/suppliers/${supplier.id}`} key={supplier.id} className="block">
                   <SupplierCard 
-                    {...supplier} 
-                    phone={supplier.phone || ''} // Provide default value for required prop
+                    {...supplier}
+                    phone={supplier.phone || ''} // Ensure phone is always provided
                   />
                 </Link>
               ))}
