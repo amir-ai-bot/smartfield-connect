@@ -1,8 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Supplier } from '@/types/supabase';
 
-export interface Supplier {
+// Types for suppliers
+export interface SupplierBasic {
   id: string;
   name: string;
   category: string;
@@ -12,6 +13,7 @@ export interface Supplier {
   rating?: number;
   avatar?: string;
   user_id?: string;
+  email?: string;
 }
 
 // Get all suppliers
@@ -19,7 +21,7 @@ export async function getSuppliers(): Promise<Supplier[]> {
   try {
     const { data, error } = await supabase
       .from('suppliers')
-      .select('*, profiles:user_id (avatar, name, email)')
+      .select('*, profiles(avatar, name, email)')
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -31,13 +33,15 @@ export async function getSuppliers(): Promise<Supplier[]> {
     return (data || []).map(item => ({
       id: item.id,
       user_id: item.user_id || undefined,
-      name: item.profiles?.name || item.name,
+      name: item.profiles?.name || item.name || 'Unknown',
       category: item.category || 'Divers',
       location: item.location || 'Non spécifié',
       phone: item.phone || 'Non spécifié',
       products: item.products || [],
       rating: item.rating || 0,
-      avatar: item.profiles?.avatar || undefined
+      avatar: item.profiles?.avatar || undefined,
+      email: item.profiles?.email || undefined,
+      image: item.profiles?.avatar || undefined // Use avatar as image
     }));
   } catch (error) {
     console.error('Error in getSuppliers:', error);
@@ -45,12 +49,15 @@ export async function getSuppliers(): Promise<Supplier[]> {
   }
 }
 
+// Alias for getSuppliers for backward compatibility
+export const getAllSuppliers = getSuppliers;
+
 // Get a supplier by ID
 export async function getSupplier(id: string): Promise<Supplier | null> {
   try {
     const { data, error } = await supabase
       .from('suppliers')
-      .select('*, profiles:user_id (avatar, name, email)')
+      .select('*, profiles(avatar, name, email)')
       .eq('id', id)
       .single();
     
@@ -65,17 +72,106 @@ export async function getSupplier(id: string): Promise<Supplier | null> {
     return {
       id: data.id,
       user_id: data.user_id || undefined,
-      name: data.profiles?.name || data.name,
+      name: data.profiles?.name || data.name || 'Unknown',
       category: data.category || 'Divers',
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
       products: data.products || [],
       rating: data.rating || 0,
-      avatar: data.profiles?.avatar || undefined
+      avatar: data.profiles?.avatar || undefined,
+      email: data.profiles?.email || undefined,
+      image: data.profiles?.avatar || undefined // Use avatar as image
     };
   } catch (error) {
     console.error('Error in getSupplier:', error);
     return null;
+  }
+}
+
+// Alias for getSupplier for backward compatibility
+export const getSupplierById = getSupplier;
+
+// Create a supplier conversation
+export async function createSupplierConversation(userId: string, supplierId: string): Promise<string | null> {
+  try {
+    // First get the supplier to retrieve the user_id of the supplier
+    const supplier = await getSupplier(supplierId);
+    if (!supplier || !supplier.user_id) {
+      toast.error('Fournisseur non trouvé ou informations manquantes');
+      return null;
+    }
+    
+    // Check if conversation already exists
+    const { data: existingConversation, error: checkError } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('fournisseur_id', supplier.user_id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking existing conversation:', checkError);
+    }
+    
+    // Return existing conversation if found
+    if (existingConversation) {
+      return existingConversation.id;
+    }
+    
+    // Create new conversation
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: userId,
+        fournisseur_id: supplier.user_id
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error creating conversation:', error);
+      throw error;
+    }
+
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error in createSupplierConversation:', error);
+    toast.error('Erreur lors de la création de la conversation');
+    return null;
+  }
+}
+
+// Search suppliers by category, name, or products
+export async function searchSuppliers(query: string): Promise<Supplier[]> {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*, profiles(avatar, name, email)')
+      .or(`name.ilike.%${query}%,category.ilike.%${query}%,products.cs.{${query}}`)
+      .order('rating', { ascending: false });
+    
+    if (error) {
+      console.error('Error searching suppliers:', error);
+      throw error;
+    }
+
+    // Transform data to match Supplier interface
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id || undefined,
+      name: item.profiles?.name || item.name || 'Unknown',
+      category: item.category || 'Divers',
+      location: item.location || 'Non spécifié',
+      phone: item.phone || 'Non spécifié',
+      products: item.products || [],
+      rating: item.rating || 0,
+      avatar: item.profiles?.avatar || undefined,
+      email: item.profiles?.email || undefined,
+      image: item.profiles?.avatar || undefined // Use avatar as image
+    }));
+  } catch (error) {
+    console.error('Error in searchSuppliers:', error);
+    return [];
   }
 }
 

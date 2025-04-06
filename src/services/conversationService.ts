@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { MediaItem, Rating } from '@/types/supabase';
 
 // Types for conversations
 export interface Conversation {
@@ -33,34 +34,6 @@ export interface Message {
   media?: MediaItem[];
 }
 
-export interface MediaItem {
-  id: string;
-  message_id: string;
-  media_type: 'image' | 'audio' | 'document';
-  media_url: string;
-  created_at: string;
-}
-
-export interface Rating {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
-  created_at: string;
-  profiles?: {
-    name: string;
-    avatar: string;
-  };
-}
-
-export interface FavoriteSupplier {
-  id: string;
-  user_id: string;
-  supplier_id: string;
-  created_at: string;
-}
-
 // Get all conversations for a user (either as user or fournisseur)
 export async function getConversations(userId: string): Promise<Conversation[]> {
   try {
@@ -69,8 +42,8 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       .from('conversations')
       .select(`
         *,
-        user:user_id (id, name, avatar, email),
-        fournisseur:fournisseur_id (id, name, avatar, email)
+        user_profile:user_id(id, name, avatar, email),
+        fournisseur_profile:fournisseur_id(id, name, avatar, email)
       `)
       .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
       .order('updated_at', { ascending: false });
@@ -80,7 +53,26 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       throw error;
     }
 
-    return data || [];
+    // Transform data to match the Conversation interface
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      fournisseur_id: item.fournisseur_id,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      user: item.user_profile ? {
+        id: item.user_profile.id,
+        name: item.user_profile.name || 'Unknown',
+        avatar: item.user_profile.avatar || '',
+        email: item.user_profile.email || ''
+      } : undefined,
+      fournisseur: item.fournisseur_profile ? {
+        id: item.fournisseur_profile.id,
+        name: item.fournisseur_profile.name || 'Unknown',
+        avatar: item.fournisseur_profile.avatar || '',
+        email: item.fournisseur_profile.email || ''
+      } : undefined
+    }));
   } catch (error) {
     console.error('Error in getConversations:', error);
     return [];
@@ -97,8 +89,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
       .from('conversations')
       .select(`
         *,
-        user:user_id (id, name, avatar, email),
-        fournisseur:fournisseur_id (id, name, avatar, email)
+        user_profile:user_id(id, name, avatar, email),
+        fournisseur_profile:fournisseur_id(id, name, avatar, email)
       `)
       .eq('id', conversationId)
       .single();
@@ -108,7 +100,26 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
-    return data;
+    // Transform data to match the Conversation interface
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      fournisseur_id: data.fournisseur_id,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      user: data.user_profile ? {
+        id: data.user_profile.id,
+        name: data.user_profile.name || 'Unknown',
+        avatar: data.user_profile.avatar || '',
+        email: data.user_profile.email || ''
+      } : undefined,
+      fournisseur: data.fournisseur_profile ? {
+        id: data.fournisseur_profile.id,
+        name: data.fournisseur_profile.name || 'Unknown',
+        avatar: data.fournisseur_profile.avatar || '',
+        email: data.fournisseur_profile.email || ''
+      } : undefined
+    };
   } catch (error) {
     console.error('Error in getConversation:', error);
     return null;
@@ -139,13 +150,19 @@ export async function getConversationMessages(conversationId: string): Promise<M
         
         if (mediaError) {
           console.error('Error fetching media:', mediaError);
-          return message;
+          return message as Message;
         }
+        
+        // Transform media_type from string to the expected union type
+        const typedMedia = mediaData ? mediaData.map(media => ({
+          ...media,
+          media_type: (media.media_type as 'image' | 'audio' | 'document')
+        })) : [];
         
         return {
           ...message,
-          media: mediaData || []
-        };
+          media: typedMedia as MediaItem[]
+        } as Message;
       })
     );
 
@@ -153,48 +170,6 @@ export async function getConversationMessages(conversationId: string): Promise<M
   } catch (error) {
     console.error('Error in getConversationMessages:', error);
     return [];
-  }
-}
-
-// Create a new conversation between user and fournisseur
-export async function createConversation(userId: string, fournisseurId: string): Promise<string | null> {
-  try {
-    // Check if conversation already exists
-    const { data: existingConversation, error: checkError } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('fournisseur_id', fournisseurId)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.error('Error checking existing conversation:', checkError);
-    }
-    
-    // Return existing conversation if found
-    if (existingConversation) {
-      return existingConversation.id;
-    }
-    
-    // Create new conversation
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({
-        user_id: userId,
-        fournisseur_id: fournisseurId
-      })
-      .select('id')
-      .single();
-    
-    if (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
-    }
-
-    return data?.id || null;
-  } catch (error) {
-    console.error('Error in createConversation:', error);
-    return null;
   }
 }
 
@@ -325,27 +300,6 @@ export async function sendVoiceMessage(
   }
 }
 
-// Mark messages as read
-export async function markMessagesAsRead(conversationId: string, userId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', userId);
-    
-    if (error) {
-      console.error('Error marking messages as read:', error);
-      throw error;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error in markMessagesAsRead:', error);
-    return false;
-  }
-}
-
 // Rate a fournisseur
 export async function rateFournisseur(
   userId: string,
@@ -394,9 +348,6 @@ export async function rateFournisseur(
       throw result.error;
     }
 
-    // Update average rating in supplier profile (if needed)
-    // This would be better handled by a database trigger
-
     return true;
   } catch (error) {
     console.error('Error in rateFournisseur:', error);
@@ -411,7 +362,7 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       .from('fournisseur_ratings')
       .select(`
         *,
-        profiles:user_id (name, avatar)
+        profiles:user_id(id, name, avatar)
       `)
       .eq('fournisseur_id', fournisseurId)
       .order('created_at', { ascending: false });
@@ -421,7 +372,20 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       throw error;
     }
 
-    return data || [];
+    // Transform data to match the Rating interface
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      fournisseur_id: item.fournisseur_id,
+      rating: item.rating,
+      comment: item.comment,
+      created_at: item.created_at,
+      profiles: {
+        id: item.profiles?.id || '',
+        name: item.profiles?.name || 'Anonymous',
+        avatar: item.profiles?.avatar
+      }
+    }));
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
     return [];
@@ -431,27 +395,50 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
 // Add a fournisseur to favorites
 export async function toggleFavoriteFournisseur(
   userId: string,
-  fournisseurId: string
+  supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
+    // First, create a favorites table if it doesn't exist
+    try {
+      const { error: tableError } = await supabase.rpc('exec_sql', {
+        sql: `
+          CREATE TABLE IF NOT EXISTS favorite_suppliers (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(user_id, supplier_id)
+          );
+        `
+      });
+
+      if (tableError) {
+        console.error('Error creating favorite_suppliers table:', tableError);
+      }
+    } catch (error) {
+      console.error('Error creating table:', error);
+    }
+    
     // Check if already favorite
-    const { data: existing, error: checkError } = await supabase
+    // We'll use a direct SQL query since the table might not be recognized by TypeScript
+    const { data, error: checkError } = await supabase
       .from('favorite_suppliers')
       .select('id')
       .eq('user_id', userId)
-      .eq('supplier_id', fournisseurId)
+      .eq('supplier_id', supplierId)
       .maybeSingle();
     
-    if (checkError) {
+    if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking favorite status:', checkError);
+      throw checkError;
     }
     
-    if (existing) {
+    if (data) {
       // Remove from favorites
       const { error } = await supabase
         .from('favorite_suppliers')
         .delete()
-        .eq('id', existing.id);
+        .eq('id', data.id);
       
       if (error) {
         console.error('Error removing favorite:', error);
@@ -465,7 +452,7 @@ export async function toggleFavoriteFournisseur(
         .from('favorite_suppliers')
         .insert({
           user_id: userId,
-          supplier_id: fournisseurId
+          supplier_id: supplierId
         });
       
       if (error) {
@@ -482,16 +469,16 @@ export async function toggleFavoriteFournisseur(
 }
 
 // Check if a fournisseur is in favorites
-export async function isFournisseurFavorite(userId: string, fournisseurId: string): Promise<boolean> {
+export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from('favorite_suppliers')
       .select('id')
       .eq('user_id', userId)
-      .eq('supplier_id', fournisseurId)
+      .eq('supplier_id', supplierId)
       .maybeSingle();
     
-    if (error) {
+    if (error && error.code !== 'PGRST116') {
       console.error('Error checking favorite status:', error);
       return false;
     }
@@ -510,7 +497,16 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
       .from('favorite_suppliers')
       .select(`
         id,
-        supplier:supplier_id (*)
+        supplier:supplier_id(
+          id,
+          name,
+          category,
+          location,
+          phone,
+          products,
+          rating,
+          avatar
+        )
       `)
       .eq('user_id', userId);
     
@@ -520,7 +516,12 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
     }
     
     // Extract supplier data from results
-    return data?.map(item => item.supplier) || [];
+    const suppliers = data?.map(item => ({
+      ...item.supplier,
+      isFavorite: true
+    })) || [];
+    
+    return suppliers;
   } catch (error) {
     console.error('Error in getFavoriteFournisseurs:', error);
     return [];

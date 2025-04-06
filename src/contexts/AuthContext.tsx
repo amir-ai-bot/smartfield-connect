@@ -13,6 +13,7 @@ interface AuthContextProps {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
+  isLoading: boolean; // Aliased for backward compatibility
   isAuthenticated: boolean;
   isAdmin: () => boolean;
   isFournisseur: () => boolean;
@@ -95,26 +96,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
+      // Ensure role is one of the allowed types
+      const safeRole = validateRole(data?.role);
+      
+      // Process preferences to ensure they match the expected type
+      const safePreferences = processPreferences(data?.preferences);
+
+      // Create the profile object with safe types
+      const profileData: Profile = {
+        ...data,
+        role: safeRole,
+        preferences: safePreferences
+      };
+
       // Combine Supabase user with profile data
       const enhancedUser: User = {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         name: data?.name || supabaseUser.user_metadata?.name || '',
-        role: data?.role || 'user',
+        role: safeRole,
         avatar: data?.avatar || '',
         phone_number: data?.phone_number || '',
         email_verified: !!supabaseUser.email_confirmed_at,
         address: data?.address || '',
         bio: data?.bio || '',
-        preferences: data?.preferences || {
-          language: 'fr',
-          notifications: { email: true, app: true },
-          theme: 'light'
-        }
+        preferences: safePreferences
       };
 
       setUser(enhancedUser);
-      setProfile(data);
+      setProfile(profileData);
     } catch (error) {
       console.error('Error loading user profile:', error);
       // Use basic Supabase user if profile fetch fails
@@ -122,12 +132,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         name: supabaseUser.user_metadata?.name || '',
-        role: 'user',
+        role: 'user', // Default to user role
         avatar: '',
         email_verified: !!supabaseUser.email_confirmed_at
       });
       setProfile(null);
     }
+  };
+
+  // Helper to ensure role is one of the allowed values
+  const validateRole = (role: any): 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur' => {
+    const validRoles = ['admin', 'user', 'fournisseur', 'pending_fournisseur'];
+    return validRoles.includes(role) ? (role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') : 'user';
+  };
+
+  // Helper to process preferences into the expected format
+  const processPreferences = (prefs: any) => {
+    if (!prefs) return {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+    
+    if (typeof prefs === 'object') {
+      return {
+        language: ['fr', 'en', 'ar'].includes(prefs.language) ? prefs.language : 'fr',
+        notifications: {
+          email: Boolean(prefs.notifications?.email),
+          app: Boolean(prefs.notifications?.app)
+        },
+        theme: ['light', 'dark', 'system'].includes(prefs.theme) ? prefs.theme : 'light'
+      };
+    }
+    
+    return {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
   };
 
   // Sign up a new user
@@ -341,11 +383,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       // Update local user state
-      const updatedUser = { ...user, role: 'pending_fournisseur' };
+      const updatedUser: User = { 
+        ...user, 
+        role: 'pending_fournisseur' 
+      };
       setUser(updatedUser);
       
       toast.success('Demande pour devenir fournisseur envoyée');
-      return updatedUser;
     } catch (error) {
       console.error('Error becoming supplier:', error);
       toast.error('Erreur lors de la demande pour devenir fournisseur');
@@ -382,6 +426,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     loading,
+    isLoading: loading, // Alias for backward compatibility
     isAuthenticated,
     isAdmin,
     isFournisseur,

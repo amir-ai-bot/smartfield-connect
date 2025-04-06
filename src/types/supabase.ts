@@ -42,3 +42,47 @@ export interface User {
     theme?: 'light' | 'dark' | 'system';
   };
 }
+
+export interface Supplier {
+  id: string;
+  user_id?: string;
+  name: string;
+  category: string;
+  location: string;
+  phone: string;
+  products: string[];
+  rating: number;  // Required for type safety
+  avatar?: string;
+  email?: string;  // Added email for supplier
+  image?: string;  // Added image for supplier display
+}
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+}
+
+export interface MediaItem {
+  id: string;
+  message_id: string;
+  media_type: 'image' | 'audio' | 'document';
+  media_url: string;
+  created_at: string;
+}
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
