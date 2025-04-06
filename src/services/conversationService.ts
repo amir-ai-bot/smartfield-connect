@@ -121,19 +121,19 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       // Check if the profiles are valid objects and not errors
       if (item.user_profile && typeof item.user_profile === 'object' && !('code' in item.user_profile)) {
         userProfile = {
-          id: item.user_profile.id || defaultProfile.id,
-          name: item.user_profile.name || defaultProfile.name,
-          avatar: item.user_profile.avatar || defaultProfile.avatar,
-          email: item.user_profile.email || defaultProfile.email
+          id: item.user_profile?.id || defaultProfile.id,
+          name: item.user_profile?.name || defaultProfile.name,
+          avatar: item.user_profile?.avatar || defaultProfile.avatar,
+          email: item.user_profile?.email || defaultProfile.email
         };
       }
       
       if (item.fournisseur_profile && typeof item.fournisseur_profile === 'object' && !('code' in item.fournisseur_profile)) {
         fournisseurProfile = {
-          id: item.fournisseur_profile.id || defaultProfile.id,
-          name: item.fournisseur_profile.name || defaultProfile.name,
-          avatar: item.fournisseur_profile.avatar || defaultProfile.avatar,
-          email: item.fournisseur_profile.email || defaultProfile.email
+          id: item.fournisseur_profile?.id || defaultProfile.id,
+          name: item.fournisseur_profile?.name || defaultProfile.name,
+          avatar: item.fournisseur_profile?.avatar || defaultProfile.avatar,
+          email: item.fournisseur_profile?.email || defaultProfile.email
         };
       }
       
@@ -184,19 +184,19 @@ export async function getConversation(conversationId: string): Promise<Conversat
     // Check if the profiles are valid objects and not errors
     if (data.user_profile && typeof data.user_profile === 'object' && !('code' in data.user_profile)) {
       userProfile = {
-        id: data.user_profile.id || defaultProfile.id,
-        name: data.user_profile.name || defaultProfile.name,
-        avatar: data.user_profile.avatar || defaultProfile.avatar,
-        email: data.user_profile.email || defaultProfile.email
+        id: data.user_profile?.id || defaultProfile.id,
+        name: data.user_profile?.name || defaultProfile.name,
+        avatar: data.user_profile?.avatar || defaultProfile.avatar,
+        email: data.user_profile?.email || defaultProfile.email
       };
     }
     
     if (data.fournisseur_profile && typeof data.fournisseur_profile === 'object' && !('code' in data.fournisseur_profile)) {
       fournisseurProfile = {
-        id: data.fournisseur_profile.id || defaultProfile.id,
-        name: data.fournisseur_profile.name || defaultProfile.name,
-        avatar: data.fournisseur_profile.avatar || defaultProfile.avatar,
-        email: data.fournisseur_profile.email || defaultProfile.email
+        id: data.fournisseur_profile?.id || defaultProfile.id,
+        name: data.fournisseur_profile?.name || defaultProfile.name,
+        avatar: data.fournisseur_profile?.avatar || defaultProfile.avatar,
+        email: data.fournisseur_profile?.email || defaultProfile.email
       };
     }
     
@@ -474,9 +474,9 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       
       if (item.profiles && typeof item.profiles === 'object' && !('code' in item.profiles)) {
         profileData = {
-          id: item.profiles.id || defaultProfile.id,
-          name: item.profiles.name || defaultProfile.name,
-          avatar: item.profiles.avatar || defaultProfile.avatar
+          id: item.profiles?.id || defaultProfile.id,
+          name: item.profiles?.name || defaultProfile.name,
+          avatar: item.profiles?.avatar || defaultProfile.avatar
         };
       }
       
@@ -601,15 +601,16 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
     return Array.isArray(data) ? data.map(item => {
       const supplier = item.suppliers || {};
       
-      // Handle potentially null/undefined profiles or SelectQueryError safely
+      // Create default values for profile data
       let email = '';
       let avatar = '';
       
+      // Safely access profile data if it exists
       if (supplier.profiles && 
           typeof supplier.profiles === 'object' && 
           !('code' in supplier.profiles)) {
-        email = supplier.profiles.email || '';
-        avatar = supplier.profiles.avatar || '';
+        email = supplier.profiles?.email || '';
+        avatar = supplier.profiles?.avatar || '';
       }
       
       return {
