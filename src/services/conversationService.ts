@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MediaItem } from '@/types/supabase';
@@ -470,12 +471,14 @@ export async function toggleFavoriteFournisseur(
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
-    // Check if favorite already exists using RPC function
-    const { data: isFavorite, error: checkError } = await supabase
-      .rpc('check_favorite_supplier', { 
-        p_user_id: userId, 
-        p_supplier_id: supplierId 
-      });
+    // Instead of using RPC, use direct query approach
+    // First check if favorite already exists
+    const { data: existingFavorites, error: checkError } = await supabase
+      .from('favorite_suppliers')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .maybeSingle();
     
     if (checkError) {
       console.error('Error checking favorite status:', checkError);
@@ -483,21 +486,22 @@ export async function toggleFavoriteFournisseur(
     }
 
     // If favorite exists, remove it
-    if (isFavorite) {
+    if (existingFavorites) {
       const { error: removeError } = await supabase
-        .rpc('remove_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: supplierId
-        });
+        .from('favorite_suppliers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('supplier_id', supplierId);
       
       if (removeError) throw removeError;
       return { isFavorite: false };
     } else {
       // Add to favorites
       const { error: addError } = await supabase
-        .rpc('add_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: supplierId
+        .from('favorite_suppliers')
+        .insert({
+          user_id: userId,
+          supplier_id: supplierId
         });
       
       if (addError) throw addError;
@@ -512,12 +516,13 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    // Use RPC function to check
+    // Use direct query instead of RPC
     const { data, error } = await supabase
-      .rpc('check_favorite_supplier', {
-        p_user_id: userId,
-        p_supplier_id: supplierId
-      });
+      .from('favorite_suppliers')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .maybeSingle();
     
     if (error) {
       console.error('Error checking favorite status:', error);
@@ -534,21 +539,45 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    // Use RPC function to get favorites with supplier details
+    // Use direct join query instead of RPC
     const { data, error } = await supabase
-      .rpc('get_favorite_suppliers', {
-        p_user_id: userId
-      });
+      .from('favorite_suppliers')
+      .select(`
+        suppliers!supplier_id(
+          id,
+          user_id,
+          name,
+          category,
+          location,
+          phone,
+          products,
+          rating,
+          image,
+          profiles:profiles!user_id(
+            email,
+            avatar
+          )
+        )
+      `)
+      .eq('user_id', userId);
     
     if (error) {
       console.error('Error fetching favorite suppliers:', error);
       return [];
     }
     
-    return Array.isArray(data) ? data.map(item => ({
-      ...item,
-      isFavorite: true
-    })) : [];
+    // Transform the data to the expected format
+    return Array.isArray(data) ? data.map(item => {
+      const supplier = item.suppliers || {};
+      const profileData = supplier.profiles || {};
+      
+      return {
+        ...supplier,
+        email: profileData.email || '',
+        avatar: profileData.avatar || '',
+        isFavorite: true
+      };
+    }) : [];
     
   } catch (error) {
     console.error('Error in getFavoriteFournisseurs:', error);
