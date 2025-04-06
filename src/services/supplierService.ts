@@ -370,3 +370,4 @@ export const addExampleSuppliers = async () => {
 
 // Call the function to add example suppliers when the module loads
 addExampleSuppliers();
+
