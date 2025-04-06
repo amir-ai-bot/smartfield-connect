@@ -1,242 +1,127 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { createConversation } from './conversationService';
 
 export interface Supplier {
   id: string;
-  user_id: string;
   name: string;
   category: string;
   location: string;
-  phone?: string;
-  contact_info?: string;
-  rating: number;
-  products?: string[];
-  created_at?: string;
-  updated_at?: string;
-  email?: string;
+  phone: string;
+  products: string[];
+  rating?: number;
   avatar?: string;
+  user_id?: string;
 }
 
 // Get all suppliers
-export const getSuppliers = async (): Promise<Supplier[]> => {
+export async function getSuppliers(): Promise<Supplier[]> {
   try {
-    const { data: suppliers, error } = await supabase.rpc('get_all_suppliers');
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*, profiles:user_id (avatar, name, email)')
+      .order('created_at', { ascending: false });
     
     if (error) {
       console.error('Error fetching suppliers:', error);
-      toast.error('Erreur lors du chargement des fournisseurs');
-      return [];
+      throw error;
     }
-    
-    return suppliers || [];
+
+    // Transform data to match Supplier interface
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id || undefined,
+      name: item.profiles?.name || item.name,
+      category: item.category || 'Divers',
+      location: item.location || 'Non spécifié',
+      phone: item.phone || 'Non spécifié',
+      products: item.products || [],
+      rating: item.rating || 0,
+      avatar: item.profiles?.avatar || undefined
+    }));
   } catch (error) {
     console.error('Error in getSuppliers:', error);
-    toast.error('Erreur lors du chargement des fournisseurs');
     return [];
   }
-};
+}
 
-// Alias for getSuppliers to maintain backward compatibility
-export const getAllSuppliers = getSuppliers;
-
-// Get supplier by ID
-export const getSupplierById = async (id: string): Promise<Supplier | null> => {
+// Get a supplier by ID
+export async function getSupplier(id: string): Promise<Supplier | null> {
   try {
-    const { data: supplier, error } = await supabase
+    const { data, error } = await supabase
       .from('suppliers')
-      .select('*')
+      .select('*, profiles:user_id (avatar, name, email)')
       .eq('id', id)
-      .maybeSingle();
+      .single();
     
     if (error) {
       console.error('Error fetching supplier:', error);
-      toast.error('Erreur lors du chargement du fournisseur');
       return null;
     }
-    
-    if (!supplier) {
-      toast.error('Aucun fournisseur trouvé');
-      return null;
-    }
-    
-    // Get the user profile data for the supplier
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', supplier.user_id)
-      .maybeSingle();
-    
-    if (profileError) {
-      console.error('Error fetching supplier profile:', profileError);
-      // Continue anyway, we can use the supplier data without profile
-    }
-    
-    // Safe access to profileData with type checking
-    const profile = profileData as Record<string, unknown> | null;
-    
+
+    if (!data) return null;
+
+    // Transform data to match Supplier interface
     return {
-      ...supplier,
-      email: profile && typeof profile.email === 'string' ? profile.email : '',
-      avatar: profile && typeof profile.avatar === 'string' ? profile.avatar : '',
-      // Add other fields as needed
+      id: data.id,
+      user_id: data.user_id || undefined,
+      name: data.profiles?.name || data.name,
+      category: data.category || 'Divers',
+      location: data.location || 'Non spécifié',
+      phone: data.phone || 'Non spécifié',
+      products: data.products || [],
+      rating: data.rating || 0,
+      avatar: data.profiles?.avatar || undefined
     };
   } catch (error) {
-    console.error('Error in getSupplierById:', error);
-    toast.error('Erreur lors du chargement du fournisseur');
+    console.error('Error in getSupplier:', error);
     return null;
   }
-};
+}
 
-// Get supplier by user ID
-export const getSupplierByUserId = async (userId: string): Promise<Supplier | null> => {
+// Create a new supplier
+export async function createSupplier(supplier: Omit<Supplier, 'id'>): Promise<string | null> {
   try {
-    const { data: supplier, error } = await supabase
-      .from('suppliers')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error fetching supplier by user ID:', error);
-      toast.error('Erreur lors du chargement du fournisseur');
-      return null;
-    }
-    
-    if (!supplier) {
-      return null;
-    }
-    
-    // Get the user profile data
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-    
-    if (profileError) {
-      console.error('Error fetching supplier profile:', profileError);
-      // Continue anyway, we can use the supplier data without profile
-    }
-    
-    // Safe access to profileData with type checking
-    const profile = profileData as Record<string, unknown> | null;
-    
-    return {
-      ...supplier,
-      email: profile && typeof profile.email === 'string' ? profile.email : '',
-      avatar: profile && typeof profile.avatar === 'string' ? profile.avatar : '',
-      // Add other fields as needed
-    };
-  } catch (error) {
-    console.error('Error in getSupplierByUserId:', error);
-    toast.error('Erreur lors du chargement du fournisseur');
-    return null;
-  }
-};
-
-// Create a supplier
-export const createSupplier = async (
-  userId: string,
-  name: string,
-  category: string,
-  location: string,
-  phone: string,
-  products: string[] = []
-): Promise<Supplier | null> => {
-  try {
-    // First, check if this user already has a supplier profile
-    const existingSupplier = await getSupplierByUserId(userId);
-    if (existingSupplier) {
-      toast.error('Vous avez déjà un profil fournisseur');
-      return null;
-    }
-    
-    // Check if the user is an admin (admins shouldn't be suppliers)
-    const { data: userProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    
-    if (profileError) {
-      console.error('Error checking user profile:', profileError);
-      toast.error('Erreur lors de la vérification du profil');
-      return null;
-    }
-    
-    if (userProfile.role === 'admin') {
-      toast.error('Les administrateurs ne peuvent pas devenir fournisseurs');
-      return null;
-    }
-    
-    // Create the supplier
     const { data, error } = await supabase
       .from('suppliers')
-      .insert({
-        user_id: userId,
-        name,
-        category,
-        location,
-        phone,
-        products,
-        rating: 0 // Default rating
-      })
-      .select()
+      .insert(supplier)
+      .select('id')
       .single();
     
     if (error) {
       console.error('Error creating supplier:', error);
-      toast.error('Erreur lors de la création du fournisseur');
-      return null;
+      throw error;
     }
-    
-    toast.success('Profil fournisseur créé avec succès');
-    return data;
+
+    return data?.id || null;
   } catch (error) {
     console.error('Error in createSupplier:', error);
-    toast.error('Erreur lors de la création du fournisseur');
     return null;
   }
-};
+}
 
-// Update supplier
-export const updateSupplier = async (
-  id: string,
-  updates: {
-    name?: string;
-    category?: string;
-    location?: string;
-    phone?: string;
-    products?: string[];
-  }
-): Promise<Supplier | null> => {
+// Update an existing supplier
+export async function updateSupplier(id: string, supplier: Partial<Supplier>): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('suppliers')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+      .update(supplier)
+      .eq('id', id);
     
     if (error) {
       console.error('Error updating supplier:', error);
-      toast.error('Erreur lors de la mise à jour du fournisseur');
-      return null;
+      throw error;
     }
-    
-    toast.success('Fournisseur mis à jour avec succès');
-    return data;
+
+    return true;
   } catch (error) {
     console.error('Error in updateSupplier:', error);
-    toast.error('Erreur lors de la mise à jour du fournisseur');
-    return null;
+    return false;
   }
-};
+}
 
-// Delete supplier
-export const deleteSupplier = async (id: string): Promise<boolean> => {
+// Delete a supplier
+export async function deleteSupplier(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('suppliers')
@@ -245,62 +130,102 @@ export const deleteSupplier = async (id: string): Promise<boolean> => {
     
     if (error) {
       console.error('Error deleting supplier:', error);
-      toast.error('Erreur lors de la suppression du fournisseur');
-      return false;
+      throw error;
     }
-    
-    toast.success('Fournisseur supprimé avec succès');
+
     return true;
   } catch (error) {
     console.error('Error in deleteSupplier:', error);
-    toast.error('Erreur lors de la suppression du fournisseur');
     return false;
   }
-};
+}
 
-// Create a conversation with a supplier
-export const createSupplierConversation = async (userId: string, supplierId: string): Promise<string> => {
+// Initialize default suppliers if none exist
+export async function initializeDefaultSuppliers(): Promise<boolean> {
   try {
-    // First, get the supplier to find the user_id of the supplier
-    const supplier = await getSupplierById(supplierId);
+    // Check if suppliers exist
+    const { count, error: countError } = await supabase
+      .from('suppliers')
+      .select('*', { count: 'exact', head: true });
     
-    if (!supplier || !supplier.user_id) {
-      toast.error('Fournisseur non trouvé');
-      throw new Error('Supplier not found');
+    if (countError) {
+      console.error('Error checking suppliers count:', countError);
+      throw countError;
     }
     
-    // Create a conversation between the current user and the supplier's user
-    const conversationId = await createConversation(userId, supplier.user_id);
-    return conversationId;
-  } catch (error) {
-    console.error('Error creating conversation with supplier:', error);
-    toast.error('Erreur lors de la création de la conversation');
-    throw error;
-  }
-};
-
-// Search for suppliers by name, category, or location
-export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
-  try {
-    // Get all suppliers then filter client-side
-    // This is a simple implementation that could be improved with server-side filtering
-    const suppliers = await getSuppliers();
-    
-    if (!query) {
-      return suppliers;
+    // If suppliers already exist, do nothing
+    if (count && count > 0) {
+      console.log('Suppliers already exist, skipping initialization');
+      return true;
     }
     
-    const lowerQuery = query.toLowerCase();
+    // Add default suppliers
+    const defaultSuppliers = [
+      {
+        name: 'AgriFert SARL',
+        category: 'Fertilisants',
+        location: 'Tunis',
+        phone: '+216 71 123 456',
+        products: ['Fertilisant organique', 'Engrais NPK', 'Compost'],
+        rating: 4.5
+      },
+      {
+        name: 'MaterielAgri Plus',
+        category: 'Équipement',
+        location: 'Sfax',
+        phone: '+216 74 987 654',
+        products: ['Tracteurs', 'Moissonneuses', 'Pièces détachées'],
+        rating: 4.2
+      },
+      {
+        name: 'Semences du Sud',
+        category: 'Semences',
+        location: 'Gabès',
+        phone: '+216 75 456 789',
+        products: ['Semences de blé', 'Semences de tomates', 'Plants d\'oliviers'],
+        rating: 4.7
+      }
+    ];
     
-    return suppliers.filter(supplier => 
-      supplier.name.toLowerCase().includes(lowerQuery) ||
-      supplier.category.toLowerCase().includes(lowerQuery) ||
-      supplier.location.toLowerCase().includes(lowerQuery) ||
-      supplier.products?.some(product => product.toLowerCase().includes(lowerQuery))
-    );
+    const { error: insertError } = await supabase
+      .from('suppliers')
+      .insert(defaultSuppliers);
+    
+    if (insertError) {
+      console.error('Error adding default suppliers:', insertError);
+      throw insertError;
+    }
+    
+    console.log('Default suppliers added successfully');
+    return true;
   } catch (error) {
-    console.error('Error searching suppliers:', error);
-    toast.error('Erreur lors de la recherche de fournisseurs');
-    return [];
+    console.error('Error in initializeDefaultSuppliers:', error);
+    return false;
   }
-};
+}
+
+// Delete all default suppliers (for testing/reset)
+export async function deleteDefaultSuppliers(): Promise<boolean> {
+  try {
+    const defaultNames = [
+      'AgriFert SARL',
+      'MaterielAgri Plus',
+      'Semences du Sud'
+    ];
+    
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .in('name', defaultNames);
+    
+    if (error) {
+      console.error('Error deleting default suppliers:', error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in deleteDefaultSuppliers:', error);
+    return false;
+  }
+}

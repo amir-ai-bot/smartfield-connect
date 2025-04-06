@@ -7,14 +7,15 @@ import AuthDialog from '@/components/auth/AuthDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import FeaturesSection from '@/components/FeaturesSection';
-import WelcomeSection from '@/components/WelcomeSection';
+import FeaturesSection from '@/components/landing/Features';
+import TestimonialsSection from '@/components/landing/Testimonials';
+import CTASection from '@/components/landing/CTA';
 
 const Index: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'forgotPassword'>('login');
+  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email'>('login');
 
   const handleCreateProjectClick = () => {
     if (isAuthenticated) {
@@ -47,7 +48,8 @@ const Index: React.FC = () => {
         onCreateProject={handleCreateProjectClick}
       />
       <FeaturesSection />
-      <WelcomeSection />
+      <TestimonialsSection />
+      <CTASection onGetStarted={handleGetStartedClick} />
       <Footer />
       
       <AuthDialog 

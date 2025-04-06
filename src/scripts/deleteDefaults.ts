@@ -1,16 +1,43 @@
-import { deleteDefaultSuppliers } from '../services/supplierService';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-async function main() {
+export const deleteDefaultSuppliers = async () => {
   try {
-    const success = await deleteDefaultSuppliers();
-    if (success) {
-      console.log('Successfully deleted default suppliers');
-    } else {
-      console.error('Failed to delete default suppliers');
+    const defaultNames = [
+      'AgriFert SARL',
+      'MaterielAgri Plus',
+      'Semences du Sud'
+    ];
+    
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .in('name', defaultNames);
+    
+    if (error) {
+      console.error('Error deleting default suppliers:', error);
+      toast.error('Erreur lors de la suppression des fournisseurs par défaut');
+      return false;
     }
+    
+    toast.success('Fournisseurs par défaut supprimés avec succès');
+    return true;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in deleteDefaultSuppliers:', error);
+    toast.error('Erreur lors de la suppression des fournisseurs par défaut');
+    return false;
   }
-}
+};
 
-main(); 
+// Run this script directly if needed
+if (require.main === module) {
+  deleteDefaultSuppliers()
+    .then(result => {
+      console.log('Operation completed with result:', result);
+      process.exit(0);
+    })
+    .catch(error => {
+      console.error('Script failed:', error);
+      process.exit(1);
+    });
+}

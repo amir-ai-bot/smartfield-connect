@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Star } from 'lucide-react';
 import { LoadingImage } from './ui/LoadingImage';
 
-interface SupplierCardProps {
+export interface SupplierCardProps {
   id: string;
   name: string;
   category: string;
@@ -18,6 +18,7 @@ interface SupplierCardProps {
 }
 
 const SupplierCard = ({
+  id,
   name,
   category,
   rating,

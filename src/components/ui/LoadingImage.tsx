@@ -1,67 +1,65 @@
 
-import { useState, useEffect } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
 
-interface LoadingImageProps {
-  src: string;
-  alt: string;
-  className?: string;
+interface LoadingImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackSrc?: string;
-  onLoad?: () => void;
-  onError?: () => void;
 }
 
-export function LoadingImage({
-  src,
-  alt,
-  className = '',
-  fallbackSrc = 'https://images.unsplash.com/photo-1516267126728-e517143465af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-  onLoad,
-  onError
-}: LoadingImageProps) {
+export const LoadingImage: React.FC<LoadingImageProps> = ({ 
+  src, 
+  alt, 
+  className, 
+  fallbackSrc = '', 
+  ...props 
+}) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [imageSrc, setImageSrc] = useState(src);
-  const [retryCount, setRetryCount] = useState(0);
-  const MAX_RETRIES = 2;
-
-  useEffect(() => {
-    setIsLoading(true);
-    setError(false);
-    setImageSrc(src);
-    setRetryCount(0);
-  }, [src]);
-
+  const [hasError, setHasError] = useState(false);
+  
   const handleLoad = () => {
     setIsLoading(false);
-    if (onLoad) onLoad();
   };
-
+  
   const handleError = () => {
-    if (retryCount < MAX_RETRIES) {
-      // Try loading the image again with a cache-busting parameter
-      setRetryCount(prev => prev + 1);
-      setImageSrc(`${src}${src.includes('?') ? '&' : '?'}retry=${retryCount + 1}`);
-    } else {
-      setIsLoading(false);
-      setError(true);
-      setImageSrc(fallbackSrc);
-      if (onError) onError();
-    }
+    setIsLoading(false);
+    setHasError(true);
   };
-
+  
   return (
-    <div className="relative w-full h-full">
+    <div className={cn("relative", className)}>
       {isLoading && (
-        <Skeleton className="absolute inset-0 w-full h-full" />
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 animate-pulse">
+          <svg 
+            className="w-8 h-8 text-gray-300" 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24"
+          >
+            <circle 
+              className="opacity-25" 
+              cx="12" 
+              cy="12" 
+              r="10" 
+              stroke="currentColor" 
+              strokeWidth="4"
+            />
+            <path 
+              className="opacity-75" 
+              fill="currentColor" 
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        </div>
       )}
-      <img
-        src={imageSrc}
-        alt={alt}
-        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-        onLoad={handleLoad}
-        onError={handleError}
+      
+      <img 
+        src={hasError ? fallbackSrc || 'https://via.placeholder.com/150?text=Image+Error' : src} 
+        alt={alt} 
+        className={cn("object-cover w-full h-full", isLoading && "opacity-0")} 
+        onLoad={handleLoad} 
+        onError={handleError} 
+        {...props} 
       />
     </div>
   );
-}
+};
