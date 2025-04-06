@@ -115,6 +115,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       const userProfile = item.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
       const fournisseurProfile = item.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
       
+      // Since we're dealing with potential SelectQueryError objects, use optional chaining and nullish coalescing
       return {
         id: item.id,
         user_id: item.user_id,
@@ -122,16 +123,16 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         created_at: item.created_at,
         updated_at: item.updated_at,
         user: {
-          id: userProfile.id || '',
-          name: userProfile.name || 'Unknown',
-          avatar: userProfile.avatar || '',
-          email: userProfile.email || ''
+          id: userProfile?.id || '',
+          name: userProfile?.name || 'Unknown',
+          avatar: userProfile?.avatar || '',
+          email: userProfile?.email || ''
         },
         fournisseur: {
-          id: fournisseurProfile.id || '',
-          name: fournisseurProfile.name || 'Unknown',
-          avatar: fournisseurProfile.avatar || '',
-          email: fournisseurProfile.email || ''
+          id: fournisseurProfile?.id || '',
+          name: fournisseurProfile?.name || 'Unknown',
+          avatar: fournisseurProfile?.avatar || '',
+          email: fournisseurProfile?.email || ''
         }
       };
     });
@@ -166,7 +167,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
     const userProfile = data.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
     const fournisseurProfile = data.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
     
-    // Transform data to match the Conversation interface
+    // Transform data to match the Conversation interface with safer property access
     return {
       id: data.id,
       user_id: data.user_id,
@@ -174,16 +175,16 @@ export async function getConversation(conversationId: string): Promise<Conversat
       created_at: data.created_at,
       updated_at: data.updated_at,
       user: {
-        id: userProfile.id || '',
-        name: userProfile.name || 'Unknown',
-        avatar: userProfile.avatar || '',
-        email: userProfile.email || ''
+        id: userProfile?.id || '',
+        name: userProfile?.name || 'Unknown',
+        avatar: userProfile?.avatar || '',
+        email: userProfile?.email || ''
       },
       fournisseur: {
-        id: fournisseurProfile.id || '',
-        name: fournisseurProfile.name || 'Unknown',
-        avatar: fournisseurProfile.avatar || '',
-        email: fournisseurProfile.email || ''
+        id: fournisseurProfile?.id || '',
+        name: fournisseurProfile?.name || 'Unknown',
+        avatar: fournisseurProfile?.avatar || '',
+        email: fournisseurProfile?.email || ''
       }
     };
   } catch (error) {
@@ -453,9 +454,9 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
         comment: item.comment,
         created_at: item.created_at,
         profiles: {
-          id: profileData.id || '',
-          name: profileData.name || 'Anonymous',
-          avatar: profileData.avatar || ''
+          id: profileData?.id || '',
+          name: profileData?.name || 'Anonymous',
+          avatar: profileData?.avatar || ''
         }
       } as Rating;
     });
@@ -573,8 +574,8 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
       
       return {
         ...supplier,
-        email: profileData.email || '',
-        avatar: profileData.avatar || '',
+        email: profileData?.email || '',
+        avatar: profileData?.avatar || '',
         isFavorite: true
       };
     }) : [];
