@@ -111,8 +111,8 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
     // Transform data to match the Conversation interface
     return (data || []).map(item => {
       // Handle user profile and fournisseur profile data safely
-      const userProfile = item.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
-      const fournisseurProfile = item.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+      const userProfile = item.user_profile || {};
+      const fournisseurProfile = item.fournisseur_profile || {};
       
       return {
         id: item.id,
@@ -162,8 +162,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
     }
 
     // Handle user and fournisseur profile data safely
-    const userProfile = data.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
-    const fournisseurProfile = data.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+    const userProfile = data.user_profile || {};
+    const fournisseurProfile = data.fournisseur_profile || {};
     
     // Transform data to match the Conversation interface
     return {
@@ -442,7 +442,7 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
     // Transform data to match the Rating interface with safe access
     return (data || []).map(item => {
       // Get profile data safely with default values
-      const profileData = item.profiles || { id: '', name: 'Anonymous', avatar: '' };
+      const profileData = item.profiles || {};
       
       return {
         id: item.id,
@@ -470,13 +470,12 @@ export async function toggleFavoriteFournisseur(
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
-    // Check if favorite already exists
-    const { data: existingFav, error: checkError } = await supabase
-      .from('favorite_suppliers')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
-      .maybeSingle();
+    // Check if favorite already exists using RPC function
+    const { data: isFavorite, error: checkError } = await supabase
+      .rpc('check_favorite_supplier', { 
+        p_user_id: userId, 
+        p_supplier_id: supplierId 
+      });
     
     if (checkError) {
       console.error('Error checking favorite status:', checkError);
@@ -484,22 +483,21 @@ export async function toggleFavoriteFournisseur(
     }
 
     // If favorite exists, remove it
-    if (existingFav) {
+    if (isFavorite) {
       const { error: removeError } = await supabase
-        .from('favorite_suppliers')
-        .delete()
-        .eq('user_id', userId)
-        .eq('supplier_id', supplierId);
+        .rpc('remove_favorite_supplier', {
+          p_user_id: userId,
+          p_supplier_id: supplierId
+        });
       
       if (removeError) throw removeError;
       return { isFavorite: false };
     } else {
       // Add to favorites
       const { error: addError } = await supabase
-        .from('favorite_suppliers')
-        .insert({
-          user_id: userId,
-          supplier_id: supplierId
+        .rpc('add_favorite_supplier', {
+          p_user_id: userId,
+          p_supplier_id: supplierId
         });
       
       if (addError) throw addError;
@@ -514,20 +512,19 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    // Use direct table query
+    // Use RPC function to check
     const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
-      .maybeSingle();
+      .rpc('check_favorite_supplier', {
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
     
     if (error) {
       console.error('Error checking favorite status:', error);
       return false;
     }
     
-    return data !== null;
+    return !!data;
   } catch (error) {
     console.error('Error in isFournisseurFavorite:', error);
     return false;
@@ -537,7 +534,7 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    // Perform a join using the foreign key relationships
+    // Use RPC function to get favorites with supplier details
     const { data, error } = await supabase
       .rpc('get_favorite_suppliers', {
         p_user_id: userId

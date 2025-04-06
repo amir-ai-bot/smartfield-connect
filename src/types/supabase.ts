@@ -65,6 +65,7 @@ export interface Supplier {
   avatar?: string;
   email?: string;
   image?: string;
+  isFavorite?: boolean;
 }
 
 // Add any additional Supabase types you need here
