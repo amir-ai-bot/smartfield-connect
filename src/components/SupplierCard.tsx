@@ -11,9 +11,10 @@ interface SupplierCardProps {
   category: string;
   rating: number;
   location: string;
-  phone: string;
+  phone?: string;
   products?: string[];
   avatar?: string;
+  email?: string;
 }
 
 const SupplierCard = ({

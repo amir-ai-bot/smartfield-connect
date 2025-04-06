@@ -10,8 +10,11 @@ export interface Supplier {
   category: string;
   location: string;
   phone?: string;
+  contact_info?: string;
   rating: number;
   products?: string[];
+  created_at?: string;
+  updated_at?: string;
   email?: string;
   avatar?: string;
 }
@@ -70,13 +73,13 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       // Continue anyway, we can use the supplier data without profile
     }
     
-    // Safe access to profileData
-    const safeProfileData = profileData as Record<string, unknown> | null;
+    // Safe access to profileData with type checking
+    const profile = profileData as Record<string, unknown> | null;
     
     return {
       ...supplier,
-      email: safeProfileData?.email as string || '',
-      avatar: safeProfileData?.avatar as string || '',
+      email: profile && typeof profile.email === 'string' ? profile.email : '',
+      avatar: profile && typeof profile.avatar === 'string' ? profile.avatar : '',
       // Add other fields as needed
     };
   } catch (error) {
@@ -117,13 +120,13 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
       // Continue anyway, we can use the supplier data without profile
     }
     
-    // Safe access to profileData
-    const safeProfileData = profileData as Record<string, unknown> | null;
+    // Safe access to profileData with type checking
+    const profile = profileData as Record<string, unknown> | null;
     
     return {
       ...supplier,
-      email: safeProfileData?.email as string || '',
-      avatar: safeProfileData?.avatar as string || '',
+      email: profile && typeof profile.email === 'string' ? profile.email : '',
+      avatar: profile && typeof profile.avatar === 'string' ? profile.avatar : '',
       // Add other fields as needed
     };
   } catch (error) {

@@ -2,27 +2,26 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Hero from '@/components/landing/Hero';
-import Features from '@/components/landing/Features';
-import Testimonials from '@/components/landing/Testimonials';
-import CTA from '@/components/landing/CTA';
 import Footer from '@/components/Footer';
-import AuthModal from '@/components/auth/AuthModal';
+import AuthDialog from '@/components/auth/AuthDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import FeaturesSection from '@/components/FeaturesSection';
+import WelcomeSection from '@/components/WelcomeSection';
 
 const Index: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalView, setAuthModalView] = useState<'login' | 'signup' | 'forgotPassword'>('login');
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'forgotPassword'>('login');
 
   const handleCreateProjectClick = () => {
     if (isAuthenticated) {
       navigate('/projects/create');
     } else {
-      setAuthModalView('signup');
-      setShowAuthModal(true);
+      setAuthDialogView('signup');
+      setShowAuthDialog(true);
       toast.info('Vous devez être connecté pour créer un projet');
     }
   };
@@ -31,8 +30,8 @@ const Index: React.FC = () => {
     if (isAuthenticated) {
       navigate('/dashboard');
     } else {
-      setAuthModalView('signup');
-      setShowAuthModal(true);
+      setAuthDialogView('signup');
+      setShowAuthDialog(true);
     }
   };
 
@@ -47,15 +46,14 @@ const Index: React.FC = () => {
         onExploreProjects={handleExploreProjectsClick}
         onCreateProject={handleCreateProjectClick}
       />
-      <Features />
-      <Testimonials />
-      <CTA onGetStarted={handleGetStartedClick} />
+      <FeaturesSection />
+      <WelcomeSection />
       <Footer />
       
-      <AuthModal 
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialView={authModalView}
+      <AuthDialog 
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        initialView={authDialogView}
       />
     </div>
   );
