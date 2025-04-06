@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { User, Profile } from '@/types/auth';
@@ -36,27 +37,45 @@ export const signIn = async (email: string, password: string): Promise<User | nu
     }
 
     // Ensure role is a valid enum value
-    const role = profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user";
+    const roleValue = profileData?.role || 'user';
+    const role = (roleValue === 'admin' || 
+                  roleValue === 'user' || 
+                  roleValue === 'fournisseur' || 
+                  roleValue === 'pending_fournisseur') 
+                  ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
+                  : "user";
 
     // Ensure preferences has the right type
-    const preferences = profileData?.preferences ? 
-      (typeof profileData.preferences === 'object' ? 
-        profileData.preferences as {
-          language?: "fr" | "en" | "ar";
-          notifications?: { email?: boolean; app?: boolean; };
-          theme?: "light" | "dark" | "system";
-        } : 
-        {
-          language: "fr",
+    let preferences;
+    if (profileData?.preferences) {
+      if (typeof profileData.preferences === 'object') {
+        const prefs = profileData.preferences as any;
+        preferences = {
+          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
+            ? prefs.language 
+            : 'fr',
+          notifications: {
+            email: !!prefs.notifications?.email,
+            app: !!prefs.notifications?.app
+          },
+          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
+            ? prefs.theme
+            : 'light'
+        };
+      } else {
+        preferences = {
+          language: 'fr',
           notifications: { email: true, app: true },
-          theme: "light" 
-        }
-      ) : 
-      {
-        language: "fr",
+          theme: 'light'
+        };
+      }
+    } else {
+      preferences = {
+        language: 'fr',
         notifications: { email: true, app: true },
-        theme: "light" 
+        theme: 'light'
       };
+    }
 
     // Combine auth user with profile data
     const user: User = {
@@ -197,27 +216,45 @@ export const getCurrentUser = async (): Promise<User | null> => {
     }
 
     // Ensure role is a valid enum value
-    const role = profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user";
+    const roleValue = profileData?.role || 'user';
+    const role = (roleValue === 'admin' || 
+                 roleValue === 'user' || 
+                 roleValue === 'fournisseur' || 
+                 roleValue === 'pending_fournisseur') 
+                 ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
+                 : "user";
 
     // Ensure preferences has the right type
-    const preferences = profileData?.preferences ? 
-      (typeof profileData.preferences === 'object' ? 
-        profileData.preferences as {
-          language?: "fr" | "en" | "ar";
-          notifications?: { email?: boolean; app?: boolean; };
-          theme?: "light" | "dark" | "system";
-        } : 
-        {
-          language: "fr",
+    let preferences;
+    if (profileData?.preferences) {
+      if (typeof profileData.preferences === 'object') {
+        const prefs = profileData.preferences as any;
+        preferences = {
+          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
+            ? prefs.language 
+            : 'fr',
+          notifications: {
+            email: !!prefs.notifications?.email,
+            app: !!prefs.notifications?.app
+          },
+          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
+            ? prefs.theme
+            : 'light'
+        };
+      } else {
+        preferences = {
+          language: 'fr',
           notifications: { email: true, app: true },
-          theme: "light" 
-        }
-      ) : 
-      {
-        language: "fr",
+          theme: 'light'
+        };
+      }
+    } else {
+      preferences = {
+        language: 'fr',
         notifications: { email: true, app: true },
-        theme: "light" 
+        theme: 'light'
       };
+    }
 
     // Combine auth user with profile data
     const user: User = {

@@ -10,7 +10,7 @@ export const getSuppliers = async () => {
       .from('suppliers')
       .select(`
         *,
-        profiles:user_id (id, name, avatar, email)
+        profiles:profiles!user_id(id, name, avatar, email)
       `);
     
     if (error) throw error;
@@ -64,7 +64,7 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       .from('suppliers')
       .select(`
         *,
-        profiles:user_id (id, name, avatar, email)
+        profiles:profiles!user_id(id, name, avatar, email)
       `)
       .eq('id', id)
       .single();
@@ -212,7 +212,7 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
       .from('suppliers')
       .select(`
         *,
-        profiles:user_id (id, name, avatar, email)
+        profiles:profiles!user_id(id, name, avatar, email)
       `)
       .or(`name.ilike.%${query}%, category.ilike.%${query}%, location.ilike.%${query}%`);
     

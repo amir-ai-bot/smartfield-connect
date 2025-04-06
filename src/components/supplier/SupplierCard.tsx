@@ -131,4 +131,4 @@ export default function SupplierCard({ supplier }: SupplierCardProps) {
       </div>
     </div>
   );
-} 
+}

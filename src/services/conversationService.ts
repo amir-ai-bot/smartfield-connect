@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MediaItem } from '@/types/supabase';
@@ -56,8 +55,8 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       .from('conversations')
       .select(`
         *,
-        user_profile:user_id(id, name, avatar, email),
-        fournisseur_profile:fournisseur_id(id, name, avatar, email)
+        user_profile:profiles!user_id(id, name, avatar, email),
+        fournisseur_profile:profiles!fournisseur_id(id, name, avatar, email)
       `)
       .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
       .order('updated_at', { ascending: false });
@@ -109,8 +108,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
       .from('conversations')
       .select(`
         *,
-        user_profile:user_id(id, name, avatar, email),
-        fournisseur_profile:fournisseur_id(id, name, avatar, email)
+        user_profile:profiles!user_id(id, name, avatar, email),
+        fournisseur_profile:profiles!fournisseur_id(id, name, avatar, email)
       `)
       .eq('id', conversationId)
       .single();
@@ -388,7 +387,7 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       .from('fournisseur_ratings')
       .select(`
         *,
-        profiles:user_id (id, name, avatar)
+        profiles:profiles!user_id(id, name, avatar)
       `)
       .eq('fournisseur_id', fournisseurId)
       .order('created_at', { ascending: false });
@@ -428,56 +427,35 @@ export async function toggleFavoriteFournisseur(
   userId: string,
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
-  // First let's create the favorite_suppliers table if it doesn't exist
-  // We'll add this in a SQL migration to be run separately
-
   try {
-    // Check if already favorite
-    const { data, error } = await supabase.rpc(
-      'exec_sql',
-      {
-        sql: `
-          SELECT id FROM favorite_suppliers 
-          WHERE user_id = '${userId}' 
-          AND supplier_id = '${supplierId}' 
-          LIMIT 1
-        `
-      }
-    );
+    // Check if already favorite using SQL function
+    const { data, error } = await supabase.rpc('check_favorite_supplier', { 
+      user_id_param: userId,
+      supplier_id_param: supplierId
+    });
 
     if (error) {
       console.error('Error checking favorite status:', error);
       throw error;
     }
 
-    // Data will be null if no rows were found
-    const isFavorite = data && data.length > 0;
+    // Data will be true if favorite exists
+    const isFavorite = data === true;
 
     if (isFavorite) {
       // Remove from favorites
-      await supabase.rpc(
-        'exec_sql',
-        {
-          sql: `
-            DELETE FROM favorite_suppliers
-            WHERE user_id = '${userId}'
-            AND supplier_id = '${supplierId}'
-          `
-        }
-      );
+      await supabase.rpc('remove_favorite_supplier', {
+        user_id_param: userId,
+        supplier_id_param: supplierId
+      });
       
       return { isFavorite: false };
     } else {
       // Add to favorites
-      await supabase.rpc(
-        'exec_sql',
-        {
-          sql: `
-            INSERT INTO favorite_suppliers (user_id, supplier_id)
-            VALUES ('${userId}', '${supplierId}')
-          `
-        }
-      );
+      await supabase.rpc('add_favorite_supplier', {
+        user_id_param: userId,
+        supplier_id_param: supplierId
+      });
       
       return { isFavorite: true };
     }
@@ -490,24 +468,17 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase.rpc(
-      'exec_sql',
-      {
-        sql: `
-          SELECT id FROM favorite_suppliers 
-          WHERE user_id = '${userId}' 
-          AND supplier_id = '${supplierId}' 
-          LIMIT 1
-        `
-      }
-    );
+    const { data, error } = await supabase.rpc('check_favorite_supplier', {
+      user_id_param: userId,
+      supplier_id_param: supplierId
+    });
     
     if (error) {
       console.error('Error checking favorite status:', error);
       return false;
     }
     
-    return data && data.length > 0;
+    return data === true;
   } catch (error) {
     console.error('Error in isFournisseurFavorite:', error);
     return false;
@@ -517,19 +488,9 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    const { data, error } = await supabase.rpc(
-      'exec_sql',
-      {
-        sql: `
-          SELECT s.id, s.name, s.category, s.location, s.phone, 
-                 s.products, s.rating, p.avatar
-          FROM favorite_suppliers fs
-          JOIN suppliers s ON fs.supplier_id = s.id
-          LEFT JOIN profiles p ON s.user_id = p.id
-          WHERE fs.user_id = '${userId}'
-        `
-      }
-    );
+    const { data, error } = await supabase.rpc('get_favorite_suppliers', {
+      user_id_param: userId
+    });
     
     if (error) {
       console.error('Error fetching favorite suppliers:', error);
@@ -555,7 +516,7 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
  */
 export const markMessagesAsRead = async (conversationId: string, currentUserId: string) => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .match({ conversation_id: conversationId })

@@ -183,3 +183,25 @@ export interface FournisseurData {
   category: string;
   products: string[];
 }
+
+export interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  created_at?: string;
+  updated_at?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
+}
