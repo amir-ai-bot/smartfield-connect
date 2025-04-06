@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MediaItem, Rating } from '@/types/supabase';
@@ -527,3 +526,26 @@ export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
     return [];
   }
 }
+
+/**
+ * Marks all messages in a conversation as read
+ * @param conversationId ID of the conversation to mark as read
+ * @param currentUserId ID of the current user
+ */
+export const markMessagesAsRead = async (conversationId: string, currentUserId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .match({ conversation_id: conversationId })
+      .neq('sender_id', currentUserId)
+      .eq('read', false);
+      
+    if (error) throw error;
+    
+    return true;
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    return false;
+  }
+};

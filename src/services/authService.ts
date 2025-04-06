@@ -373,3 +373,42 @@ export const login = signIn;
 export const logout = signOut;
 export const signup = signUp;
 export const updateProfile = updateUserProfile;
+
+/**
+ * Creates an admin account
+ * @param email Admin email
+ * @param password Admin password
+ * @param name Admin name
+ */
+export const createAdminAccount = async (email: string, password: string, name: string) => {
+  try {
+    const { data: user, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    // Create profile with admin role
+    if (user.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: user.user.id,
+        email,
+        name,
+        role: 'admin',
+      });
+
+      if (profileError) {
+        // Rollback user creation if profile creation fails
+        console.error('Error creating admin profile, rolling back user creation:', profileError);
+        await supabase.auth.admin.deleteUser(user.user.id);
+        throw profileError;
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating admin account:', error);
+    return { success: false, error };
+  }
+};
