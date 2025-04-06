@@ -1,3 +1,4 @@
+
 import { Database } from '@/integrations/supabase/types';
 export type { Database } from '@/integrations/supabase/types';
 
@@ -48,4 +49,21 @@ export interface ProjectWithUser {
   creator_avatar: string;
   // Compatibility field to match the Admin component's expected structure
   user_name?: string;
+}
+
+// Add Supplier type
+export interface Supplier {
+  id: string;
+  user_id: string;
+  name: string;
+  category: string;
+  location: string;
+  phone?: string;
+  contact_info?: string;
+  rating: number;
+  products?: string[];
+  created_at?: string;
+  updated_at?: string;
+  email?: string;
+  avatar?: string;
 }

@@ -1,274 +1,201 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthContextType, AuthState, User } from '@/types/auth';
-import * as authService from '@/services/authService';
-import { toast } from 'sonner';
+
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Session, User } from '@supabase/supabase-js';
+import { Profile } from '@/types/supabase';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextProps {
+  user: User | null;
+  session: Session | null;
+  profile: Profile | null;
+  signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+  isAuthenticated: boolean;
+}
 
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-};
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(initialState);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Load user from session
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event, session);
-        
-        if (session) {
-          // Defer profile fetch to avoid auth deadlock
-          setTimeout(async () => {
-            try {
-              const profile = await authService.fetchUserProfile(session.user.id);
-              
-              if (profile) {
-                setState({
-                  user: profile,
-                  isAuthenticated: true,
-                  isLoading: false,
-                });
-                
-                localStorage.setItem('agrismart_user', JSON.stringify(profile));
-                
-                if (event === 'SIGNED_IN') {
-                  toast.success('Connexion réussie');
-                }
-              } else {
-                setState({
-                  user: null,
-                  isAuthenticated: false,
-                  isLoading: false,
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching profile:', error);
-              setState({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-              });
-            }
-          }, 0);
-        } else if (event === 'SIGNED_OUT') {
-          localStorage.removeItem('agrismart_user');
-          setState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
-          toast.success('Déconnexion réussie');
-        }
-      }
-    );
-
-    const initAuth = async () => {
+    const getSession = async () => {
+      setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          const profile = await authService.fetchUserProfile(session.user.id);
-          
-          if (profile) {
-            setState({
-              user: profile,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-            
-            localStorage.setItem('agrismart_user', JSON.stringify(profile));
-          } else {
-            setState({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-            });
-          }
-        } else {
-          setState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadProfile(session.user);
         }
       } catch (error) {
-        console.error('Failed to restore auth state:', error);
-        setState({ ...initialState, isLoading: false });
+        console.error('Error loading user session:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    initAuth();
+    getSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadProfile(session.user);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
 
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  // Load user profile data
+  const loadProfile = async (user: User) => {
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      const user = await authService.login(email, password);
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setProfile(data);
     } catch (error) {
-      setState(prev => ({ ...prev, isLoading: false }));
-      toast.error(error instanceof Error ? error.message : 'Erreur de connexion');
-      throw error;
+      console.error('Error loading user profile:', error);
+      setProfile(null);
     }
   };
 
-  const signup = async (name: string, email: string, password: string, phone_number?: string) => {
+  // Sign up a new user
+  const signUp = async (name: string, email: string, password: string, phone_number?: string) => {
+    setLoading(true);
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      const user = await authService.signup(name, email, password, phone_number);
-      setState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-      toast.success('Inscription réussie! Un code de vérification a été envoyé à votre email.');
-    } catch (error) {
-      setState(prev => ({ ...prev, isLoading: false }));
-      toast.error(error instanceof Error ? error.message : 'Erreur d\'inscription');
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await authService.logout();
-      setState({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Erreur lors de la déconnexion');
-    }
-  };
-
-  const updateProfile = async (updates: Partial<User>) => {
-    try {
-      if (!state.user) throw new Error('Not authenticated');
+      // First check if email already exists
+      const { data: existingUsers, error: emailCheckError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
       
-      const updatedUser = await authService.updateUserProfile(state.user.id, updates);
-      
-      setState(prev => ({
-        ...prev,
-        user: updatedUser
-      }));
-      
-      toast.success('Profil mis à jour avec succès');
-      return updatedUser;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la mise à jour du profil');
-      throw error;
-    }
-  };
-
-  const verifyEmail = async (email: string, code: string) => {
-    try {
-      await authService.verifyEmail(email, code);
-      
-      if (state.user) {
-        setState(prev => ({
-          ...prev,
-          user: {
-            ...prev.user!,
-            email_verified: true
-          }
-        }));
+      if (emailCheckError) {
+        console.error('Error checking existing email:', emailCheckError);
       }
       
-      toast.success('Email vérifié avec succès');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la vérification de l\'email');
-      throw error;
-    }
-  };
-
-  const requestPasswordReset = async (email: string) => {
-    try {
-      await authService.requestPasswordReset(email);
-      toast.success('Un code de réinitialisation a été envoyé à votre email');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la demande de réinitialisation');
-      throw error;
-    }
-  };
-
-  const confirmPasswordReset = async (code: string, password: string) => {
-    try {
-      await authService.confirmPasswordReset(code, password);
-      toast.success('Mot de passe réinitialisé avec succès');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la réinitialisation du mot de passe');
-      throw error;
-    }
-  };
-
-  const resetPassword = async (email: string) => {
-    return requestPasswordReset(email);
-  };
-
-  const becomeFournisseur = async (): Promise<void> => {
-    try {
-      if (!state.user) throw new Error('Not authenticated');
+      if (existingUsers) {
+        toast.error('Cette adresse email est déjà utilisée');
+        return;
+      }
       
-      // Create a pending request instead of immediately becoming a fournisseur
-      const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'pending_fournisseur' });
-      
-      setState(prev => ({
-        ...prev,
-        user: updatedUser
-      }));
-      
-      toast.success('Votre demande a été envoyée! Un administrateur l\'examinera prochainement.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'envoi de la demande');
-      throw error;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            phone_number: phone_number || '',
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          toast.error('Cette adresse email est déjà utilisée');
+        } else {
+          toast.error(error.message || 'Une erreur est survenue lors de l\'inscription');
+        }
+        throw error;
+      }
+
+      // If signUp is successful, show a toast
+      toast.success('Compte créé avec succès!');
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const isAdmin = () => {
-    return state.user?.role === 'admin';
+  // Sign in a user
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        if (error.message.includes('Invalid login')) {
+          toast.error('Email ou mot de passe incorrect');
+        } else {
+          toast.error(error.message || 'Une erreur est survenue lors de la connexion');
+        }
+        throw error;
+      }
+
+      toast.success('Connexion réussie!');
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const isFournisseur = () => {
-    return state.user?.role === 'fournisseur';
+  // Sign out a user
+  const signOut = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      toast.success('Déconnexion réussie');
+    } catch (error: any) {
+      toast.error(error.message || 'Une erreur est survenue lors de la déconnexion');
+      console.error('Sign out error:', error);
+    } finally {
+      setLoading(false);
+      setProfile(null);
+    }
   };
 
-  const isPendingFournisseur = () => {
-    return state.user?.role === 'pending_fournisseur';
-  };
+  // Derived isAuthenticated value
+  const isAuthenticated = !!user;
 
-  const value: AuthContextType = {
-    ...state,
-    login,
-    signup,
-    logout,
-    isAdmin,
-    isFournisseur,
-    isPendingFournisseur,
-    updateProfile,
-    verifyEmail,
-    requestPasswordReset,
-    confirmPasswordReset,
-    resetPassword,
-    becomeFournisseur
+  const value = {
+    user,
+    session,
+    profile,
+    signUp,
+    signIn,
+    signOut,
+    loading,
+    isAuthenticated,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

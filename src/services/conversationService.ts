@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Conversation, Rating } from '@/types/supabase';
 import { toast } from 'sonner';
@@ -17,14 +18,16 @@ export const getUserConversations = async (userId: string) => {
       .order('updated_at', { ascending: false });
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error fetching conversations:', error);
+      toast.error('Erreur lors du chargement des conversations');
+      return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    console.error('Error in getUserConversations:', error);
     toast.error('Erreur lors du chargement des conversations');
-    throw error;
+    return [];
   }
 };
 
@@ -39,17 +42,19 @@ export const getConversation = async (conversationId: string) => {
         fournisseur:fournisseur_id (id, name, email, avatar, role)
       `)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error fetching conversation:', error);
+      toast.error('Erreur lors du chargement de la conversation');
+      return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error fetching conversation:', error);
+    console.error('Error in getConversation:', error);
     toast.error('Erreur lors du chargement de la conversation');
-    throw error;
+    return null;
   }
 };
 
@@ -67,15 +72,17 @@ export const getConversationMessages = async (conversationId: string) => {
       .order('created_at', { ascending: true });
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error fetching messages:', error);
+      toast.error('Erreur lors du chargement des messages');
+      return [];
     }
 
     // Make sure we return an array even if data is null
     return data || [];
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    console.error('Error in getConversationMessages:', error);
     toast.error('Erreur lors du chargement des messages');
-    throw error;
+    return [];
   }
 };
 
@@ -93,11 +100,13 @@ export const sendMessage = async (conversationId: string, content: string, sende
         content: content,
         read: false
       })
-      .select('*')
+      .select()
       .single();
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error sending message:', error);
+      toast.error('Erreur lors de l\'envoi du message');
+      throw error;
     }
 
     // Update the conversation's updated_at timestamp
@@ -108,7 +117,7 @@ export const sendMessage = async (conversationId: string, content: string, sende
 
     return data;
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('Error in sendMessage:', error);
     toast.error('Erreur lors de l\'envoi du message');
     throw error;
   }
@@ -148,11 +157,13 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
         content: 'Message vocal',
         read: false
       })
-      .select('*')
+      .select()
       .single();
     
     if (messageError) {
-      throw new Error(messageError.message);
+      console.error('Error sending voice message:', messageError);
+      toast.error('Erreur lors de l\'envoi du message vocal');
+      throw messageError;
     }
     
     // Update conversation timestamp
@@ -165,7 +176,7 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
     
     return message;
   } catch (error) {
-    console.error('Error sending voice message:', error);
+    console.error('Error in sendVoiceMessage:', error);
     toast.error('Erreur lors de l\'envoi du message vocal');
     throw error;
   }
@@ -174,7 +185,7 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
 // Mark messages as read
 export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
@@ -182,12 +193,13 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
       .eq('read', false);
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error marking messages as read:', error);
+      return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error marking messages as read:', error);
+    console.error('Error in markMessagesAsRead:', error);
     return false;
   }
 };
@@ -202,7 +214,8 @@ export const getUnreadMessageCount = async (userId: string) => {
       .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
 
     if (conversationsError) {
-      throw new Error(conversationsError.message);
+      console.error('Error fetching conversations for unread count:', conversationsError);
+      return 0;
     }
 
     if (!conversations || conversations.length === 0) {
@@ -219,12 +232,13 @@ export const getUnreadMessageCount = async (userId: string) => {
       .eq('read', false);
 
     if (countError) {
-      throw new Error(countError.message);
+      console.error('Error counting unread messages:', countError);
+      return 0;
     }
 
     return count || 0;
   } catch (error) {
-    console.error('Error getting unread message count:', error);
+    console.error('Error in getUnreadMessageCount:', error);
     return 0;
   }
 };
@@ -244,11 +258,16 @@ export const createConversation = async (userId: string, fournisseurId: string) 
     }
     
     // Check if conversation already exists
-    const { data: existingConversation } = await supabase
+    const { data: existingConversation, error: checkError } = await supabase
       .from('conversations')
       .select('id')
-      .match({ user_id: userId, fournisseur_id: fournisseurId })
+      .or(`and(user_id.eq.${userId},fournisseur_id.eq.${fournisseurId}),and(user_id.eq.${fournisseurId},fournisseur_id.eq.${userId})`)
       .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking existing conversation:', checkError);
+      throw new Error('Erreur lors de la vérification des conversations existantes');
+    }
       
     if (existingConversation) {
       return existingConversation.id;
@@ -287,6 +306,7 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
       .eq('fournisseur_id', fournisseurId);
 
     if (checkError) {
+      console.error('Error checking existing ratings:', checkError);
       throw new Error(checkError.message);
     }
 
@@ -297,10 +317,11 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
         .from('fournisseur_ratings')
         .update({ rating, comment })
         .eq('id', existingRatings[0].id)
-        .select('*')
+        .select()
         .single();
 
       if (error) {
+        console.error('Error updating rating:', error);
         throw new Error(error.message);
       }
       data = updatedRating;
@@ -314,10 +335,11 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
           rating,
           comment
         })
-        .select('*')
+        .select()
         .single();
 
       if (error) {
+        console.error('Error creating new rating:', error);
         throw new Error(error.message);
       }
       data = newRating;
@@ -325,7 +347,7 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
 
     return data;
   } catch (error) {
-    console.error('Error rating fournisseur:', error);
+    console.error('Error in rateFournisseur:', error);
     toast.error('Erreur lors de l\'évaluation du fournisseur');
     throw error;
   }
@@ -379,6 +401,7 @@ export const getFournisseurAverageRating = async (fournisseurId: string) => {
       .eq('fournisseur_id', fournisseurId);
 
     if (error) {
+      console.error('Error fetching ratings for average:', error);
       throw new Error(error.message);
     }
 
@@ -392,7 +415,7 @@ export const getFournisseurAverageRating = async (fournisseurId: string) => {
       count: data.length
     };
   } catch (error) {
-    console.error('Error calculating average rating:', error);
+    console.error('Error in getFournisseurAverageRating:', error);
     return { average: 0, count: 0 };
   }
 };
@@ -415,7 +438,7 @@ export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: s
       return { success: true, isFavorite: true };
     }
   } catch (error) {
-    console.error('Error toggling favorite status:', error);
+    console.error('Error in toggleFavoriteFournisseur:', error);
     toast.error('Erreur lors de la mise à jour des favoris');
     throw error;
   }
@@ -428,7 +451,7 @@ export const isFournisseurFavorite = async (userId: string, fournisseurId: strin
     // For now, return a mock response
     return Math.random() > 0.5; // Randomly return true or false for mock purposes
   } catch (error) {
-    console.error('Error checking favorite status:', error);
+    console.error('Error in isFournisseurFavorite:', error);
     return false;
   }
 };
@@ -459,7 +482,7 @@ export const getFavoriteFournisseurs = async (userId: string) => {
       }
     ];
   } catch (error) {
-    console.error('Error fetching favorite fournisseurs:', error);
+    console.error('Error in getFavoriteFournisseurs:', error);
     toast.error('Erreur lors du chargement des fournisseurs favoris');
     throw error;
   }
