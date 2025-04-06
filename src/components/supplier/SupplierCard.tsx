@@ -1,6 +1,7 @@
+
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@supabase/auth-helpers-react';
-import { createConversation } from '@/services/messageService';
+import { createConversation } from '@/services/conversationService';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
