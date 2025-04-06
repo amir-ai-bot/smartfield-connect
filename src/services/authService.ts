@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User } from '@/types/auth';
+import { User, Profile } from '@/types/auth';
 
 // Authentication functions
 export const signIn = async (email: string, password: string): Promise<User | null> => {
@@ -35,22 +35,41 @@ export const signIn = async (email: string, password: string): Promise<User | nu
       console.error('Error fetching user profile:', profileError);
     }
 
+    // Ensure role is a valid enum value
+    const role = profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user";
+
+    // Ensure preferences has the right type
+    const preferences = profileData?.preferences ? 
+      (typeof profileData.preferences === 'object' ? 
+        profileData.preferences as {
+          language?: "fr" | "en" | "ar";
+          notifications?: { email?: boolean; app?: boolean; };
+          theme?: "light" | "dark" | "system";
+        } : 
+        {
+          language: "fr",
+          notifications: { email: true, app: true },
+          theme: "light" 
+        }
+      ) : 
+      {
+        language: "fr",
+        notifications: { email: true, app: true },
+        theme: "light" 
+      };
+
     // Combine auth user with profile data
     const user: User = {
       id: data.user.id,
       email: data.user.email || '',
       name: profileData?.name || data.user.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      role: role,
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!data.user.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences: preferences
     };
 
     toast.success('Connexion réussie!');
@@ -117,7 +136,7 @@ export const signUp = async (
         email: email.toLowerCase(),
         name: name,
         phone_number: phone_number || '',
-        role: 'user',
+        role: 'user' as "admin" | "user" | "fournisseur" | "pending_fournisseur",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
@@ -177,22 +196,41 @@ export const getCurrentUser = async (): Promise<User | null> => {
       console.error('Error fetching user profile:', profileError);
     }
 
+    // Ensure role is a valid enum value
+    const role = profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user";
+
+    // Ensure preferences has the right type
+    const preferences = profileData?.preferences ? 
+      (typeof profileData.preferences === 'object' ? 
+        profileData.preferences as {
+          language?: "fr" | "en" | "ar";
+          notifications?: { email?: boolean; app?: boolean; };
+          theme?: "light" | "dark" | "system";
+        } : 
+        {
+          language: "fr",
+          notifications: { email: true, app: true },
+          theme: "light" 
+        }
+      ) : 
+      {
+        language: "fr",
+        notifications: { email: true, app: true },
+        theme: "light" 
+      };
+
     // Combine auth user with profile data
     const user: User = {
       id: authUser.id,
       email: authUser.email || '',
       name: profileData?.name || authUser.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      role: role,
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences: preferences
     };
 
     return user;
@@ -250,17 +288,30 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
       id: authUser.id,
       email: authUser.email || '',
       name: profileData?.name || authUser.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      role: profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user",
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences: profileData?.preferences ? 
+        (typeof profileData.preferences === 'object' ? 
+          profileData.preferences as {
+            language?: "fr" | "en" | "ar";
+            notifications?: { email?: boolean; app?: boolean; };
+            theme?: "light" | "dark" | "system";
+          } : 
+          {
+            language: "fr",
+            notifications: { email: true, app: true },
+            theme: "light" 
+          }
+        ) : 
+        {
+          language: "fr",
+          notifications: { email: true, app: true },
+          theme: "light" 
+        }
     };
 
     toast.success('Profil mis à jour avec succès');
@@ -382,31 +433,16 @@ export const updateProfile = updateUserProfile;
  */
 export const createAdminAccount = async (email: string, password: string, name: string) => {
   try {
-    const { data: user, error } = await supabase.auth.signUp({
-      email,
-      password,
+    const { data, error } = await supabase.functions.invoke('admin-create-user', {
+      body: { email, password, name, role: 'admin' }
     });
-
-    if (error) throw error;
-
-    // Create profile with admin role
-    if (user.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: user.user.id,
-        email,
-        name,
-        role: 'admin',
-      });
-
-      if (profileError) {
-        // Rollback user creation if profile creation fails
-        console.error('Error creating admin profile, rolling back user creation:', profileError);
-        await supabase.auth.admin.deleteUser(user.user.id);
-        throw profileError;
-      }
+    
+    if (error) {
+      console.error('Error creating admin account:', error);
+      return { success: false, error };
     }
-
-    return { success: true };
+    
+    return { success: true, data };
   } catch (error) {
     console.error('Error creating admin account:', error);
     return { success: false, error };

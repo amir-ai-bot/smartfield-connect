@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,9 @@ import {
   markMessagesAsRead
 } from '@/services/conversationService';
 import { formatDistanceToNow } from 'date-fns';
-import { fr, en, ar } from 'date-fns/locale';
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
+import { fr, enUS, ar } from 'date-fns/locale'; // Changed 'en' to 'enUS'
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -53,8 +54,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const loadMessages = async () => {
     try {
@@ -93,9 +94,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       handleSendMessage();
     }
   };
@@ -107,7 +108,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
       case 'ar':
         return ar;
       default:
-        return en;
+        return enUS;  // Changed from 'en' to 'enUS'
     }
   };
 
@@ -153,6 +154,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
 
   const handleVoiceMessage = async (audioBlob: Blob) => {
     try {
+      // Updated to match sendVoiceMessage signature that expects a Blob
       await sendVoiceMessage(conversation.id, audioBlob, user!.id);
       loadMessages();
     } catch (error) {
@@ -210,7 +212,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
                         : 'bg-gray-100 text-gray-900'
                         }`}
                     >
-                      {message.media_url ? (
+                      {message.media ? (
                         message.media_type === 'image' ? (
                           <img src={message.media_url} alt="Image" className="max-w-full rounded-lg" />
                         ) : message.media_type === 'audio' ? (
@@ -252,11 +254,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
             className="flex-1 rounded-full"
           />
           <Button
-            isLoading={sending}
+            disabled={sending}
             onClick={handleSendMessage}
             className="bg-agri-green-500 hover:bg-agri-green-600 rounded-full"
           >
-            <Send className="h-5 w-5" />
+            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </Button>
           <Button
             variant="ghost"
