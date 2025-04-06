@@ -65,6 +65,35 @@ export type Database = {
         }
         Relationships: []
       }
+      favorite_suppliers: {
+        Row: {
+          created_at: string
+          id: string
+          supplier_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          supplier_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          supplier_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fournisseur_ratings: {
         Row: {
           comment: string | null
@@ -312,6 +341,7 @@ export type Database = {
           contact_info: string | null
           created_at: string | null
           id: string
+          image: string | null
           location: string | null
           name: string
           phone: string | null
@@ -325,6 +355,7 @@ export type Database = {
           contact_info?: string | null
           created_at?: string | null
           id?: string
+          image?: string | null
           location?: string | null
           name: string
           phone?: string | null
@@ -338,6 +369,7 @@ export type Database = {
           contact_info?: string | null
           created_at?: string | null
           id?: string
+          image?: string | null
           location?: string | null
           name?: string
           phone?: string | null

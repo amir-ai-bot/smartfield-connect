@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Supplier } from '@/types/supabase';
+import { Supplier as SupplierType } from '@/types/supabase';
 
 /**
  * Get all suppliers
@@ -40,7 +40,7 @@ export const getSuppliers = async () => {
   }
 };
 
-// Export the Supplier type so other components can import it
+// Export an interface for Supplier type
 export interface Supplier {
   id: string;
   user_id?: string;
