@@ -1,5 +1,5 @@
-
 import { Database } from '@/integrations/supabase/types';
+export type { Database } from '@/integrations/supabase/types';
 
 // Extend the Supabase types with our custom table
 export interface ConversationMedia {

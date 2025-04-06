@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { toast } from 'sonner';
-import { getAllSuppliers, initializeDefaultSuppliers } from '@/services/supplierService';
+import { getAllSuppliers, initializeDefaultSuppliers, deleteDefaultSuppliers } from '@/services/supplierService';
 
 const Suppliers = () => {
   const { isAuthenticated, user, becomeFournisseur, isPendingFournisseur } = useAuth();
@@ -23,30 +23,51 @@ const Suppliers = () => {
   const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const loadSuppliers = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        
-        await initializeDefaultSuppliers();
-        
+
+        // First, delete default suppliers
+        console.log('Attempting to delete default suppliers...');
+        const deleteResult = await deleteDefaultSuppliers();
+        if (!deleteResult) {
+          console.error('Failed to delete default suppliers');
+        }
+
+        // Wait a moment to ensure deletion is processed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Then fetch suppliers
+        console.log('Fetching suppliers after deletion...');
         const suppliers = await getAllSuppliers();
         
-        setSuppliersData(suppliers || []);
+        // Filter out any remaining suppliers with null user_id
+        const realSuppliers = suppliers.filter(s => s.user_id !== null && s.user_id !== '');
+        console.log('Filtered suppliers:', realSuppliers);
+
+        setSuppliersData(realSuppliers);
         
-        if (!suppliers || suppliers.length === 0) {
+        if (!realSuppliers || realSuppliers.length === 0) {
+          console.log('No real suppliers found');
           setError('Aucun fournisseur trouvé. Veuillez réessayer plus tard.');
         }
       } catch (error) {
-        console.error('Error fetching suppliers:', error);
-        setError('Erreur lors du chargement des fournisseurs. Veuillez réessayer plus tard.');
+        console.error('Error loading suppliers:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+          });
+        }
+        setError('Erreur lors du chargement des fournisseurs');
         toast.error('Erreur lors du chargement des fournisseurs');
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchSuppliers();
+    loadSuppliers();
   }, []);
   
   const filteredSuppliers = suppliersData.filter(supplier => {

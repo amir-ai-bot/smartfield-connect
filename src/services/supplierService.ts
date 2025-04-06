@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -18,29 +17,74 @@ export interface Supplier {
 
 export const getSuppliers = async (): Promise<Supplier[]> => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_all_suppliers');
+    console.log('Fetching suppliers...');
+    
+    // Fetch all suppliers directly without profile join first
+    let { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching suppliers:', error);
       throw error;
     }
 
-    return (data || []).map((item: any) => ({
-      id: item.id,
-      user_id: item.user_id,
-      name: item.name || 'Fournisseur',
-      category: item.category || 'Divers',
-      rating: item.rating || 0,
-      location: item.location || 'Non spécifié',
-      phone: item.phone,
-      email: item.email,
-      products: item.products || [],
-      avatar: item.avatar,
-      image: item.avatar, // For backward compatibility
-    }));
+    console.log('Raw suppliers data:', data);
+
+    if (!data || data.length === 0) {
+      console.log('No suppliers found');
+      return [];
+    }
+
+    // Now fetch profiles for suppliers that have user_ids
+    const userIds = data
+      .map(supplier => supplier.user_id)
+      .filter(id => id != null);
+
+    let profilesMap = new Map();
+    
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, avatar, name')
+        .in('id', userIds);
+
+      if (profiles) {
+        profilesMap = new Map(profiles.map(profile => [profile.id, profile]));
+      }
+    }
+
+    // Map and validate each supplier
+    const suppliers = data.map((item: any) => {
+      const profile = item.user_id ? profilesMap.get(item.user_id) : null;
+      
+      const supplier: Supplier = {
+        id: item.id || '',
+        user_id: item.user_id || '',
+        name: (profile?.name || item.name || 'Fournisseur').trim(),
+        category: (item.category || 'Divers').trim(),
+        rating: typeof item.rating === 'number' ? item.rating : 0,
+        location: (item.location || 'Non spécifié').trim(),
+        phone: (item.phone || '').trim(),
+        email: (profile?.email || item.email || '').trim(),
+        products: Array.isArray(item.products) ? item.products.filter(Boolean) : [],
+        avatar: (profile?.avatar || '').trim(),
+        image: (profile?.avatar || '').trim()
+      };
+      console.log('Processed supplier:', supplier);
+      return supplier;
+    });
+
+    console.log('Total suppliers found:', suppliers.length);
+    return suppliers;
+
   } catch (error) {
     console.error('Error in getSuppliers:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack trace:', error.stack);
+    }
     return [];
   }
 };
@@ -49,6 +93,7 @@ export const getAllSuppliers = getSuppliers; // Export alias for getSuppliers
 
 export const initializeDefaultSuppliers = async (): Promise<boolean> => {
   try {
+    console.log('Checking for existing suppliers...');
     // Check if there are any existing suppliers
     const { count, error: countError } = await supabase
       .from('suppliers')
@@ -59,54 +104,86 @@ export const initializeDefaultSuppliers = async (): Promise<boolean> => {
       return false;
     }
     
+    console.log('Current supplier count:', count);
+    
     // If there are already suppliers, no need to initialize
     if (count && count > 0) {
+      console.log('Suppliers already exist, skipping initialization');
       return true;
     }
+    
+    console.log('No suppliers found, creating defaults...');
     
     // Create some default suppliers if none exist
     const defaultSuppliers = [
       {
         name: 'AgriEquipment',
+        user_id: null,  // This will be updated when a user claims this supplier
         category: 'Matériel agricole',
         rating: 4.5,
         location: 'Tunis, Tunisia',
         phone: '+216 71 123 456',
-        user_id: '00000000-0000-0000-0000-000000000001', // Mock user ID
-        products: ['Tracteurs', 'Moissonneuses', 'Pulvérisateurs']
+        products: ['Tracteurs', 'Moissonneuses', 'Pulvérisateurs'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email: 'contact@agriequipment.com'  // Default email
       },
       {
         name: 'BioAgri',
+        user_id: null,
         category: 'Agriculture biologique',
         rating: 4.7,
         location: 'Sousse, Tunisia',
         phone: '+216 73 654 321',
-        user_id: '00000000-0000-0000-0000-000000000002', // Mock user ID
-        products: ['Fertilisants bio', 'Pesticides naturels', 'Semences bio']
+        products: ['Fertilisants bio', 'Pesticides naturels', 'Semences bio'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email: 'contact@bioagri.com'
       },
       {
         name: 'AgroSolutions',
+        user_id: null,
         category: 'Irrigation',
         rating: 4.3,
         location: 'Sfax, Tunisia',
         phone: '+216 74 987 654',
-        user_id: '00000000-0000-0000-0000-000000000003', // Mock user ID
-        products: ['Systèmes d\'irrigation', 'Pompes', 'Filtres']
+        products: ['Systèmes d\'irrigation', 'Pompes', 'Filtres'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email: 'contact@agrosolutions.com'
       }
     ];
     
-    const { error: insertError } = await supabase
+    // Insert with returning data to verify the insertion
+    const { data: insertedData, error: insertError } = await supabase
       .from('suppliers')
-      .insert(defaultSuppliers);
+      .insert(defaultSuppliers)
+      .select('*');
     
     if (insertError) {
       console.error('Error creating default suppliers:', insertError);
+      console.error('Error details:', {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint
+      });
       return false;
     }
     
+    if (!insertedData || insertedData.length === 0) {
+      console.error('No suppliers were inserted');
+      return false;
+    }
+    
+    console.log('Default suppliers created successfully:', insertedData);
     return true;
   } catch (error) {
     console.error('Error in initializeDefaultSuppliers:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 };
@@ -369,5 +446,72 @@ export const getSupplierByUserId = async (userId: string): Promise<Supplier | nu
   } catch (error) {
     console.error('Error in getSupplierByUserId:', error);
     return null;
+  }
+};
+
+export const deleteDefaultSuppliers = async (): Promise<boolean> => {
+  try {
+    console.log('Starting default suppliers deletion process...');
+
+    // First, check for any default suppliers
+    const { data: defaultSuppliers, error: checkError } = await supabase
+      .from('suppliers')
+      .select('id')
+      .is('user_id', null);
+
+    if (checkError) {
+      console.error('Error checking for default suppliers:', checkError);
+      return false;
+    }
+
+    if (!defaultSuppliers || defaultSuppliers.length === 0) {
+      console.log('No default suppliers found to delete');
+      return true;
+    }
+
+    console.log(`Found ${defaultSuppliers.length} default suppliers to delete`);
+
+    // Delete suppliers with null user_id
+    const { error: deleteError } = await supabase
+      .from('suppliers')
+      .delete()
+      .is('user_id', null);
+
+    if (deleteError) {
+      console.error('Error deleting default suppliers:', deleteError);
+      console.error('Error details:', {
+        code: deleteError.code,
+        message: deleteError.message,
+        details: deleteError.details,
+        hint: deleteError.hint
+      });
+      return false;
+    }
+
+    // Verify deletion
+    const { data: remainingDefaults, error: verifyError } = await supabase
+      .from('suppliers')
+      .select('id')
+      .is('user_id', null);
+
+    if (verifyError) {
+      console.error('Error verifying deletion:', verifyError);
+      return false;
+    }
+
+    if (remainingDefaults && remainingDefaults.length > 0) {
+      console.error(`${remainingDefaults.length} default suppliers still remain after deletion attempt`);
+      return false;
+    }
+
+    console.log('Default suppliers deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteDefaultSuppliers:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    return false;
   }
 };
