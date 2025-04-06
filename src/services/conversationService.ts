@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { MediaItem } from '@/types/supabase';
+import { MediaItem, Profile } from '@/types/supabase';
 
 // Types for conversations
 export interface Conversation {
@@ -112,8 +112,8 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
     // Transform data to match the Conversation interface
     return (data || []).map(item => {
       // Handle user profile and fournisseur profile data safely
-      const userProfile = item.user_profile || {};
-      const fournisseurProfile = item.fournisseur_profile || {};
+      const userProfile = item.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+      const fournisseurProfile = item.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
       
       return {
         id: item.id,
@@ -163,8 +163,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
     }
 
     // Handle user and fournisseur profile data safely
-    const userProfile = data.user_profile || {};
-    const fournisseurProfile = data.fournisseur_profile || {};
+    const userProfile = data.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+    const fournisseurProfile = data.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
     
     // Transform data to match the Conversation interface
     return {
@@ -443,7 +443,7 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
     // Transform data to match the Rating interface with safe access
     return (data || []).map(item => {
       // Get profile data safely with default values
-      const profileData = item.profiles || {};
+      const profileData = item.profiles || { id: '', name: 'Anonymous', avatar: '' };
       
       return {
         id: item.id,
