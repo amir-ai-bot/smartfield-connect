@@ -111,14 +111,24 @@ export interface Rating {
 }
 
 // Create a conversation
-export async function createConversation(userId: string, supplierId: string): Promise<string | null> {
+export async function createConversation(userId: string, fournisseurId: string): Promise<string | null> {
   try {
+    // Validate inputs
+    if (!userId || !fournisseurId) {
+      throw new Error('User ID and supplier ID are required');
+    }
+
+    // Prevent self-messaging
+    if (userId === fournisseurId) {
+      throw new Error('Cannot create a conversation with yourself');
+    }
+
     // Check if conversation already exists
     const { data: existingConversation, error: checkError } = await supabase
       .from('conversations')
       .select('id')
       .eq('user_id', userId)
-      .eq('fournisseur_id', supplierId)
+      .eq('fournisseur_id', fournisseurId)
       .maybeSingle();
     
     if (checkError) {
@@ -135,7 +145,7 @@ export async function createConversation(userId: string, supplierId: string): Pr
       .from('conversations')
       .insert({
         user_id: userId,
-        fournisseur_id: supplierId
+        fournisseur_id: fournisseurId
       })
       .select()
       .single();
@@ -145,7 +155,7 @@ export async function createConversation(userId: string, supplierId: string): Pr
       throw error;
     }
     
-    return (data as ConversationRecord).id;
+    return data.id;
   } catch (error) {
     console.error('Error in createConversation:', error);
     throw error;
@@ -234,6 +244,13 @@ export const getUserConversations = getConversations;
 // Get a specific conversation by ID
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
   try {
+    if (!conversationId) {
+      console.error('No conversation ID provided');
+      return null;
+    }
+
+    console.log('Fetching conversation:', conversationId);
+    
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -249,6 +266,13 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
+    if (!data) {
+      console.error('No conversation found with ID:', conversationId);
+      return null;
+    }
+
+    console.log('Conversation data retrieved:', data);
+
     const defaultProfile: ProfileData = { 
       id: '', 
       name: 'Unknown', 
@@ -261,34 +285,31 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return profile !== null && 
         typeof profile === 'object' && 
         'id' in profile &&
-        typeof profile.id === 'string' &&
-        'name' in profile &&
-        typeof profile.name === 'string' &&
-        'avatar' in profile &&
-        typeof profile.avatar === 'string' &&
-        'email' in profile &&
-        typeof profile.email === 'string';
+        typeof profile.id === 'string';
     };
     
+    // Safely extract user profile or use default
     const userProfile: ProfileData = isValidProfile(data.user_profile) 
       ? {
           id: data.user_profile.id,
-          name: data.user_profile.name,
-          avatar: data.user_profile.avatar,
-          email: data.user_profile.email
+          name: data.user_profile.name || 'User',
+          avatar: data.user_profile.avatar || '',
+          email: data.user_profile.email || ''
         }
       : defaultProfile;
     
+    // Safely extract fournisseur profile or use default
     const fournisseurProfile: ProfileData = isValidProfile(data.fournisseur_profile)
       ? {
           id: data.fournisseur_profile.id,
-          name: data.fournisseur_profile.name,
-          avatar: data.fournisseur_profile.avatar,
-          email: data.fournisseur_profile.email
+          name: data.fournisseur_profile.name || 'Supplier',
+          avatar: data.fournisseur_profile.avatar || '',
+          email: data.fournisseur_profile.email || ''
         }
       : defaultProfile;
     
-    return {
+    // Create conversation object with safer fallbacks
+    const conversation = {
       id: data.id,
       user_id: data.user_id,
       fournisseur_id: data.fournisseur_id,
@@ -299,60 +320,97 @@ export async function getConversation(conversationId: string): Promise<Conversat
       user: userProfile,
       fournisseur: fournisseurProfile
     };
+
+    console.log('Processed conversation:', conversation);
+    return conversation;
   } catch (error) {
     console.error('Error in getConversation:', error);
     return null;
   }
 }
 
-// Get all messages for a conversation
-export async function getConversationMessages(conversationId: string): Promise<Message[]> {
+// Get all messages for a conversation with pagination
+export async function getConversationMessages(
+  conversationId: string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<{ messages: Message[], hasMore: boolean }> {
   try {
-    const { data, error } = await supabase
+    // Calculate range based on pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    
+    // Get messages with pagination
+    const { data, error, count } = await supabase
       .from('messages')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .range(from, to);
     
     if (error) {
       console.error('Error fetching messages:', error);
       throw error;
     }
 
-    // Get media for messages if any
-    const messagesWithMedia = await Promise.all(
-      (data || []).map(async (message) => {
-        const { data: mediaData, error: mediaError } = await supabase
-          .from('conversation_media')
-          .select('*')
-          .eq('message_id', message.id);
+    // Get all message IDs for efficient media querying
+    const messageIds = data?.map(msg => msg.id) || [];
+    
+    // Fetch all media for these messages in a single query
+    let mediaData: any[] = [];
+    if (messageIds.length > 0) {
+      const { data: mediaResult, error: mediaError } = await supabase
+        .from('conversation_media')
+        .select('*')
+        .in('message_id', messageIds);
         
-        if (mediaError) {
-          console.error('Error fetching media:', mediaError);
-          return message as Message;
-        }
-        
-        // Transform media_type from string to the expected union type
-        const typedMedia = mediaData ? mediaData.map(media => ({
-          ...media,
-          media_type: (media.media_type === 'image' || media.media_type === 'audio' || media.media_type === 'document') ? 
-            media.media_type as "image" | "audio" | "document" : 
-            "document"
-        })) : [];
-        
-        return {
-          ...message,
-          media: typedMedia as MediaItem[]
-        } as Message;
-      })
-    );
+      if (!mediaError) {
+        mediaData = mediaResult || [];
+      } else {
+        console.error('Error fetching media:', mediaError);
+      }
+    }
+    
+    // Map media to corresponding messages
+    const messagesWithMedia = (data || []).map(message => {
+      // Find all media items for this message
+      const messageMedia = mediaData.filter(media => media.message_id === message.id);
+      
+      // Transform media_type from string to the expected union type
+      const typedMedia = messageMedia.map(media => ({
+        ...media,
+        media_type: (media.media_type === 'image' || media.media_type === 'audio' || media.media_type === 'document') ? 
+          media.media_type as "image" | "audio" | "document" : 
+          "document"
+      }));
+      
+      return {
+        ...message,
+        media: typedMedia as MediaItem[]
+      } as Message;
+    });
 
-    return messagesWithMedia;
+    // Sort messages in ascending order for display (newest at bottom)
+    messagesWithMedia.reverse();
+
+    // Determine if there are more messages to load
+    const hasMore = count ? from + messagesWithMedia.length < count : false;
+
+    return {
+      messages: messagesWithMedia,
+      hasMore
+    };
   } catch (error) {
     console.error('Error in getConversationMessages:', error);
-    return [];
+    return { messages: [], hasMore: false };
   }
 }
+
+// Legacy compatibility layer for code that expects the old function signature
+export const getMessagesLegacy = async (conversationId: string): Promise<Message[]> => {
+  const { messages } = await getConversationMessages(conversationId);
+  return messages;
+};
 
 // Send a message in a conversation
 export async function sendMessage(
