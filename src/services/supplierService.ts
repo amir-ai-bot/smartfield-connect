@@ -1,58 +1,50 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Supplier as SupplierType } from '@/types/supabase';
 
 /**
  * Get all suppliers
  */
-interface ProfileData {
-  id: string;
-  name: string;
-  avatar: string;
-  email: string;
-}
-
-export const getSuppliers = async (): Promise<Supplier[]> => {
+export const getSuppliers = async () => {
   try {
-    // First, get all suppliers
-    const { data: suppliersData, error: suppliersError } = await supabase
+    const { data, error } = await supabase
       .from('suppliers')
-      .select('*');
+      .select(`
+        *,
+        profiles:profiles!user_id(id, name, avatar, email)
+      `);
     
-    if (suppliersError) throw suppliersError;
+    if (error) throw error;
     
-    // Get all unique user IDs from suppliers
-    const userIds = [...new Set((suppliersData || [])
-      .map(s => s.user_id)
-      .filter(id => id !== null))];
-    
-    // Get profiles for these users
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, avatar, email')
-      .in('id', userIds);
-    
-    if (profilesError) throw profilesError;
-    
-    // Create a map of profiles by user ID
-    const profilesMap = new Map(
-      (profilesData || []).map(profile => [profile.id, profile])
-    );
-    
-    // Map suppliers with their profile data
-    return (suppliersData || []).map(item => {
-      const profile = item.user_id ? profilesMap.get(item.user_id) : null;
+    return (data || []).map(item => {
+      // Create a default profile object
+      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+      
+      // Handle potentially null/undefined profiles or SelectQueryError safely
+      let profileData = defaultProfile;
+      
+      if (item.profiles && 
+          typeof item.profiles === 'object' && 
+          !('code' in item.profiles)) {
+        profileData = {
+          id: item.profiles?.id || defaultProfile.id,
+          name: item.profiles?.name || defaultProfile.name,
+          avatar: item.profiles?.avatar || defaultProfile.avatar,
+          email: item.profiles?.email || defaultProfile.email
+        };
+      }
       
       return {
         id: item.id,
         user_id: item.user_id,
-        name: item.name || (profile?.name || 'Supplier'),
-        category: item.category || 'Autre',
-        location: item.location || 'Non spécifié',
-        phone: item.phone || '',
+        name: item.name,
+        category: item.category,
+        location: item.location,
+        phone: item.phone,
         products: item.products || [],
         rating: item.rating || 0,
-        email: profile?.email,
-        avatar: profile?.avatar,
+        email: profileData.email || '',
+        avatar: profileData.avatar || '',
         image: item.image || ''
       };
     });
@@ -83,43 +75,51 @@ export interface Supplier {
  */
 export const getSupplierById = async (id: string): Promise<Supplier | null> => {
   try {
-    // Get the supplier
-    const { data: supplierData, error: supplierError } = await supabase
+    const { data, error } = await supabase
       .from('suppliers')
-      .select('*')
+      .select(`
+        *,
+        profiles:profiles!user_id(id, name, avatar, email)
+      `)
       .eq('id', id)
       .single();
     
-    if (supplierError) throw supplierError;
-    if (!supplierData) return null;
+    if (error) throw error;
+    if (!data) return null;
     
-    // Get the profile if there's a user_id
-    let profile = null;
-    if (supplierData.user_id) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, avatar, email')
-        .eq('id', supplierData.user_id)
-        .single();
-      
-      if (!profileError && profileData) {
-        profile = profileData;
-      }
+    // Create a default profile object
+    const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+    
+    // Handle potentially null/undefined profiles or SelectQueryError safely
+    let profileData = defaultProfile;
+    
+    if (data.profiles && 
+        typeof data.profiles === 'object' && 
+        !('code' in data.profiles)) {
+      profileData = {
+        id: data.profiles?.id || defaultProfile.id,
+        name: data.profiles?.name || defaultProfile.name,
+        avatar: data.profiles?.avatar || defaultProfile.avatar,
+        email: data.profiles?.email || defaultProfile.email
+      };
     }
     
-    return {
-      id: supplierData.id,
-      user_id: supplierData.user_id,
-      name: supplierData.name || (profile?.name || 'Supplier'),
-      category: supplierData.category || 'Autre',
-      location: supplierData.location || 'Non spécifié',
-      phone: supplierData.phone || '',
-      products: supplierData.products || [],
-      rating: supplierData.rating || 0,
-      email: profile?.email,
-      avatar: profile?.avatar,
-      image: supplierData.image || ''
+    // Create a supplier object with the correct properties
+    const supplier: Supplier = {
+      id: data.id,
+      user_id: data.user_id,
+      name: data.name,
+      category: data.category,
+      location: data.location,
+      phone: data.phone,
+      products: data.products || [],
+      rating: data.rating || 0,
+      email: profileData.email || '',
+      avatar: profileData.avatar || '',
+      image: data.image || ''
     };
+    
+    return supplier;
   } catch (error) {
     console.error('Error getting supplier by ID:', error);
     return null;
@@ -237,47 +237,46 @@ export const createSupplierConversation = async (userId: string, fournisseurId: 
  */
 export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
   try {
-    // Search suppliers
-    const { data: suppliersData, error: suppliersError } = await supabase
+    const { data, error } = await supabase
       .from('suppliers')
-      .select('*')
+      .select(`
+        *,
+        profiles:profiles!user_id(id, name, avatar, email)
+      `)
       .or(`name.ilike.%${query}%, category.ilike.%${query}%, location.ilike.%${query}%`);
     
-    if (suppliersError) throw suppliersError;
+    if (error) throw error;
     
-    // Get all unique user IDs from suppliers
-    const userIds = [...new Set((suppliersData || [])
-      .map(s => s.user_id)
-      .filter(id => id !== null))];
-    
-    // Get profiles for these users
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, avatar, email')
-      .in('id', userIds);
-    
-    if (profilesError) throw profilesError;
-    
-    // Create a map of profiles by user ID
-    const profilesMap = new Map(
-      (profilesData || []).map(profile => [profile.id, profile])
-    );
-    
-    // Map suppliers with their profile data
-    return (suppliersData || []).map(item => {
-      const profile = item.user_id ? profilesMap.get(item.user_id) : null;
+    // Map the data to the correct supplier format with safe access
+    return (data || []).map(item => {
+      // Create a default profile object
+      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+      
+      // Handle potentially null/undefined profiles or SelectQueryError safely
+      let profileData = defaultProfile;
+      
+      if (item.profiles && 
+          typeof item.profiles === 'object' && 
+          !('code' in item.profiles)) {
+        profileData = {
+          id: item.profiles?.id || defaultProfile.id,
+          name: item.profiles?.name || defaultProfile.name,
+          avatar: item.profiles?.avatar || defaultProfile.avatar,
+          email: item.profiles?.email || defaultProfile.email
+        };
+      }
       
       return {
         id: item.id,
         user_id: item.user_id,
-        name: item.name || (profile?.name || 'Supplier'),
-        category: item.category || 'Autre',
-        location: item.location || 'Non spécifié',
-        phone: item.phone || '',
+        name: item.name,
+        category: item.category,
+        location: item.location,
+        phone: item.phone,
         products: item.products || [],
         rating: item.rating || 0,
-        email: profile?.email,
-        avatar: profile?.avatar,
+        email: profileData.email || '',
+        avatar: profileData.avatar || '',
         image: item.image || ''
       };
     });

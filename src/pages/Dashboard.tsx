@@ -1,4 +1,6 @@
+
 import React from 'react';
+import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 
@@ -72,6 +74,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardProvider>
+        <Navbar />
         <DashboardContent />
         <Footer />
       </DashboardProvider>

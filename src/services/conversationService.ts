@@ -1,39 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { MediaItem, Profile } from '@/types/supabase';
-import { setAdminRole } from '@/scripts/setAdminRole';
-
-interface ProfileData {
-  id: string;
-  name: string;
-  avatar: string;
-  email: string;
-}
-
-interface SupplierProfile {
-  id: string;
-  name: string;
-  avatar: string;
-  email: string;
-}
-
-interface Supplier {
-  id: string;
-  name?: string;
-  category?: string;
-  location?: string;
-  phone?: string;
-  products?: any[];
-  rating?: number;
-  image?: string;
-}
-
-interface FavoriteSupplierRecord {
-  id: string;
-  user_id: string;
-  supplier_id: string;
-  supplier: Supplier;
-  supplier_profile: SupplierProfile;
-}
 
 // Types for conversations
 export interface Conversation {
@@ -42,20 +10,18 @@ export interface Conversation {
   fournisseur_id: string;
   created_at: string;
   updated_at: string;
-  user_profile?: ProfileData | null;
-  fournisseur_profile?: ProfileData | null;
-  user?: ProfileData;
-  fournisseur?: ProfileData;
-}
-
-interface ConversationRecord {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  created_at: string;
-  updated_at: string;
-  user_profile: ProfileData | null;
-  fournisseur_profile: ProfileData | null;
+  user?: {
+    id: string;
+    name: string;
+    avatar: string;
+    email: string;
+  };
+  fournisseur?: {
+    id: string;
+    name: string;
+    avatar: string;
+    email: string;
+  };
 }
 
 export interface Message {
@@ -68,21 +34,7 @@ export interface Message {
   media?: MediaItem[];
 }
 
-interface RatingRecord {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
-  created_at: string;
-  profiles?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  } | null;
-}
-
-interface DatabaseRating {
+export interface Rating {
   id: string;
   user_id: string;
   fournisseur_id: string;
@@ -93,42 +45,18 @@ interface DatabaseRating {
     id: string;
     name: string;
     avatar?: string;
-  } | null;
-}
-
-export interface Rating {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
-  created_at: string;
-  profiles?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  } | null;
+  };
 }
 
 // Create a conversation
-export async function createConversation(userId: string, fournisseurId: string): Promise<string | null> {
+export async function createConversation(userId: string, supplierId: string): Promise<string | null> {
   try {
-    // Validate inputs
-    if (!userId || !fournisseurId) {
-      throw new Error('User ID and supplier ID are required');
-    }
-
-    // Prevent self-messaging
-    if (userId === fournisseurId) {
-      throw new Error('Cannot create a conversation with yourself');
-    }
-
     // Check if conversation already exists
     const { data: existingConversation, error: checkError } = await supabase
       .from('conversations')
       .select('id')
       .eq('user_id', userId)
-      .eq('fournisseur_id', fournisseurId)
+      .eq('fournisseur_id', supplierId)
       .maybeSingle();
     
     if (checkError) {
@@ -145,7 +73,7 @@ export async function createConversation(userId: string, fournisseurId: string):
       .from('conversations')
       .insert({
         user_id: userId,
-        fournisseur_id: fournisseurId
+        fournisseur_id: supplierId
       })
       .select()
       .single();
@@ -165,6 +93,7 @@ export async function createConversation(userId: string, fournisseurId: string):
 // Get all conversations for a user (either as user or fournisseur)
 export async function getConversations(userId: string): Promise<Conversation[]> {
   try {
+    // Get conversations where the user is either the user or the fournisseur
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -180,45 +109,33 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       throw error;
     }
 
-    const defaultProfile: ProfileData = { 
-      id: '', 
-      name: 'Unknown', 
-      avatar: '', 
-      email: '' 
-    };
-
-    // Type guard function for profile data
-    const isValidProfile = (profile: any): profile is ProfileData => {
-      return profile !== null && 
-        typeof profile === 'object' && 
-        'id' in profile &&
-        typeof profile.id === 'string' &&
-        'name' in profile &&
-        typeof profile.name === 'string' &&
-        'avatar' in profile &&
-        typeof profile.avatar === 'string' &&
-        'email' in profile &&
-        typeof profile.email === 'string';
-    };
-
+    // Transform data to match the Conversation interface
     return (data || []).map(item => {
-      const userProfile: ProfileData = isValidProfile(item.user_profile)
-        ? {
-            id: item.user_profile.id,
-            name: item.user_profile.name,
-            avatar: item.user_profile.avatar,
-            email: item.user_profile.email
-          }
-        : defaultProfile;
+      // Create default objects for user and fournisseur profiles
+      const defaultProfile = { id: '', name: 'Unknown', avatar: '', email: '' };
       
-      const fournisseurProfile: ProfileData = isValidProfile(item.fournisseur_profile)
-        ? {
-            id: item.fournisseur_profile.id,
-            name: item.fournisseur_profile.name,
-            avatar: item.fournisseur_profile.avatar,
-            email: item.fournisseur_profile.email
-          }
-        : defaultProfile;
+      // Extract profile data safely - these might be SelectQueryError objects
+      let userProfile = defaultProfile;
+      let fournisseurProfile = defaultProfile;
+      
+      // Check if the profiles are valid objects and not errors
+      if (item.user_profile && typeof item.user_profile === 'object' && !('code' in item.user_profile)) {
+        userProfile = {
+          id: item.user_profile?.id || defaultProfile.id,
+          name: item.user_profile?.name || defaultProfile.name,
+          avatar: item.user_profile?.avatar || defaultProfile.avatar,
+          email: item.user_profile?.email || defaultProfile.email
+        };
+      }
+      
+      if (item.fournisseur_profile && typeof item.fournisseur_profile === 'object' && !('code' in item.fournisseur_profile)) {
+        fournisseurProfile = {
+          id: item.fournisseur_profile?.id || defaultProfile.id,
+          name: item.fournisseur_profile?.name || defaultProfile.name,
+          avatar: item.fournisseur_profile?.avatar || defaultProfile.avatar,
+          email: item.fournisseur_profile?.email || defaultProfile.email
+        };
+      }
       
       return {
         id: item.id,
@@ -226,8 +143,6 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         fournisseur_id: item.fournisseur_id,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        user_profile: userProfile,
-        fournisseur_profile: fournisseurProfile,
         user: userProfile,
         fournisseur: fournisseurProfile
       };
@@ -244,13 +159,6 @@ export const getUserConversations = getConversations;
 // Get a specific conversation by ID
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
   try {
-    if (!conversationId) {
-      console.error('No conversation ID provided');
-      return null;
-    }
-
-    console.log('Fetching conversation:', conversationId);
-    
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -266,151 +174,96 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
-    if (!data) {
-      console.error('No conversation found with ID:', conversationId);
-      return null;
+    // Create default objects for user and fournisseur profiles
+    const defaultProfile = { id: '', name: 'Unknown', avatar: '', email: '' };
+    
+    // Extract profile data safely - these might be SelectQueryError objects
+    let userProfile = defaultProfile;
+    let fournisseurProfile = defaultProfile;
+    
+    // Check if the profiles are valid objects and not errors
+    if (data.user_profile && typeof data.user_profile === 'object' && !('code' in data.user_profile)) {
+      userProfile = {
+        id: data.user_profile?.id || defaultProfile.id,
+        name: data.user_profile?.name || defaultProfile.name,
+        avatar: data.user_profile?.avatar || defaultProfile.avatar,
+        email: data.user_profile?.email || defaultProfile.email
+      };
     }
-
-    console.log('Conversation data retrieved:', data);
-
-    const defaultProfile: ProfileData = { 
-      id: '', 
-      name: 'Unknown', 
-      avatar: '', 
-      email: '' 
-    };
     
-    // Type guard function for profile data
-    const isValidProfile = (profile: any): profile is ProfileData => {
-      return profile !== null && 
-        typeof profile === 'object' && 
-        'id' in profile &&
-        typeof profile.id === 'string';
-    };
+    if (data.fournisseur_profile && typeof data.fournisseur_profile === 'object' && !('code' in data.fournisseur_profile)) {
+      fournisseurProfile = {
+        id: data.fournisseur_profile?.id || defaultProfile.id,
+        name: data.fournisseur_profile?.name || defaultProfile.name,
+        avatar: data.fournisseur_profile?.avatar || defaultProfile.avatar,
+        email: data.fournisseur_profile?.email || defaultProfile.email
+      };
+    }
     
-    // Safely extract user profile or use default
-    const userProfile: ProfileData = isValidProfile(data.user_profile) 
-      ? {
-          id: data.user_profile.id,
-          name: data.user_profile.name || 'User',
-          avatar: data.user_profile.avatar || '',
-          email: data.user_profile.email || ''
-        }
-      : defaultProfile;
-    
-    // Safely extract fournisseur profile or use default
-    const fournisseurProfile: ProfileData = isValidProfile(data.fournisseur_profile)
-      ? {
-          id: data.fournisseur_profile.id,
-          name: data.fournisseur_profile.name || 'Supplier',
-          avatar: data.fournisseur_profile.avatar || '',
-          email: data.fournisseur_profile.email || ''
-        }
-      : defaultProfile;
-    
-    // Create conversation object with safer fallbacks
-    const conversation = {
+    // Transform data to match the Conversation interface
+    return {
       id: data.id,
       user_id: data.user_id,
       fournisseur_id: data.fournisseur_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      user_profile: userProfile,
-      fournisseur_profile: fournisseurProfile,
       user: userProfile,
       fournisseur: fournisseurProfile
     };
-
-    console.log('Processed conversation:', conversation);
-    return conversation;
   } catch (error) {
     console.error('Error in getConversation:', error);
     return null;
   }
 }
 
-// Get all messages for a conversation with pagination
-export async function getConversationMessages(
-  conversationId: string,
-  page: number = 1,
-  pageSize: number = 20
-): Promise<{ messages: Message[], hasMore: boolean }> {
+// Get all messages for a conversation
+export async function getConversationMessages(conversationId: string): Promise<Message[]> {
   try {
-    // Calculate range based on pagination
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    
-    // Get messages with pagination
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
       .from('messages')
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('created_at', { ascending: true });
     
     if (error) {
       console.error('Error fetching messages:', error);
       throw error;
     }
 
-    // Get all message IDs for efficient media querying
-    const messageIds = data?.map(msg => msg.id) || [];
-    
-    // Fetch all media for these messages in a single query
-    let mediaData: any[] = [];
-    if (messageIds.length > 0) {
-      const { data: mediaResult, error: mediaError } = await supabase
-        .from('conversation_media')
-        .select('*')
-        .in('message_id', messageIds);
+    // Get media for messages if any
+    const messagesWithMedia = await Promise.all(
+      (data || []).map(async (message) => {
+        const { data: mediaData, error: mediaError } = await supabase
+          .from('conversation_media')
+          .select('*')
+          .eq('message_id', message.id);
         
-      if (!mediaError) {
-        mediaData = mediaResult || [];
-      } else {
-        console.error('Error fetching media:', mediaError);
-      }
-    }
-    
-    // Map media to corresponding messages
-    const messagesWithMedia = (data || []).map(message => {
-      // Find all media items for this message
-      const messageMedia = mediaData.filter(media => media.message_id === message.id);
-      
-      // Transform media_type from string to the expected union type
-      const typedMedia = messageMedia.map(media => ({
-        ...media,
-        media_type: (media.media_type === 'image' || media.media_type === 'audio' || media.media_type === 'document') ? 
-          media.media_type as "image" | "audio" | "document" : 
-          "document"
-      }));
-      
-      return {
-        ...message,
-        media: typedMedia as MediaItem[]
-      } as Message;
-    });
+        if (mediaError) {
+          console.error('Error fetching media:', mediaError);
+          return message as Message;
+        }
+        
+        // Transform media_type from string to the expected union type
+        const typedMedia = mediaData ? mediaData.map(media => ({
+          ...media,
+          media_type: (media.media_type === 'image' || media.media_type === 'audio' || media.media_type === 'document') ? 
+            media.media_type as "image" | "audio" | "document" : 
+            "document"
+        })) : [];
+        
+        return {
+          ...message,
+          media: typedMedia as MediaItem[]
+        } as Message;
+      })
+    );
 
-    // Sort messages in ascending order for display (newest at bottom)
-    messagesWithMedia.reverse();
-
-    // Determine if there are more messages to load
-    const hasMore = count ? from + messagesWithMedia.length < count : false;
-
-    return {
-      messages: messagesWithMedia,
-      hasMore
-    };
+    return messagesWithMedia;
   } catch (error) {
     console.error('Error in getConversationMessages:', error);
-    return { messages: [], hasMore: false };
+    return [];
   }
 }
-
-// Legacy compatibility layer for code that expects the old function signature
-export const getMessagesLegacy = async (conversationId: string): Promise<Message[]> => {
-  const { messages } = await getConversationMessages(conversationId);
-  return messages;
-};
 
 // Send a message in a conversation
 export async function sendMessage(
@@ -611,21 +464,22 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       throw error;
     }
 
-    // Type guard for profile data in ratings
-    const isValidRatingProfile = (profile: any): profile is { id: string; name: string; avatar?: string } => {
-      return profile !== null && 
-        typeof profile === 'object' && 
-        'id' in profile &&
-        typeof profile.id === 'string' &&
-        'name' in profile &&
-        typeof profile.name === 'string';
-    };
-
-    // First cast to unknown, then to our known database type
-    const typedData = (data || []) as unknown as DatabaseRating[];
-
-    return typedData.map(item => {
-      const profile = item.profiles;
+    // Transform data to match the Rating interface with safe access
+    return (data || []).map(item => {
+      // Create default profile data
+      const defaultProfile = { id: '', name: 'Anonymous', avatar: '' };
+      
+      // Extract profile data safely - handle potential SelectQueryError
+      let profileData = defaultProfile;
+      
+      if (item.profiles && typeof item.profiles === 'object' && !('code' in item.profiles)) {
+        profileData = {
+          id: item.profiles?.id || defaultProfile.id,
+          name: item.profiles?.name || defaultProfile.name,
+          avatar: item.profiles?.avatar || defaultProfile.avatar
+        };
+      }
+      
       return {
         id: item.id,
         user_id: item.user_id,
@@ -633,14 +487,8 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
         rating: item.rating,
         comment: item.comment,
         created_at: item.created_at,
-        profiles: profile && isValidRatingProfile(profile)
-          ? {
-              id: profile.id,
-              name: profile.name,
-              avatar: profile.avatar
-            }
-          : null
-      };
+        profiles: profileData
+      } as Rating;
     });
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
@@ -722,58 +570,57 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
+    // Use direct join query instead of RPC
     const { data, error } = await supabase
       .from('favorite_suppliers')
       .select(`
-        *,
-        supplier:suppliers!supplier_id(*),
-        supplier_profile:profiles!supplier_id(id, name, avatar, email)
+        suppliers!supplier_id(
+          id,
+          user_id,
+          name,
+          category,
+          location,
+          phone,
+          products,
+          rating,
+          image,
+          profiles:profiles!user_id(
+            email,
+            avatar
+          )
+        )
       `)
       .eq('user_id', userId);
     
     if (error) {
-      console.error('Error fetching favorite fournisseurs:', error);
-      throw error;
+      console.error('Error fetching favorite suppliers:', error);
+      return [];
     }
-
-    const defaultProfile: SupplierProfile = { 
-      id: '', 
-      name: '', 
-      avatar: '', 
-      email: '' 
-    };
-
-    const defaultSupplier: Supplier = {
-      id: '',
-      name: '',
-      category: '',
-      location: '',
-      phone: '',
-      products: [],
-      rating: 0,
-      image: ''
-    };
-
-    const typedData = (data || []) as unknown as FavoriteSupplierRecord[];
-
-    return typedData.map(item => {
-      const supplier = item.supplier || defaultSupplier;
-      const profile = item.supplier_profile || defaultProfile;
-
+    
+    // Transform the data to the expected format
+    return Array.isArray(data) ? data.map(item => {
+      const supplier = item.suppliers || {};
+      
+      // Create default values for profile data
+      let email = '';
+      let avatar = '';
+      
+      // Safely access profile data if it exists
+      if (supplier.profiles && 
+          typeof supplier.profiles === 'object' && 
+          !('code' in supplier.profiles)) {
+        email = supplier.profiles?.email || '';
+        avatar = supplier.profiles?.avatar || '';
+      }
+      
       return {
-        id: supplier.id || item.supplier_id,
-        user_id: item.user_id,
-        name: profile.name || supplier.name || '',
-        category: supplier.category || '',
-        location: supplier.location || '',
-        phone: supplier.phone || '',
-        products: supplier.products || [],
-        rating: supplier.rating || 0,
-        email: profile.email || '',
-        avatar: profile.avatar || '',
-        image: supplier.image || ''
+        ...supplier,
+        email,
+        avatar,
+        isFavorite: true
       };
-    });
+    }) : [];
+    
   } catch (error) {
     console.error('Error in getFavoriteFournisseurs:', error);
     return [];
