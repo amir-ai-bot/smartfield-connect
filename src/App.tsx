@@ -7,7 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Navbar from "@/components/Navbar";
 import TestEnv from "./components/TestEnv";
-import { StatusIndicator } from "./components/StatusIndicator";
+import { TestConnection } from "./components/TestConnection";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +24,7 @@ const App = () => (
       <AuthProvider>
         <LanguageProvider>
           <TestEnv />
-          <StatusIndicator />
+          <TestConnection />
           <Toaster />
           <Sonner 
             position="top-center"
