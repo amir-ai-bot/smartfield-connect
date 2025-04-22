@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,7 +55,6 @@ const Messages = () => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <main className="container mx-auto px-4 py-20">
           <Card className="max-w-md mx-auto">
             <CardContent className="p-6 text-center">
@@ -86,8 +83,6 @@ const Messages = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col space-y-6 max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-6">
@@ -135,7 +130,6 @@ const Messages = () => {
           )}
         </div>
       </main>
-      
       <Footer />
     </div>
   );

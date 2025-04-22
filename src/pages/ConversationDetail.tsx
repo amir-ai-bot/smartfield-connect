@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -371,7 +370,6 @@ const ConversationDetail = () => {
   if (isLoading || !user) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16 flex justify-center items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
         </main>
@@ -382,9 +380,7 @@ const ConversationDetail = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="container mx-auto px-4 pt-16 pb-16 flex flex-col h-[calc(100vh-4rem)] max-w-screen-md">
+      <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="bg-white shadow-sm py-3 px-4 flex items-center sticky top-16 z-10 border-b rounded-t-lg">
           <Button 
             variant="ghost" 
