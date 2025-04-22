@@ -17,22 +17,8 @@ export const getSuppliers = async () => {
     if (error) throw error;
     
     return (data || []).map(item => {
-      // Create a default profile object
-      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
-      
-      // Handle potentially null/undefined profiles or SelectQueryError safely
-      let profileData = defaultProfile;
-      
-      if (item.profiles && 
-          typeof item.profiles === 'object' && 
-          !('code' in item.profiles)) {
-        profileData = {
-          id: item.profiles.id || defaultProfile.id,
-          name: item.profiles.name || defaultProfile.name,
-          avatar: item.profiles.avatar || defaultProfile.avatar,
-          email: item.profiles.email || defaultProfile.email
-        };
-      }
+      // Handle missing profile data safely with optional chaining and nullish coalescing
+      const profileData = item.profiles || {};
       
       return {
         id: item.id,
@@ -87,22 +73,8 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
     if (error) throw error;
     if (!data) return null;
     
-    // Create a default profile object
-    const defaultProfile = { id: '', name: '', avatar: '', email: '' };
-    
-    // Handle potentially null/undefined profiles or SelectQueryError safely
-    let profileData = defaultProfile;
-    
-    if (data.profiles && 
-        typeof data.profiles === 'object' && 
-        !('code' in data.profiles)) {
-      profileData = {
-        id: data.profiles.id || defaultProfile.id,
-        name: data.profiles.name || defaultProfile.name,
-        avatar: data.profiles.avatar || defaultProfile.avatar,
-        email: data.profiles.email || defaultProfile.email
-      };
-    }
+    // Get associated profile data safely
+    const profileData = data.profiles || {};
     
     // Create a supplier object with the correct properties
     const supplier: Supplier = {
@@ -249,22 +221,8 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
     
     // Map the data to the correct supplier format with safe access
     return (data || []).map(item => {
-      // Create a default profile object
-      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
-      
-      // Handle potentially null/undefined profiles or SelectQueryError safely
-      let profileData = defaultProfile;
-      
-      if (item.profiles && 
-          typeof item.profiles === 'object' && 
-          !('code' in item.profiles)) {
-        profileData = {
-          id: item.profiles.id || defaultProfile.id,
-          name: item.profiles.name || defaultProfile.name,
-          avatar: item.profiles.avatar || defaultProfile.avatar,
-          email: item.profiles.email || defaultProfile.email
-        };
-      }
+      // Handle missing profile data safely
+      const profileData = item.profiles || {};
       
       return {
         id: item.id,
