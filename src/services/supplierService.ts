@@ -1,6 +1,4 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Supplier } from '@/types/supabase';
 
 /**
  * Get all suppliers
@@ -11,29 +9,24 @@ export const getSuppliers = async () => {
       .from('suppliers')
       .select(`
         *,
-        profiles:profiles!user_id(id, name, avatar, email)
+        profiles:user_id (name, avatar, email)
       `);
     
     if (error) throw error;
     
-    return (data || []).map(item => {
-      // Handle missing profile data safely with optional chaining and nullish coalescing
-      const profileData = item.profiles || {};
-      
-      return {
-        id: item.id,
-        user_id: item.user_id,
-        name: item.name,
-        category: item.category,
-        location: item.location,
-        phone: item.phone,
-        products: item.products || [],
-        rating: item.rating || 0,
-        email: profileData.email || '',
-        avatar: profileData.avatar || '',
-        image: item.image || ''
-      };
-    });
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      name: item.name,
+      category: item.category,
+      location: item.location,
+      phone: item.phone,
+      products: item.products || [],
+      rating: item.rating || 0,
+      email: item.profiles?.email || '',
+      avatar: item.profiles?.avatar || '',
+      image: item.image || ''
+    }));
   } catch (error) {
     console.error('Error getting suppliers:', error);
     return [];
@@ -65,16 +58,13 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       .from('suppliers')
       .select(`
         *,
-        profiles:profiles!user_id(id, name, avatar, email)
+        profiles:user_id (name, avatar, email)
       `)
       .eq('id', id)
       .single();
     
     if (error) throw error;
     if (!data) return null;
-    
-    // Get associated profile data safely
-    const profileData = data.profiles || {};
     
     // Create a supplier object with the correct properties
     const supplier: Supplier = {
@@ -86,8 +76,8 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       phone: data.phone,
       products: data.products || [],
       rating: data.rating || 0,
-      email: profileData.email || '',
-      avatar: profileData.avatar || '',
+      email: data.profiles?.email || '',
+      avatar: data.profiles?.avatar || '',
       image: data.image || ''
     };
     
@@ -97,9 +87,6 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
     return null;
   }
 };
-
-// Alias for compatibility with existing code
-export const getSupplier = getSupplierById;
 
 /**
  * Create a supplier
@@ -213,35 +200,28 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
       .from('suppliers')
       .select(`
         *,
-        profiles:profiles!user_id(id, name, avatar, email)
+        profiles:user_id (name, avatar, email)
       `)
       .or(`name.ilike.%${query}%, category.ilike.%${query}%, location.ilike.%${query}%`);
     
     if (error) throw error;
     
-    // Map the data to the correct supplier format with safe access
-    return (data || []).map(item => {
-      // Handle missing profile data safely
-      const profileData = item.profiles || {};
-      
-      return {
-        id: item.id,
-        user_id: item.user_id,
-        name: item.name,
-        category: item.category,
-        location: item.location,
-        phone: item.phone,
-        products: item.products || [],
-        rating: item.rating || 0,
-        email: profileData.email || '',
-        avatar: profileData.avatar || '',
-        image: item.image || ''
-      };
-    });
+    // Map the data to the correct supplier format
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id,
+      name: item.name,
+      category: item.category,
+      location: item.location,
+      phone: item.phone,
+      products: item.products || [],
+      rating: item.rating || 0,
+      email: item.profiles?.email || '',
+      avatar: item.profiles?.avatar || '',
+      image: item.image || ''
+    }));
   } catch (error) {
     console.error('Error searching suppliers:', error);
     return [];
   }
 };
-
-export const getAllSuppliers = getSuppliers;
