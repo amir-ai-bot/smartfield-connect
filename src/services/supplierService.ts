@@ -17,8 +17,22 @@ export const getSuppliers = async () => {
     if (error) throw error;
     
     return (data || []).map(item => {
-      // Handle missing profile data safely with optional chaining and nullish coalescing
-      const profileData = item.profiles || {};
+      // Create a default profile object
+      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+      
+      // Handle potentially null/undefined profiles or SelectQueryError safely
+      let profileData = defaultProfile;
+      
+      if (item.profiles && 
+          typeof item.profiles === 'object' && 
+          !('code' in item.profiles)) {
+        profileData = {
+          id: item.profiles.id || defaultProfile.id,
+          name: item.profiles.name || defaultProfile.name,
+          avatar: item.profiles.avatar || defaultProfile.avatar,
+          email: item.profiles.email || defaultProfile.email
+        };
+      }
       
       return {
         id: item.id,
@@ -73,8 +87,22 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
     if (error) throw error;
     if (!data) return null;
     
-    // Get associated profile data safely
-    const profileData = data.profiles || {};
+    // Create a default profile object
+    const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+    
+    // Handle potentially null/undefined profiles or SelectQueryError safely
+    let profileData = defaultProfile;
+    
+    if (data.profiles && 
+        typeof data.profiles === 'object' && 
+        !('code' in data.profiles)) {
+      profileData = {
+        id: data.profiles.id || defaultProfile.id,
+        name: data.profiles.name || defaultProfile.name,
+        avatar: data.profiles.avatar || defaultProfile.avatar,
+        email: data.profiles.email || defaultProfile.email
+      };
+    }
     
     // Create a supplier object with the correct properties
     const supplier: Supplier = {
@@ -221,8 +249,22 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
     
     // Map the data to the correct supplier format with safe access
     return (data || []).map(item => {
-      // Handle missing profile data safely
-      const profileData = item.profiles || {};
+      // Create a default profile object
+      const defaultProfile = { id: '', name: '', avatar: '', email: '' };
+      
+      // Handle potentially null/undefined profiles or SelectQueryError safely
+      let profileData = defaultProfile;
+      
+      if (item.profiles && 
+          typeof item.profiles === 'object' && 
+          !('code' in item.profiles)) {
+        profileData = {
+          id: item.profiles.id || defaultProfile.id,
+          name: item.profiles.name || defaultProfile.name,
+          avatar: item.profiles.avatar || defaultProfile.avatar,
+          email: item.profiles.email || defaultProfile.email
+        };
+      }
       
       return {
         id: item.id,
@@ -245,3 +287,86 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
 };
 
 export const getAllSuppliers = getSuppliers;
+
+// Add example suppliers to the database
+export const addExampleSuppliers = async () => {
+  try {
+    // Check if suppliers already exist to avoid duplicates
+    const { data: existingSuppliers, error: countError } = await supabase
+      .from('suppliers')
+      .select('id');
+    
+    if (countError) throw countError;
+    
+    // If we already have suppliers, don't add more
+    if (existingSuppliers && existingSuppliers.length > 0) {
+      console.log(`Already have ${existingSuppliers.length} suppliers, skipping example suppliers`);
+      return;
+    }
+    
+    // Example suppliers data
+    const exampleSuppliers = [
+      {
+        name: 'AgroTech Solutions',
+        category: 'Equipment',
+        location: 'Tunis',
+        phone: '+216 71 234 567',
+        products: ['Tractors', 'Harvesters', 'Irrigation Systems'],
+        rating: 4.8,
+        image: 'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZmFybSUyMGVxdWlwbWVudHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=800&q=60'
+      },
+      {
+        name: 'SeedMaster',
+        category: 'Seeds',
+        location: 'Sfax',
+        phone: '+216 74 987 654',
+        products: ['Wheat Seeds', 'Corn Seeds', 'Vegetable Seeds', 'Organic Seeds'],
+        rating: 4.6,
+        image: 'https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGZhcm0lMjBzZWVkc3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=800&q=60'
+      },
+      {
+        name: 'Fertile Earth',
+        category: 'Fertilizers',
+        location: 'Sousse',
+        phone: '+216 73 456 789',
+        products: ['Organic Fertilizers', 'Chemical Fertilizers', 'Soil Enhancers'],
+        rating: 4.5,
+        image: 'https://images.unsplash.com/photo-1626017834756-e4d8f61dbd66?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZmFybSUyMGZlcnRpbGl6ZXJ8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=800&q=60'
+      },
+      {
+        name: 'Irrigation Experts',
+        category: 'Equipment',
+        location: 'Nabeul',
+        phone: '+216 72 345 678',
+        products: ['Drip Irrigation', 'Sprinklers', 'Water Pumps', 'Control Systems'],
+        rating: 4.7,
+        image: 'https://images.unsplash.com/photo-1530507629858-e3e1d99e8614?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8aXJyaWdhdGlvbnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=800&q=60'
+      },
+      {
+        name: 'AgriConsult',
+        category: 'Consulting',
+        location: 'Monastir',
+        phone: '+216 73 987 123',
+        products: ['Farm Management', 'Crop Analysis', 'Technical Support', 'Market Analysis'],
+        rating: 4.9,
+        image: 'https://images.unsplash.com/photo-1521334884684-d80222895322?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8YWdyaWN1bHR1cmFsJTIwY29uc3VsdGluZ3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=800&q=60'
+      }
+    ];
+    
+    // Insert example suppliers
+    const { error: insertError } = await supabase
+      .from('suppliers')
+      .insert(exampleSuppliers);
+    
+    if (insertError) throw insertError;
+    
+    console.log('Added example suppliers successfully');
+    return true;
+  } catch (error) {
+    console.error('Error adding example suppliers:', error);
+    return false;
+  }
+};
+
+// Call the function to add example suppliers when the module loads
+addExampleSuppliers();

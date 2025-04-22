@@ -67,5 +67,3 @@ export interface Supplier {
   image?: string;
   isFavorite?: boolean;
 }
-
-// Add any additional Supabase types you need here
