@@ -1,7 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User, Profile } from '@/types/auth';
+import { User } from '@/types/auth';
 
 // Authentication functions
 export const signIn = async (email: string, password: string): Promise<User | null> => {
@@ -36,59 +35,22 @@ export const signIn = async (email: string, password: string): Promise<User | nu
       console.error('Error fetching user profile:', profileError);
     }
 
-    // Ensure role is a valid enum value
-    const roleValue = profileData?.role || 'user';
-    const role = (roleValue === 'admin' || 
-                  roleValue === 'user' || 
-                  roleValue === 'fournisseur' || 
-                  roleValue === 'pending_fournisseur') 
-                  ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
-                  : "user";
-
-    // Ensure preferences has the right type
-    let preferences;
-    if (profileData?.preferences) {
-      if (typeof profileData.preferences === 'object') {
-        const prefs = profileData.preferences as any;
-        preferences = {
-          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
-            ? prefs.language 
-            : 'fr',
-          notifications: {
-            email: !!prefs.notifications?.email,
-            app: !!prefs.notifications?.app
-          },
-          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
-            ? prefs.theme
-            : 'light'
-        };
-      } else {
-        preferences = {
-          language: 'fr',
-          notifications: { email: true, app: true },
-          theme: 'light'
-        };
-      }
-    } else {
-      preferences = {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      };
-    }
-
     // Combine auth user with profile data
     const user: User = {
       id: data.user.id,
       email: data.user.email || '',
       name: profileData?.name || data.user.user_metadata?.name || '',
-      role: role,
+      role: profileData?.role || 'user',
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!data.user.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: preferences
+      preferences: profileData?.preferences || {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      }
     };
 
     toast.success('Connexion réussie!');
@@ -155,7 +117,7 @@ export const signUp = async (
         email: email.toLowerCase(),
         name: name,
         phone_number: phone_number || '',
-        role: 'user' as "admin" | "user" | "fournisseur" | "pending_fournisseur",
+        role: 'user',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
@@ -215,59 +177,22 @@ export const getCurrentUser = async (): Promise<User | null> => {
       console.error('Error fetching user profile:', profileError);
     }
 
-    // Ensure role is a valid enum value
-    const roleValue = profileData?.role || 'user';
-    const role = (roleValue === 'admin' || 
-                 roleValue === 'user' || 
-                 roleValue === 'fournisseur' || 
-                 roleValue === 'pending_fournisseur') 
-                 ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
-                 : "user";
-
-    // Ensure preferences has the right type
-    let preferences;
-    if (profileData?.preferences) {
-      if (typeof profileData.preferences === 'object') {
-        const prefs = profileData.preferences as any;
-        preferences = {
-          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
-            ? prefs.language 
-            : 'fr',
-          notifications: {
-            email: !!prefs.notifications?.email,
-            app: !!prefs.notifications?.app
-          },
-          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
-            ? prefs.theme
-            : 'light'
-        };
-      } else {
-        preferences = {
-          language: 'fr',
-          notifications: { email: true, app: true },
-          theme: 'light'
-        };
-      }
-    } else {
-      preferences = {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      };
-    }
-
     // Combine auth user with profile data
     const user: User = {
       id: authUser.id,
       email: authUser.email || '',
       name: profileData?.name || authUser.user_metadata?.name || '',
-      role: role,
+      role: profileData?.role || 'user',
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: preferences
+      preferences: profileData?.preferences || {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      }
     };
 
     return user;
@@ -325,30 +250,17 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
       id: authUser.id,
       email: authUser.email || '',
       name: profileData?.name || authUser.user_metadata?.name || '',
-      role: profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user",
+      role: profileData?.role || 'user',
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences ? 
-        (typeof profileData.preferences === 'object' ? 
-          profileData.preferences as {
-            language?: "fr" | "en" | "ar";
-            notifications?: { email?: boolean; app?: boolean; };
-            theme?: "light" | "dark" | "system";
-          } : 
-          {
-            language: "fr",
-            notifications: { email: true, app: true },
-            theme: "light" 
-          }
-        ) : 
-        {
-          language: "fr",
-          notifications: { email: true, app: true },
-          theme: "light" 
-        }
+      preferences: profileData?.preferences || {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      }
     };
 
     toast.success('Profil mis à jour avec succès');
@@ -461,27 +373,3 @@ export const login = signIn;
 export const logout = signOut;
 export const signup = signUp;
 export const updateProfile = updateUserProfile;
-
-/**
- * Creates an admin account
- * @param email Admin email
- * @param password Admin password
- * @param name Admin name
- */
-export const createAdminAccount = async (email: string, password: string, name: string) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('admin-create-user', {
-      body: { email, password, name, role: 'admin' }
-    });
-    
-    if (error) {
-      console.error('Error creating admin account:', error);
-      return { success: false, error };
-    }
-    
-    return { success: true, data };
-  } catch (error) {
-    console.error('Error creating admin account:', error);
-    return { success: false, error };
-  }
-};
