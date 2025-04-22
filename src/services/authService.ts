@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { User, Profile } from '@/types/auth';
@@ -34,6 +33,20 @@ export const signIn = async (email: string, password: string): Promise<User | nu
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError);
+    }
+
+    // If this is your email, set role to admin
+    if (email === 'yassindhibi100@gmail.com') {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', data.user.id);
+
+      if (updateError) {
+        console.error('Error updating role:', updateError);
+      } else {
+        profileData.role = 'admin';
+      }
     }
 
     // Ensure role is a valid enum value
@@ -213,6 +226,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError);
+      return null;
     }
 
     // Ensure role is a valid enum value
@@ -269,6 +283,13 @@ export const getCurrentUser = async (): Promise<User | null> => {
       bio: profileData?.bio || undefined,
       preferences: preferences
     };
+
+    // Update user metadata if role doesn't match
+    if (authUser.user_metadata?.role !== role) {
+      await supabase.auth.updateUser({
+        data: { role: role }
+      });
+    }
 
     return user;
   } catch (error) {
