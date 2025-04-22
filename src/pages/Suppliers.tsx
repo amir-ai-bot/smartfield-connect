@@ -1,80 +1,44 @@
+
 import { useEffect, useState } from 'react';
+import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SupplierCard from '@/components/SupplierCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSuppliers } from '@/services/supplierService';
-import { Search, Filter, UserPlus, AlertTriangle, RefreshCw } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Search, Filter, UserPlus, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import BecomeSupplierDialog from '@/components/suppliers/BecomeSupplierDialog';
-import { supabase } from '@/integrations/supabase/client';
-import { Role } from '@/types/auth';
 
 const Suppliers = () => {
-  const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showBecomeSupplierDialog, setShowBecomeSupplierDialog] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   
-  const loadSuppliers = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      console.log('Loading suppliers...');
-
-      // Check session first
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Session error');
-      }
-
-      if (!session) {
-        console.log('No active session, redirecting to login');
-        navigate('/');
-        return;
-      }
-
-      const allSuppliers = await getSuppliers();
-      console.log('Suppliers loaded:', allSuppliers);
-      
-      if (Array.isArray(allSuppliers)) {
-        setSuppliers(allSuppliers);
-        setFilteredSuppliers(allSuppliers);
-      } else {
-        throw new Error('Invalid suppliers data received');
-      }
-    } catch (error) {
-      console.error('Error loading suppliers:', error);
-      setError('Erreur lors du chargement des fournisseurs');
-      toast.error('Erreur lors du chargement des fournisseurs');
-      
-      // If we haven't tried too many times, retry
-      if (retryCount < 3) {
-        console.log('Retrying... Attempt:', retryCount + 1);
-        setRetryCount(prev => prev + 1);
-        setTimeout(loadSuppliers, 2000); // Retry after 2 seconds
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
     document.title = 'Fournisseurs | AgriSmart';
     
-    // Only load suppliers if authenticated
-    if (isAuthenticated && !authLoading) {
-      loadSuppliers();
-    }
-  }, [isAuthenticated, authLoading]);
+    const loadSuppliers = async () => {
+      try {
+        setIsLoading(true);
+        const allSuppliers = await getSuppliers();
+        setSuppliers(allSuppliers);
+        setFilteredSuppliers(allSuppliers);
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
+        toast.error('Erreur lors du chargement des fournisseurs');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadSuppliers();
+  }, []);
   
   useEffect(() => {
     if (!searchQuery) {
@@ -85,9 +49,9 @@ const Suppliers = () => {
     const query = searchQuery.toLowerCase();
     const filtered = suppliers.filter(supplier => {
       return (
-        supplier.name?.toLowerCase().includes(query) ||
-        supplier.category?.toLowerCase().includes(query) ||
-        supplier.location?.toLowerCase().includes(query) ||
+        supplier.name.toLowerCase().includes(query) ||
+        supplier.category.toLowerCase().includes(query) ||
+        supplier.location.toLowerCase().includes(query) ||
         (supplier.products && supplier.products.some((product: string) => product.toLowerCase().includes(query)))
       );
     });
@@ -99,59 +63,10 @@ const Suppliers = () => {
     setSearchQuery(e.target.value);
   };
 
-  const handleRetry = () => {
-    setRetryCount(0); // Reset retry count
-    loadSuppliers(); // Try loading again
-  };
-
-  const handleSupplierRequest = async () => {
-    try {
-      if (!user) return;
-      const currentRole = user.role as Role;
-      if (currentRole === 'pending_fournisseur') {
-        toast.error('Your supplier request is pending approval');
-        return;
-      }
-      // ... rest of the function
-    } catch (error) {
-      console.error('Error requesting supplier status:', error);
-      toast.error('Failed to submit supplier request');
-    }
-  };
-
-  const renderSupplierRequestButton = () => {
-    if (!user) return null;
-    const currentRole = user.role as Role;
-    if (currentRole === 'pending_fournisseur') {
-      return (
-        <Button disabled className="w-full md:w-auto">
-          Request Pending
-        </Button>
-      );
-    }
-    // ... rest of the function
-  };
-
-  // Show loading state while auth is being checked
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
-          <p className="text-gray-600">Vérification de l'authentification...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated, redirect to home
-  if (!isAuthenticated) {
-    navigate('/');
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -172,7 +87,12 @@ const Suppliers = () => {
               </Button>
             )}
             
-            {renderSupplierRequestButton()}
+            {user?.role === 'pending_fournisseur' && (
+              <div className="flex items-center bg-yellow-50 text-yellow-800 px-4 py-2 rounded-md">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                <span className="text-sm">Votre demande est en cours d'examen</span>
+              </div>
+            )}
           </div>
           
           <div className="flex flex-col md:flex-row gap-4">
@@ -195,25 +115,7 @@ const Suppliers = () => {
           
           {isLoading ? (
             <div className="flex justify-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
-                <p className="text-gray-600">Chargement des fournisseurs...</p>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 rounded-xl shadow-lg p-8 text-center">
-              <div className="h-16 w-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <AlertTriangle className="h-8 w-8 text-red-500" />
-              </div>
-              <h3 className="font-display text-lg font-semibold mb-2">Erreur de chargement</h3>
-              <p className="text-gray-600">{error}</p>
-              <Button 
-                className="mt-4"
-                onClick={handleRetry}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Réessayer
-              </Button>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
             </div>
           ) : filteredSuppliers.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
