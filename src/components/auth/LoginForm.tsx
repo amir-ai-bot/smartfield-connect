@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,8 @@ import { LoginFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 type LoginFormProps = {
   onSuccess?: () => void;
@@ -22,16 +23,41 @@ const LoginForm: React.FC<LoginFormProps> = ({
 }) => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
+    if (isLoggingIn) return;
+    
+    setIsLoggingIn(true);
+    const loadingToast = toast.loading('Connexion en cours...');
+
     try {
+      // Try direct Supabase login first
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) throw error;
+
+      // If successful, complete the login process
       await login(data.email, data.password);
+      
+      toast.dismiss(loadingToast);
+      toast.success('Connexion réussie');
+      
       if (onSuccess) onSuccess();
-      navigate('/dashboard');
-    } catch (error) {
-      // Error is handled in the auth context
-      console.error('Login form error:', error);
+      navigate('/dashboard', { replace: true });
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.dismiss(loadingToast);
+      toast.error(error.message === 'Invalid login credentials'
+        ? 'Email ou mot de passe incorrect'
+        : 'Erreur lors de la connexion'
+      );
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -46,6 +72,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="email"
             className="pl-10"
             placeholder="votre@email.com"
+            autoComplete="email"
+            disabled={isLoggingIn}
             {...register('email', { 
               required: 'L\'email est requis',
               pattern: {
@@ -67,6 +95,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="button"
             variant="link"
             onClick={onSwitchToForgotPassword}
+            disabled={isLoggingIn}
             className="p-0 h-auto font-normal text-xs"
           >
             Mot de passe oublié?
@@ -79,6 +108,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="password"
             className="pl-10"
             placeholder="Mot de passe"
+            autoComplete="current-password"
+            disabled={isLoggingIn}
             {...register('password', { 
               required: 'Le mot de passe est requis',
               minLength: { value: 6, message: '6 caractères minimum' }
@@ -91,8 +122,12 @@ const LoginForm: React.FC<LoginFormProps> = ({
       </div>
 
       <div className="pt-4 flex flex-col space-y-4">
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? (
+        <Button 
+          type="submit" 
+          disabled={isLoggingIn} 
+          className="w-full bg-agri-green-500 hover:bg-agri-green-600"
+        >
+          {isLoggingIn ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Connexion...
@@ -108,6 +143,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
             type="button"
             variant="link"
             onClick={onSwitchToSignup}
+            disabled={isLoggingIn}
             className="p-0 h-auto font-normal"
           >
             S'inscrire
