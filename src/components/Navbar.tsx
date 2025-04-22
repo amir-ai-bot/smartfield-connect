@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { LogOut, Settings, Home, Sprout, ShoppingCart, Cloud, User } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import logo from '@/assets/logo.png';
+import BottomNavbar from './BottomNavbar';
 import LanguageSwitcher from './LanguageSwitcher';
 import AuthDialog from '@/components/auth/AuthDialog';
 
@@ -156,62 +157,14 @@ const Navbar = () => {
         </div>
       )}
       
-      {/* Mobile bottom navigation */}
-      {isMobile && (
-        <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 z-40 md:hidden">
-          <div className="flex items-center justify-around p-2">
-            <Link to="/" className={`flex flex-col items-center py-2 px-3 ${isActive('/')}`}>
-              <Home className="h-6 w-6" />
-              <span className="text-xs mt-1">{t('home')}</span>
-            </Link>
-            
-            <Link to="/projects" className={`flex flex-col items-center py-2 px-3 ${isActive('/projects')}`}>
-              <Sprout className="h-6 w-6" />
-              <span className="text-xs mt-1">{t('projects')}</span>
-            </Link>
-            
-            <Link to="/suppliers" className={`flex flex-col items-center py-2 px-3 ${isActive('/suppliers')}`}>
-              <ShoppingCart className="h-6 w-6" />
-              <span className="text-xs mt-1">{t('suppliers')}</span>
-            </Link>
-            
-            <Link to="/weather" className={`flex flex-col items-center py-2 px-3 ${isActive('/weather')}`}>
-              <Cloud className="h-6 w-6" />
-              <span className="text-xs mt-1">{t('weather')}</span>
-            </Link>
-            
-            {isAuthenticated ? (
-              <>
-                {isAdmin() && (
-                  <Link to="/admin" className={`flex flex-col items-center py-2 px-3 ${isActive('/admin')}`}>
-                    <Settings className="h-6 w-6" />
-                    <span className="text-xs mt-1">{t('admin')}</span>
-                  </Link>
-                )}
-                <button onClick={handleLogout} className="flex flex-col items-center py-2 px-3 text-gray-500 bg-transparent border-none">
-                  <LogOut className="h-6 w-6" />
-                  <span className="text-xs mt-1">{t('logout')}</span>
-                </button>
-              </>
-            ) : (
-              <button 
-                onClick={openAuthDialog} 
-                className="flex flex-col items-center py-2 px-3 text-gray-500 bg-transparent border-none"
-              >
-                <User className="h-6 w-6" />
-                <span className="text-xs mt-1">{t('login')}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Auth Dialog */}
+      {/* Add AuthDialog component */}
       <AuthDialog 
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
         initialView="login"
       />
+      
+      {isMobile && <BottomNavbar />}
     </header>
   );
 };
