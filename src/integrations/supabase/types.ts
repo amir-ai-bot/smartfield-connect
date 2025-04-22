@@ -134,7 +134,6 @@ export type Database = {
           bio: string | null
           created_at: string | null
           email: string | null
-          email_verified: boolean | null
           id: string
           name: string | null
           phone_number: string | null
@@ -148,7 +147,6 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           email?: string | null
-          email_verified?: boolean | null
           id: string
           name?: string | null
           phone_number?: string | null
@@ -162,7 +160,6 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           email?: string | null
-          email_verified?: boolean | null
           id?: string
           name?: string | null
           phone_number?: string | null
@@ -502,7 +499,7 @@ export type Database = {
       }
       admin_delete_user: {
         Args: {
-          user_id: string
+          target_user_id: string
         }
         Returns: undefined
       }
@@ -540,18 +537,7 @@ export type Database = {
       }
       get_all_suppliers: {
         Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          user_id: string
-          name: string
-          category: string
-          rating: number
-          location: string
-          phone: string
-          email: string
-          products: string[]
-          avatar: string
-        }[]
+        Returns: Json[]
       }
       get_fournisseur_ratings: {
         Args: {
