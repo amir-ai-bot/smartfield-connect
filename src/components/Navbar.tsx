@@ -3,13 +3,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { LogOut, Settings, Home, Sprout, ShoppingCart, Cloud, User, MessageSquare } from 'lucide-react';
+import { LogOut, Settings, Home, Sprout, ShoppingCart, Cloud, User } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import LanguageSwitcher from './LanguageSwitcher';
 import AuthDialog from '@/components/auth/AuthDialog';
 
 const Navbar = () => {
-  const { isAuthenticated, signOut, isAdmin } = useAuth();
+  const { isAuthenticated, logout, isAdmin } = useAuth();
   const { t } = useLanguage();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -36,7 +36,8 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await logout();
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -74,10 +75,6 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/conversations" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/conversations')}`}>
-                    <MessageSquare className="inline-block h-5 w-5 mr-1 align-text-top" />
-                    <span>{t('messages')}</span>
-                  </Link>
                   <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
                   {isAdmin() && (
                     <Link to="/admin" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
@@ -132,10 +129,6 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/conversations" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/conversations')}`}>
-                    <MessageSquare className="inline-block h-5 w-5 mr-1 align-text-top" />
-                    <span>{t('messages')}</span>
-                  </Link>
                   <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
                   {isAdmin() && (
                     <Link to="/admin" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
@@ -189,11 +182,6 @@ const Navbar = () => {
             
             {isAuthenticated ? (
               <>
-                <Link to="/conversations" className={`flex flex-col items-center py-2 px-3 ${isActive('/conversations')}`}>
-                  <MessageSquare className="h-6 w-6" />
-                  <span className="text-xs mt-1">{t('messages')}</span>
-                </Link>
-                
                 {isAdmin() && (
                   <Link to="/admin" className={`flex flex-col items-center py-2 px-3 ${isActive('/admin')}`}>
                     <Settings className="h-6 w-6" />
