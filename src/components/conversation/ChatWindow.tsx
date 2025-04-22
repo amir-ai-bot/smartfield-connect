@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
   markMessagesAsRead
 } from '@/services/conversationService';
 import { formatDistanceToNow } from 'date-fns';
-import { fr, enUS, ar } from 'date-fns/locale';
+import { fr, enUS, ar } from 'date-fns/locale'; // Changed 'en' to 'enUS'
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -107,7 +108,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
       case 'ar':
         return ar;
       default:
-        return enUS;
+        return enUS;  // Changed from 'en' to 'enUS'
     }
   };
 
@@ -153,6 +154,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
 
   const handleVoiceMessage = async (audioBlob: Blob) => {
     try {
+      // Updated to match sendVoiceMessage signature that expects a Blob
       await sendVoiceMessage(conversation.id, audioBlob, user!.id);
       loadMessages();
     } catch (error) {
@@ -163,6 +165,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="border-b p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Avatar>
@@ -181,6 +184,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
 
       <Separator />
 
+      {/* Messages */}
       <div className="flex-1 overflow-auto p-4">
         <ScrollArea className="h-full">
           <div className="space-y-4">
@@ -236,6 +240,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, onClose }) => {
 
       <Separator />
 
+      {/* Input */}
       <div className="p-4">
         <div className="flex items-center space-x-2">
           <Button variant="ghost" size="icon">

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MediaItem } from '@/types/supabase';
@@ -48,48 +47,6 @@ export interface Rating {
   };
 }
 
-// Create a conversation
-export async function createConversation(userId: string, supplierId: string): Promise<string | null> {
-  try {
-    // Check if conversation already exists
-    const { data: existingConversation, error: checkError } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('fournisseur_id', supplierId)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.error('Error checking existing conversation:', checkError);
-      throw checkError;
-    }
-    
-    if (existingConversation) {
-      return existingConversation.id;
-    }
-    
-    // Create new conversation
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({
-        user_id: userId,
-        fournisseur_id: supplierId
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
-    }
-    
-    return data.id;
-  } catch (error) {
-    console.error('Error in createConversation:', error);
-    throw error;
-  }
-}
-
 // Get all conversations for a user (either as user or fournisseur)
 export async function getConversations(userId: string): Promise<Conversation[]> {
   try {
@@ -111,9 +68,9 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
 
     // Transform data to match the Conversation interface
     return (data || []).map(item => {
-      // Handle user profile and fournisseur profile data safely
-      const userProfile = item.user_profile || {};
-      const fournisseurProfile = item.fournisseur_profile || {};
+      // Handle user profile and fournisseur profile data safely with default values
+      const userProfile = item.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+      const fournisseurProfile = item.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
       
       return {
         id: item.id,
@@ -162,9 +119,9 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
-    // Handle user and fournisseur profile data safely
-    const userProfile = data.user_profile || {};
-    const fournisseurProfile = data.fournisseur_profile || {};
+    // Handle user and fournisseur profile data safely with default values
+    const userProfile = data.user_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
+    const fournisseurProfile = data.fournisseur_profile || { id: '', name: 'Unknown', avatar: '', email: '' };
     
     // Transform data to match the Conversation interface
     return {
@@ -443,7 +400,7 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
     // Transform data to match the Rating interface with safe access
     return (data || []).map(item => {
       // Get profile data safely with default values
-      const profileData = item.profiles || {};
+      const profileData = item.profiles || { id: '', name: 'Anonymous', avatar: '' };
       
       return {
         id: item.id,
@@ -471,11 +428,11 @@ export async function toggleFavoriteFournisseur(
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
-    // Instead of using RPC, use direct query approach
-    // First check if favorite already exists
-    const { data: existingFavorites, error: checkError } = await supabase
+    // Instead of using RPC, let's use a simpler approach with direct table operations
+    // Check if favorite already exists
+    const { data: existingFav, error: checkError } = await supabase
       .from('favorite_suppliers')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('supplier_id', supplierId)
       .maybeSingle();
@@ -486,7 +443,7 @@ export async function toggleFavoriteFournisseur(
     }
 
     // If favorite exists, remove it
-    if (existingFavorites) {
+    if (existingFav) {
       const { error: removeError } = await supabase
         .from('favorite_suppliers')
         .delete()
@@ -516,10 +473,10 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    // Use direct query instead of RPC
+    // Use direct table query instead of RPC
     const { data, error } = await supabase
       .from('favorite_suppliers')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('supplier_id', supplierId)
       .maybeSingle();
@@ -529,7 +486,7 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
       return false;
     }
     
-    return !!data;
+    return data !== null;
   } catch (error) {
     console.error('Error in isFournisseurFavorite:', error);
     return false;
@@ -539,43 +496,33 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    // Use direct join query instead of RPC
+    // Use joins instead of RPC
     const { data, error } = await supabase
       .from('favorite_suppliers')
       .select(`
+        supplier_id,
         suppliers!supplier_id(
-          id,
-          user_id,
-          name,
-          category,
-          location,
-          phone,
-          products,
-          rating,
-          image,
-          profiles:profiles!user_id(
-            email,
-            avatar
-          )
+          *,
+          profiles:profiles!user_id(id, name, avatar, email)
         )
       `)
       .eq('user_id', userId);
     
     if (error) {
       console.error('Error fetching favorite suppliers:', error);
-      return [];
+      throw error;
     }
     
-    // Transform the data to the expected format
+    // Process results to match expected format
     return Array.isArray(data) ? data.map(item => {
       const supplier = item.suppliers || {};
-      const profileData = supplier.profiles || {};
+      const profile = supplier.profiles || {};
       
       return {
         ...supplier,
-        email: profileData.email || '',
-        avatar: profileData.avatar || '',
-        isFavorite: true
+        isFavorite: true,
+        avatar: profile.avatar || '',
+        email: profile.email || ''
       };
     }) : [];
     
