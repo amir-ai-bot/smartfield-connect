@@ -107,6 +107,10 @@ const router = createBrowserRouter([
       {
         path: "/favorites",
         element: <Favorites />
+      },
+      {
+        path: "*",
+        element: <NotFound />
       }
     ]
   }

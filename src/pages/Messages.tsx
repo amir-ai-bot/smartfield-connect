@@ -1,216 +1,144 @@
-import { useEffect, useState } from 'react';
-import { useSession } from '@supabase/auth-helpers-react';
-import { Conversation, Message, getConversations, getMessages, sendMessage, markMessagesAsRead } from '@/services/messageService';
-import LoadingSpinner from '@/components/LoadingSpinner';
+
+import { useState, useEffect } from 'react';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MessageSquare, User } from 'lucide-react';
 import AuthDialog from '@/components/auth/AuthDialog';
-import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
-export default function Messages() {
-  const session = useSession();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-
-  // Load conversations when component mounts
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setIsLoading(false);
-      setShowAuthDialog(true);
-      return;
-    }
-
-    const loadConversations = async () => {
-      try {
-        const data = await getConversations(session.user.id);
-        setConversations(data);
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        toast.error('Erreur lors du chargement des conversations');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadConversations();
-  }, [session?.user?.id]);
-
-  // Load messages when a conversation is selected
-  useEffect(() => {
-    if (!selectedConversation) return;
-
-    const loadMessages = async () => {
-      try {
-        const data = await getMessages(selectedConversation.id);
-        setMessages(data);
-        // Mark messages as read
-        await markMessagesAsRead(selectedConversation.id, session?.user?.id || '');
-      } catch (error) {
-        console.error('Error loading messages:', error);
-        toast.error('Erreur lors du chargement des messages');
-      }
-    };
-
-    loadMessages();
-  }, [selectedConversation, session?.user?.id]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session?.user?.id || !selectedConversation || !newMessage.trim()) return;
-
-    try {
-      const message = await sendMessage(
-        selectedConversation.id,
-        session.user.id,
-        newMessage.trim()
-      );
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Erreur lors de l\'envoi du message');
-    }
-  };
-
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-              Connectez-vous pour accéder à vos messages
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              Vous devez être connecté pour voir vos conversations.
-            </p>
-            <button
-              onClick={() => setShowAuthDialog(true)}
-              className="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary-dark"
-            >
-              Se connecter
-            </button>
-          </div>
-        </div>
-        {showAuthDialog && <AuthDialog onClose={() => setShowAuthDialog(false)} />}
-      </div>
-    );
+const mockMessages = [
+  {
+    id: '1',
+    sender: {
+      name: 'Ahmed Karim',
+      avatar: 'https://i.pravatar.cc/150?img=1'
+    },
+    message: 'Bonjour, je suis intéressé par vos services',
+    time: '11:30',
+    date: 'Aujourd\'hui',
+    unread: true
+  },
+  {
+    id: '2',
+    sender: {
+      name: 'Leila Mansour',
+      avatar: 'https://i.pravatar.cc/150?img=5'
+    },
+    message: 'Avez-vous des semences pour tomates cherry?',
+    time: '09:15',
+    date: 'Aujourd\'hui',
+    unread: false
+  },
+  {
+    id: '3',
+    sender: {
+      name: 'Mohamed Benali',
+      avatar: 'https://i.pravatar.cc/150?img=3'
+    },
+    message: 'Merci pour votre réponse rapide',
+    time: '16:45',
+    date: 'Hier',
+    unread: false
   }
+];
 
-  if (isLoading) {
+const Messages = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  
+  useEffect(() => {
+    document.title = 'Messages | AgriSmart';
+  }, []);
+  
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="container mx-auto px-4 py-20">
+          <Card className="max-w-md mx-auto">
+            <CardContent className="p-6 text-center">
+              <div className="bg-gray-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+                <User className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Connectez-vous pour accéder à vos messages</h2>
+              <p className="text-gray-600 mb-6">
+                Connectez-vous à votre compte pour voir vos conversations avec les fournisseurs et d'autres agriculteurs.
+              </p>
+              <Button onClick={() => setShowAuthDialog(true)}>
+                Se connecter / S'inscrire
+              </Button>
+              <AuthDialog 
+                open={showAuthDialog}
+                onOpenChange={setShowAuthDialog}
+                initialView="login"
+              />
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow">
-          <div className="grid grid-cols-12 min-h-[600px]">
-            {/* Conversations List */}
-            <div className="col-span-4 border-r border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-medium text-gray-900">Conversations</h2>
-              </div>
-              <div className="overflow-y-auto h-[calc(600px-4rem)]">
-                {conversations.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    Aucune conversation
-                  </div>
-                ) : (
-                  conversations.map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => setSelectedConversation(conv)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 focus:outline-none ${
-                        selectedConversation?.id === conv.id ? 'bg-gray-50' : ''
-                      }`}
-                    >
-                      <div className="font-medium text-gray-900">
-                        Conversation #{conv.id.slice(0, 8)}
-                      </div>
-                      {conv.last_message && (
-                        <p className="mt-1 text-sm text-gray-500 truncate">
-                          {conv.last_message}
-                        </p>
-                      )}
-                      {conv.unread_count > 0 && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary text-white">
-                          {conv.unread_count}
-                        </span>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Messages Area */}
-            <div className="col-span-8 flex flex-col">
-              {selectedConversation ? (
-                <>
-                  <div className="p-4 border-b border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Conversation #{selectedConversation.id.slice(0, 8)}
-                    </h3>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          message.sender_id === session.user.id
-                            ? 'justify-end'
-                            : 'justify-start'
-                        }`}
-                      >
-                        <div
-                          className={`rounded-lg px-4 py-2 max-w-[70%] ${
-                            message.sender_id === session.user.id
-                              ? 'bg-primary text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p>{message.content}</p>
-                          <p className="text-xs mt-1 opacity-70">
-                            {new Date(message.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 border-t border-gray-200">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Écrivez votre message..."
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!newMessage.trim()}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                      >
-                        Envoyer
-                      </button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
-                  Sélectionnez une conversation pour voir les messages
-                </div>
-              )}
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <main className="container mx-auto px-4 pt-24 pb-16">
+        <div className="flex flex-col space-y-6 max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">Vos messages</h1>
+            <Button>Nouveau message</Button>
           </div>
+          
+          {mockMessages.length > 0 ? (
+            <div className="space-y-3">
+              {mockMessages.map((msg) => (
+                <Link to={`/messages/${msg.id}`} key={msg.id}>
+                  <Card className={`hover:bg-gray-50 transition-colors ${msg.unread ? 'border-l-4 border-agri-green-500' : ''}`}>
+                    <CardContent className="p-4 flex items-center">
+                      <Avatar className="h-12 w-12 mr-4">
+                        <AvatarImage src={msg.sender.avatar} alt={msg.sender.name} />
+                        <AvatarFallback>{msg.sender.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium truncate">{msg.sender.name}</h3>
+                          <span className="text-xs text-gray-500">{msg.time}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 truncate">{msg.message}</p>
+                        <span className="text-xs text-gray-400">{msg.date}</span>
+                      </div>
+                      
+                      {msg.unread && (
+                        <div className="ml-3 h-2 w-2 bg-agri-green-500 rounded-full"></div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <h2 className="text-xl font-semibold mb-2">Pas de messages</h2>
+              <p className="text-gray-600 mb-6">
+                Vous n'avez pas encore de messages. Commencez à discuter avec des fournisseurs pour faire grandir votre réseau.
+              </p>
+              <Button>Trouver un fournisseur</Button>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
+      
+      <Footer />
     </div>
   );
-} 
+};
+
+export default Messages;

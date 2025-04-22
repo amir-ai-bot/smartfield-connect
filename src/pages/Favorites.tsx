@@ -67,16 +67,14 @@ const Favorites = () => {
                 >
                   <SupplierCard 
                     id={supplier.id}
-                    user_id={supplier.user_id || supplier.id}
                     name={supplier.name || "Fournisseur"}
-                    category={supplier.tags?.[0] || "Divers"}
-                    rating={4.5}
-                    location={supplier.address || "Non spécifié"}
-                    phone={supplier.phone_number || "Non spécifié"}
+                    category={supplier.category || "Divers"}
+                    rating={supplier.rating || 4.5}
+                    location={supplier.location || "Non spécifié"}
+                    phone={supplier.phone || "Non spécifié"}
                     email={supplier.email || "Non spécifié"}
-                    products={supplier.tags || []}
-                    image={supplier.avatar || "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"}
-                    isFavorite={true}
+                    products={supplier.products || []}
+                    avatar={supplier.avatar || ""}
                   />
                 </div>
               ))}
