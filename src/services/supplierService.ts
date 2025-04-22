@@ -29,8 +29,8 @@ export const getSuppliers = async () => {
         phone: item.phone,
         products: item.products || [],
         rating: item.rating || 0,
-        email: profileData.email || '',
-        avatar: profileData.avatar || '',
+        email: profileData?.email || '',
+        avatar: profileData?.avatar || '',
         image: item.image || ''
       };
     });
@@ -86,8 +86,8 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
       phone: data.phone,
       products: data.products || [],
       rating: data.rating || 0,
-      email: profileData.email || '',
-      avatar: profileData.avatar || '',
+      email: profileData?.email || '',
+      avatar: profileData?.avatar || '',
       image: data.image || ''
     };
     
