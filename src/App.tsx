@@ -1,13 +1,31 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Outlet } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Navbar from "@/components/Navbar";
 import TestEnv from "./components/TestEnv";
-import { StatusIndicator } from "./components/StatusIndicator";
+import router from "./routes";
+
+// Import pages
+import Index from './pages/Index';
+import Dashboard from './pages/Dashboard';
+import Suppliers from './pages/Suppliers';
+import Weather from './pages/Weather';
+import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
+import Admin from './pages/Admin';
+import Conversations from './pages/Conversations';
+import ConversationDetail from './pages/ConversationDetail';
+import Favorites from './pages/Favorites';
+import SupplierProfilePage from './pages/SupplierProfilePage';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import AdminRoute from "./components/auth/AdminRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +42,6 @@ const App = () => (
       <AuthProvider>
         <LanguageProvider>
           <TestEnv />
-          <StatusIndicator />
           <Toaster />
           <Sonner 
             position="top-center"
@@ -53,7 +70,43 @@ const App = () => (
           />
           <Navbar />
           <main className="pt-16">
-            <Outlet />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Index />} />
+              <Route path="/register" element={<Index />} />
+              
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/projects/create" element={<Projects />} />
+                <Route path="/projects/:id" element={<ProjectDetail />} />
+                <Route path="/conversations/:id" element={<ConversationDetail />} />
+                <Route path="/conversations" element={<Conversations />} />
+                <Route path="/favorites" element={<Favorites />} />
+              </Route>
+              
+              {/* Admin routes */}
+              <Route element={<AdminRoute />}>
+                <Route path="/admin" element={<Admin />} />
+              </Route>
+              
+              {/* Public routes */}
+              <Route path="/calendar" element={<Dashboard />} />
+              <Route path="/contact" element={<Index />} />
+              <Route path="/privacy-policy" element={<Index />} />
+              <Route path="/terms-of-service" element={<Index />} />
+              <Route path="/weather" element={<Weather />} />
+              <Route path="/verify-email" element={<Index />} />
+              <Route path="/reset-password" element={<Index />} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/public-projects" element={<Projects />} />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </main>
         </LanguageProvider>
       </AuthProvider>
