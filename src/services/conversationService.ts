@@ -1,7 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { MediaItem, Profile } from '@/types/supabase';
+import { MediaItem } from '@/types/supabase';
 
 // Types for conversations
 export interface Conversation {
@@ -111,31 +110,9 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
 
     // Transform data to match the Conversation interface
     return (data || []).map(item => {
-      // Create default objects for user and fournisseur profiles
-      const defaultProfile = { id: '', name: 'Unknown', avatar: '', email: '' };
-      
-      // Extract profile data safely - these might be SelectQueryError objects
-      let userProfile = defaultProfile;
-      let fournisseurProfile = defaultProfile;
-      
-      // Check if the profiles are valid objects and not errors
-      if (item.user_profile && typeof item.user_profile === 'object' && !('code' in item.user_profile)) {
-        userProfile = {
-          id: item.user_profile.id || defaultProfile.id,
-          name: item.user_profile.name || defaultProfile.name,
-          avatar: item.user_profile.avatar || defaultProfile.avatar,
-          email: item.user_profile.email || defaultProfile.email
-        };
-      }
-      
-      if (item.fournisseur_profile && typeof item.fournisseur_profile === 'object' && !('code' in item.fournisseur_profile)) {
-        fournisseurProfile = {
-          id: item.fournisseur_profile.id || defaultProfile.id,
-          name: item.fournisseur_profile.name || defaultProfile.name,
-          avatar: item.fournisseur_profile.avatar || defaultProfile.avatar,
-          email: item.fournisseur_profile.email || defaultProfile.email
-        };
-      }
+      // Handle user profile and fournisseur profile data safely
+      const userProfile = item.user_profile || {};
+      const fournisseurProfile = item.fournisseur_profile || {};
       
       return {
         id: item.id,
@@ -143,8 +120,18 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         fournisseur_id: item.fournisseur_id,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        user: userProfile,
-        fournisseur: fournisseurProfile
+        user: {
+          id: userProfile.id || '',
+          name: userProfile.name || 'Unknown',
+          avatar: userProfile.avatar || '',
+          email: userProfile.email || ''
+        },
+        fournisseur: {
+          id: fournisseurProfile.id || '',
+          name: fournisseurProfile.name || 'Unknown',
+          avatar: fournisseurProfile.avatar || '',
+          email: fournisseurProfile.email || ''
+        }
       };
     });
   } catch (error) {
@@ -174,31 +161,9 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
-    // Create default objects for user and fournisseur profiles
-    const defaultProfile = { id: '', name: 'Unknown', avatar: '', email: '' };
-    
-    // Extract profile data safely - these might be SelectQueryError objects
-    let userProfile = defaultProfile;
-    let fournisseurProfile = defaultProfile;
-    
-    // Check if the profiles are valid objects and not errors
-    if (data.user_profile && typeof data.user_profile === 'object' && !('code' in data.user_profile)) {
-      userProfile = {
-        id: data.user_profile.id || defaultProfile.id,
-        name: data.user_profile.name || defaultProfile.name,
-        avatar: data.user_profile.avatar || defaultProfile.avatar,
-        email: data.user_profile.email || defaultProfile.email
-      };
-    }
-    
-    if (data.fournisseur_profile && typeof data.fournisseur_profile === 'object' && !('code' in data.fournisseur_profile)) {
-      fournisseurProfile = {
-        id: data.fournisseur_profile.id || defaultProfile.id,
-        name: data.fournisseur_profile.name || defaultProfile.name,
-        avatar: data.fournisseur_profile.avatar || defaultProfile.avatar,
-        email: data.fournisseur_profile.email || defaultProfile.email
-      };
-    }
+    // Handle user and fournisseur profile data safely
+    const userProfile = data.user_profile || {};
+    const fournisseurProfile = data.fournisseur_profile || {};
     
     // Transform data to match the Conversation interface
     return {
@@ -207,8 +172,18 @@ export async function getConversation(conversationId: string): Promise<Conversat
       fournisseur_id: data.fournisseur_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      user: userProfile,
-      fournisseur: fournisseurProfile
+      user: {
+        id: userProfile.id || '',
+        name: userProfile.name || 'Unknown',
+        avatar: userProfile.avatar || '',
+        email: userProfile.email || ''
+      },
+      fournisseur: {
+        id: fournisseurProfile.id || '',
+        name: fournisseurProfile.name || 'Unknown',
+        avatar: fournisseurProfile.avatar || '',
+        email: fournisseurProfile.email || ''
+      }
     };
   } catch (error) {
     console.error('Error in getConversation:', error);
@@ -466,19 +441,8 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
 
     // Transform data to match the Rating interface with safe access
     return (data || []).map(item => {
-      // Create default profile data
-      const defaultProfile = { id: '', name: 'Anonymous', avatar: '' };
-      
-      // Extract profile data safely - handle potential SelectQueryError
-      let profileData = defaultProfile;
-      
-      if (item.profiles && typeof item.profiles === 'object' && !('code' in item.profiles)) {
-        profileData = {
-          id: item.profiles.id || defaultProfile.id,
-          name: item.profiles.name || defaultProfile.name,
-          avatar: item.profiles.avatar || defaultProfile.avatar
-        };
-      }
+      // Get profile data safely with default values
+      const profileData = item.profiles || {};
       
       return {
         id: item.id,
@@ -487,7 +451,11 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
         rating: item.rating,
         comment: item.comment,
         created_at: item.created_at,
-        profiles: profileData
+        profiles: {
+          id: profileData.id || '',
+          name: profileData.name || 'Anonymous',
+          avatar: profileData.avatar || ''
+        }
       } as Rating;
     });
   } catch (error) {
@@ -502,14 +470,12 @@ export async function toggleFavoriteFournisseur(
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
-    // Instead of using RPC, use direct query approach
-    // First check if favorite already exists
-    const { data: existingFavorites, error: checkError } = await supabase
-      .from('favorite_suppliers')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
-      .maybeSingle();
+    // Check if favorite already exists using RPC function
+    const { data: isFavorite, error: checkError } = await supabase
+      .rpc('check_favorite_supplier', { 
+        p_user_id: userId, 
+        p_supplier_id: supplierId 
+      });
     
     if (checkError) {
       console.error('Error checking favorite status:', checkError);
@@ -517,22 +483,21 @@ export async function toggleFavoriteFournisseur(
     }
 
     // If favorite exists, remove it
-    if (existingFavorites) {
+    if (isFavorite) {
       const { error: removeError } = await supabase
-        .from('favorite_suppliers')
-        .delete()
-        .eq('user_id', userId)
-        .eq('supplier_id', supplierId);
+        .rpc('remove_favorite_supplier', {
+          p_user_id: userId,
+          p_supplier_id: supplierId
+        });
       
       if (removeError) throw removeError;
       return { isFavorite: false };
     } else {
       // Add to favorites
       const { error: addError } = await supabase
-        .from('favorite_suppliers')
-        .insert({
-          user_id: userId,
-          supplier_id: supplierId
+        .rpc('add_favorite_supplier', {
+          p_user_id: userId,
+          p_supplier_id: supplierId
         });
       
       if (addError) throw addError;
@@ -547,13 +512,12 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    // Use direct query instead of RPC
+    // Use RPC function to check
     const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
-      .maybeSingle();
+      .rpc('check_favorite_supplier', {
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
     
     if (error) {
       console.error('Error checking favorite status:', error);
@@ -570,55 +534,21 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    // Use direct join query instead of RPC
+    // Use RPC function to get favorites with supplier details
     const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select(`
-        suppliers!supplier_id(
-          id,
-          user_id,
-          name,
-          category,
-          location,
-          phone,
-          products,
-          rating,
-          image,
-          profiles:profiles!user_id(
-            email,
-            avatar
-          )
-        )
-      `)
-      .eq('user_id', userId);
+      .rpc('get_favorite_suppliers', {
+        p_user_id: userId
+      });
     
     if (error) {
       console.error('Error fetching favorite suppliers:', error);
       return [];
     }
     
-    // Transform the data to the expected format
-    return Array.isArray(data) ? data.map(item => {
-      const supplier = item.suppliers || {};
-      
-      // Handle potentially null/undefined profiles or SelectQueryError safely
-      let email = '';
-      let avatar = '';
-      
-      if (supplier.profiles && 
-          typeof supplier.profiles === 'object' && 
-          !('code' in supplier.profiles)) {
-        email = supplier.profiles.email || '';
-        avatar = supplier.profiles.avatar || '';
-      }
-      
-      return {
-        ...supplier,
-        email,
-        avatar,
-        isFavorite: true
-      };
-    }) : [];
+    return Array.isArray(data) ? data.map(item => ({
+      ...item,
+      isFavorite: true
+    })) : [];
     
   } catch (error) {
     console.error('Error in getFavoriteFournisseurs:', error);
