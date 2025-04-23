@@ -27,10 +27,10 @@ export const getSuppliers = async () => {
           typeof item.profiles === 'object' && 
           !('code' in item.profiles)) {
         profileData = {
-          id: item.profiles?.id || defaultProfile.id,
-          name: item.profiles?.name || defaultProfile.name,
-          avatar: item.profiles?.avatar || defaultProfile.avatar,
-          email: item.profiles?.email || defaultProfile.email
+          id: item.profiles.id || defaultProfile.id,
+          name: item.profiles.name || defaultProfile.name,
+          avatar: item.profiles.avatar || defaultProfile.avatar,
+          email: item.profiles.email || defaultProfile.email
         };
       }
       
@@ -97,10 +97,10 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
         typeof data.profiles === 'object' && 
         !('code' in data.profiles)) {
       profileData = {
-        id: data.profiles?.id || defaultProfile.id,
-        name: data.profiles?.name || defaultProfile.name,
-        avatar: data.profiles?.avatar || defaultProfile.avatar,
-        email: data.profiles?.email || defaultProfile.email
+        id: data.profiles.id || defaultProfile.id,
+        name: data.profiles.name || defaultProfile.name,
+        avatar: data.profiles.avatar || defaultProfile.avatar,
+        email: data.profiles.email || defaultProfile.email
       };
     }
     
@@ -259,10 +259,10 @@ export const searchSuppliers = async (query: string): Promise<Supplier[]> => {
           typeof item.profiles === 'object' && 
           !('code' in item.profiles)) {
         profileData = {
-          id: item.profiles?.id || defaultProfile.id,
-          name: item.profiles?.name || defaultProfile.name,
-          avatar: item.profiles?.avatar || defaultProfile.avatar,
-          email: item.profiles?.email || defaultProfile.email
+          id: item.profiles.id || defaultProfile.id,
+          name: item.profiles.name || defaultProfile.name,
+          avatar: item.profiles.avatar || defaultProfile.avatar,
+          email: item.profiles.email || defaultProfile.email
         };
       }
       
@@ -370,4 +370,3 @@ export const addExampleSuppliers = async () => {
 
 // Call the function to add example suppliers when the module loads
 addExampleSuppliers();
-
