@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectData } from '@/types/dashboard';
-import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import ProjectCard from '@/components/ProjectCard';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
@@ -178,9 +178,7 @@ const Projects = () => {
   const filteredProjects = getFilteredProjects();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <Navbar />
-      
+    <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">{t('projects')}</h1>
@@ -315,6 +313,7 @@ const Projects = () => {
         onOpenChange={setIsCreateDialogOpen}
         onProjectCreated={handleCreateProject}
       />
+      <Footer />
     </div>
   );
 };

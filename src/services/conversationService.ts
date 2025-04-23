@@ -1,6 +1,39 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { MediaItem } from '@/types/supabase';
+import { MediaItem, Profile } from '@/types/supabase';
+import { setAdminRole } from '@/scripts/setAdminRole';
+
+interface ProfileData {
+  id: string;
+  name: string;
+  avatar: string;
+  email: string;
+}
+
+interface SupplierProfile {
+  id: string;
+  name: string;
+  avatar: string;
+  email: string;
+}
+
+interface Supplier {
+  id: string;
+  name?: string;
+  category?: string;
+  location?: string;
+  phone?: string;
+  products?: any[];
+  rating?: number;
+  image?: string;
+}
+
+interface FavoriteSupplierRecord {
+  id: string;
+  user_id: string;
+  supplier_id: string;
+  supplier: Supplier;
+  supplier_profile: SupplierProfile;
+}
 
 // Types for conversations
 export interface Conversation {
@@ -9,18 +42,20 @@ export interface Conversation {
   fournisseur_id: string;
   created_at: string;
   updated_at: string;
-  user?: {
-    id: string;
-    name: string;
-    avatar: string;
-    email: string;
-  };
-  fournisseur?: {
-    id: string;
-    name: string;
-    avatar: string;
-    email: string;
-  };
+  user_profile?: ProfileData | null;
+  fournisseur_profile?: ProfileData | null;
+  user?: ProfileData;
+  fournisseur?: ProfileData;
+}
+
+interface ConversationRecord {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  created_at: string;
+  updated_at: string;
+  user_profile: ProfileData | null;
+  fournisseur_profile: ProfileData | null;
 }
 
 export interface Message {
@@ -33,7 +68,21 @@ export interface Message {
   media?: MediaItem[];
 }
 
-export interface Rating {
+interface RatingRecord {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  } | null;
+}
+
+interface DatabaseRating {
   id: string;
   user_id: string;
   fournisseur_id: string;
@@ -44,7 +93,21 @@ export interface Rating {
     id: string;
     name: string;
     avatar?: string;
-  };
+  } | null;
+}
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  } | null;
 }
 
 // Create a conversation
@@ -82,7 +145,7 @@ export async function createConversation(userId: string, supplierId: string): Pr
       throw error;
     }
     
-    return data.id;
+    return (data as ConversationRecord).id;
   } catch (error) {
     console.error('Error in createConversation:', error);
     throw error;
@@ -92,7 +155,6 @@ export async function createConversation(userId: string, supplierId: string): Pr
 // Get all conversations for a user (either as user or fournisseur)
 export async function getConversations(userId: string): Promise<Conversation[]> {
   try {
-    // Get conversations where the user is either the user or the fournisseur
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -108,11 +170,45 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       throw error;
     }
 
-    // Transform data to match the Conversation interface
+    const defaultProfile: ProfileData = { 
+      id: '', 
+      name: 'Unknown', 
+      avatar: '', 
+      email: '' 
+    };
+
+    // Type guard function for profile data
+    const isValidProfile = (profile: any): profile is ProfileData => {
+      return profile !== null && 
+        typeof profile === 'object' && 
+        'id' in profile &&
+        typeof profile.id === 'string' &&
+        'name' in profile &&
+        typeof profile.name === 'string' &&
+        'avatar' in profile &&
+        typeof profile.avatar === 'string' &&
+        'email' in profile &&
+        typeof profile.email === 'string';
+    };
+
     return (data || []).map(item => {
-      // Handle user profile and fournisseur profile data safely
-      const userProfile = item.user_profile || {};
-      const fournisseurProfile = item.fournisseur_profile || {};
+      const userProfile: ProfileData = isValidProfile(item.user_profile)
+        ? {
+            id: item.user_profile.id,
+            name: item.user_profile.name,
+            avatar: item.user_profile.avatar,
+            email: item.user_profile.email
+          }
+        : defaultProfile;
+      
+      const fournisseurProfile: ProfileData = isValidProfile(item.fournisseur_profile)
+        ? {
+            id: item.fournisseur_profile.id,
+            name: item.fournisseur_profile.name,
+            avatar: item.fournisseur_profile.avatar,
+            email: item.fournisseur_profile.email
+          }
+        : defaultProfile;
       
       return {
         id: item.id,
@@ -120,18 +216,10 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         fournisseur_id: item.fournisseur_id,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        user: {
-          id: userProfile.id || '',
-          name: userProfile.name || 'Unknown',
-          avatar: userProfile.avatar || '',
-          email: userProfile.email || ''
-        },
-        fournisseur: {
-          id: fournisseurProfile.id || '',
-          name: fournisseurProfile.name || 'Unknown',
-          avatar: fournisseurProfile.avatar || '',
-          email: fournisseurProfile.email || ''
-        }
+        user_profile: userProfile,
+        fournisseur_profile: fournisseurProfile,
+        user: userProfile,
+        fournisseur: fournisseurProfile
       };
     });
   } catch (error) {
@@ -161,29 +249,55 @@ export async function getConversation(conversationId: string): Promise<Conversat
       return null;
     }
 
-    // Handle user and fournisseur profile data safely
-    const userProfile = data.user_profile || {};
-    const fournisseurProfile = data.fournisseur_profile || {};
+    const defaultProfile: ProfileData = { 
+      id: '', 
+      name: 'Unknown', 
+      avatar: '', 
+      email: '' 
+    };
     
-    // Transform data to match the Conversation interface
+    // Type guard function for profile data
+    const isValidProfile = (profile: any): profile is ProfileData => {
+      return profile !== null && 
+        typeof profile === 'object' && 
+        'id' in profile &&
+        typeof profile.id === 'string' &&
+        'name' in profile &&
+        typeof profile.name === 'string' &&
+        'avatar' in profile &&
+        typeof profile.avatar === 'string' &&
+        'email' in profile &&
+        typeof profile.email === 'string';
+    };
+    
+    const userProfile: ProfileData = isValidProfile(data.user_profile) 
+      ? {
+          id: data.user_profile.id,
+          name: data.user_profile.name,
+          avatar: data.user_profile.avatar,
+          email: data.user_profile.email
+        }
+      : defaultProfile;
+    
+    const fournisseurProfile: ProfileData = isValidProfile(data.fournisseur_profile)
+      ? {
+          id: data.fournisseur_profile.id,
+          name: data.fournisseur_profile.name,
+          avatar: data.fournisseur_profile.avatar,
+          email: data.fournisseur_profile.email
+        }
+      : defaultProfile;
+    
     return {
       id: data.id,
       user_id: data.user_id,
       fournisseur_id: data.fournisseur_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      user: {
-        id: userProfile.id || '',
-        name: userProfile.name || 'Unknown',
-        avatar: userProfile.avatar || '',
-        email: userProfile.email || ''
-      },
-      fournisseur: {
-        id: fournisseurProfile.id || '',
-        name: fournisseurProfile.name || 'Unknown',
-        avatar: fournisseurProfile.avatar || '',
-        email: fournisseurProfile.email || ''
-      }
+      user_profile: userProfile,
+      fournisseur_profile: fournisseurProfile,
+      user: userProfile,
+      fournisseur: fournisseurProfile
     };
   } catch (error) {
     console.error('Error in getConversation:', error);
@@ -439,11 +553,21 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       throw error;
     }
 
-    // Transform data to match the Rating interface with safe access
-    return (data || []).map(item => {
-      // Get profile data safely with default values
-      const profileData = item.profiles || {};
-      
+    // Type guard for profile data in ratings
+    const isValidRatingProfile = (profile: any): profile is { id: string; name: string; avatar?: string } => {
+      return profile !== null && 
+        typeof profile === 'object' && 
+        'id' in profile &&
+        typeof profile.id === 'string' &&
+        'name' in profile &&
+        typeof profile.name === 'string';
+    };
+
+    // First cast to unknown, then to our known database type
+    const typedData = (data || []) as unknown as DatabaseRating[];
+
+    return typedData.map(item => {
+      const profile = item.profiles;
       return {
         id: item.id,
         user_id: item.user_id,
@@ -451,12 +575,14 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
         rating: item.rating,
         comment: item.comment,
         created_at: item.created_at,
-        profiles: {
-          id: profileData.id || '',
-          name: profileData.name || 'Anonymous',
-          avatar: profileData.avatar || ''
-        }
-      } as Rating;
+        profiles: profile && isValidRatingProfile(profile)
+          ? {
+              id: profile.id,
+              name: profile.name,
+              avatar: profile.avatar
+            }
+          : null
+      };
     });
   } catch (error) {
     console.error('Error in getFournisseurRatings:', error);
@@ -470,12 +596,14 @@ export async function toggleFavoriteFournisseur(
   supplierId: string
 ): Promise<{ isFavorite: boolean }> {
   try {
-    // Check if favorite already exists using RPC function
-    const { data: isFavorite, error: checkError } = await supabase
-      .rpc('check_favorite_supplier', { 
-        p_user_id: userId, 
-        p_supplier_id: supplierId 
-      });
+    // Instead of using RPC, use direct query approach
+    // First check if favorite already exists
+    const { data: existingFavorites, error: checkError } = await supabase
+      .from('favorite_suppliers')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .maybeSingle();
     
     if (checkError) {
       console.error('Error checking favorite status:', checkError);
@@ -483,21 +611,22 @@ export async function toggleFavoriteFournisseur(
     }
 
     // If favorite exists, remove it
-    if (isFavorite) {
+    if (existingFavorites) {
       const { error: removeError } = await supabase
-        .rpc('remove_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: supplierId
-        });
+        .from('favorite_suppliers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('supplier_id', supplierId);
       
       if (removeError) throw removeError;
       return { isFavorite: false };
     } else {
       // Add to favorites
       const { error: addError } = await supabase
-        .rpc('add_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: supplierId
+        .from('favorite_suppliers')
+        .insert({
+          user_id: userId,
+          supplier_id: supplierId
         });
       
       if (addError) throw addError;
@@ -512,12 +641,13 @@ export async function toggleFavoriteFournisseur(
 // Check if a fournisseur is in favorites
 export async function isFournisseurFavorite(userId: string, supplierId: string): Promise<boolean> {
   try {
-    // Use RPC function to check
+    // Use direct query instead of RPC
     const { data, error } = await supabase
-      .rpc('check_favorite_supplier', {
-        p_user_id: userId,
-        p_supplier_id: supplierId
-      });
+      .from('favorite_suppliers')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .maybeSingle();
     
     if (error) {
       console.error('Error checking favorite status:', error);
@@ -534,22 +664,58 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
 // Get all favorite suppliers
 export async function getFavoriteFournisseurs(userId: string): Promise<any[]> {
   try {
-    // Use RPC function to get favorites with supplier details
     const { data, error } = await supabase
-      .rpc('get_favorite_suppliers', {
-        p_user_id: userId
-      });
+      .from('favorite_suppliers')
+      .select(`
+        *,
+        supplier:suppliers!supplier_id(*),
+        supplier_profile:profiles!supplier_id(id, name, avatar, email)
+      `)
+      .eq('user_id', userId);
     
     if (error) {
-      console.error('Error fetching favorite suppliers:', error);
-      return [];
+      console.error('Error fetching favorite fournisseurs:', error);
+      throw error;
     }
-    
-    return Array.isArray(data) ? data.map(item => ({
-      ...item,
-      isFavorite: true
-    })) : [];
-    
+
+    const defaultProfile: SupplierProfile = { 
+      id: '', 
+      name: '', 
+      avatar: '', 
+      email: '' 
+    };
+
+    const defaultSupplier: Supplier = {
+      id: '',
+      name: '',
+      category: '',
+      location: '',
+      phone: '',
+      products: [],
+      rating: 0,
+      image: ''
+    };
+
+    const typedData = (data || []) as unknown as FavoriteSupplierRecord[];
+
+    return typedData.map(item => {
+      const supplier = item.supplier || defaultSupplier;
+      const profile = item.supplier_profile || defaultProfile;
+
+      return {
+        id: supplier.id || item.supplier_id,
+        user_id: item.user_id,
+        name: profile.name || supplier.name || '',
+        category: supplier.category || '',
+        location: supplier.location || '',
+        phone: supplier.phone || '',
+        products: supplier.products || [],
+        rating: supplier.rating || 0,
+        email: profile.email || '',
+        avatar: profile.avatar || '',
+        image: supplier.image || ''
+      };
+    });
   } catch (error) {
     console.error('Error in getFavoriteFournisseurs:', error);
     return [];

@@ -68,4 +68,10 @@ export interface Supplier {
   isFavorite?: boolean;
 }
 
-// Add any additional Supabase types you need here
+// Profile query error guard type
+export interface SelectQueryError<T> {
+  code: string;
+  details: string;
+  hint: string;
+  message: T;
+}

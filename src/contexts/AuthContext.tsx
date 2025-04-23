@@ -1,173 +1,209 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { User, Profile } from '@/types/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { User, Profile, Role, UserPreferences, AuthContextProps } from '@/types/auth';
 
-interface AuthContextProps {
-  user: User | null;
-  session: Session | null;
-  profile: Profile | null;
-  signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  loading: boolean;
-  isLoading: boolean; // Aliased for backward compatibility
-  isAuthenticated: boolean;
-  isAdmin: () => boolean;
-  isFournisseur: () => boolean;
-  isPendingFournisseur: () => boolean;
-  updateProfile: (updates: Partial<User>) => Promise<User>;
-  requestPasswordReset: (email: string) => Promise<void>;
-  confirmPasswordReset: (code: string, password: string) => Promise<void>;
-  verifyEmail: (email: string, code: string) => Promise<void>;
-  becomeFournisseur: () => Promise<void>;
-  
-  // Aliases for backward compatibility
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  signup: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
-}
-
+// Create the context
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Load user from session
+  // Initialize auth state
   useEffect(() => {
-    const getSession = async () => {
-      setLoading(true);
+    let mounted = true;
+
+    const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          throw error;
-        }
-        setSession(session);
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        if (session?.user) {
-          await loadUserAndProfile(session.user);
-        } else {
-          setUser(null);
-          setProfile(null);
+        if (mounted) {
+          setSession(currentSession);
+          if (currentSession?.user) {
+            await loadUserAndProfile(currentSession.user);
+          }
+          setLoading(false);
         }
       } catch (error) {
-        console.error('Error loading user session:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    getSession();
+    initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          await loadUserAndProfile(session.user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (mounted) {
+        setSession(newSession);
+        if (newSession?.user) {
+          await loadUserAndProfile(newSession.user);
         } else {
           setUser(null);
           setProfile(null);
         }
+        setLoading(false);
       }
-    );
+    });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  // Load user profile data
+  const login = async (email: string, password: string) => {
+    try {
+      const { data: { user: newUser, session: newSession }, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (newUser) {
+        await loadUserAndProfile(newUser);
+      }
+      setSession(newSession);
+      
+      return;
+    } catch (error: any) {
+      console.error('Auth context login error:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Erreur lors de la déconnexion');
+    }
+  };
+
+  // Load user profile data with improved error handling
   const loadUserAndProfile = async (supabaseUser: SupabaseUser) => {
     try {
-      const { data, error } = await supabase
+      // Get user profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
 
-      if (error) {
-        throw error;
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        toast.error('Error loading user profile. Some features may be limited.');
+        
+        // Use basic user data if profile fetch fails
+        const basicPrefs: UserPreferences = {
+          language: 'fr',
+          notifications: { email: true, app: true },
+          theme: 'light'
+        };
+
+        const basicUser: User = {
+          ...supabaseUser,
+          name: supabaseUser.user_metadata?.name || '',
+          role: validateRole(supabaseUser.user_metadata?.role),
+          email_verified: !!supabaseUser.email_confirmed_at,
+          preferences: basicPrefs
+        };
+        
+        setUser(() => basicUser);
+        setProfile(() => null);
+        return;
       }
 
-      // Ensure role is one of the allowed types
-      const safeRole = validateRole(data?.role);
-      
-      // Process preferences to ensure they match the expected type
-      const safePreferences = processPreferences(data?.preferences);
+      // Ensure role is a valid enum value
+      const roleValue = profileData?.role || 'user';
+      const role = validateRole(roleValue);
 
-      // Create the profile object with safe types
-      const profileData: Profile = {
-        ...data,
-        role: safeRole,
-        preferences: safePreferences
-      };
+      // Update user metadata if role doesn't match
+      if (supabaseUser.user_metadata?.role !== role) {
+        await supabase.auth.updateUser({
+          data: { role: role }
+        });
+      }
 
-      // Combine Supabase user with profile data
-      const enhancedUser: User = {
-        id: supabaseUser.id,
-        email: supabaseUser.email || '',
-        name: data?.name || supabaseUser.user_metadata?.name || '',
-        role: safeRole,
-        avatar: data?.avatar || '',
-        phone_number: data?.phone_number || '',
+      const userPrefs = processPreferences(profileData?.preferences);
+
+      // Create the user object with profile data
+      const updatedUser: User = {
+        ...supabaseUser,
+        name: profileData?.name || supabaseUser.user_metadata?.name || '',
+        role: role,
+        avatar: profileData?.avatar,
+        phone_number: profileData?.phone_number,
         email_verified: !!supabaseUser.email_confirmed_at,
-        address: data?.address || '',
-        bio: data?.bio || '',
-        preferences: safePreferences
+        address: profileData?.address,
+        bio: profileData?.bio,
+        preferences: userPrefs
       };
 
-      setUser(enhancedUser);
-      setProfile(profileData);
+      // Create the profile object
+      const updatedProfile: Profile = {
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email,
+        role: role,
+        avatar: profileData.avatar,
+        phone_number: profileData.phone_number,
+        email_verified: !!supabaseUser.email_confirmed_at,
+        address: profileData.address,
+        bio: profileData.bio,
+        preferences: userPrefs,
+        created_at: profileData.created_at,
+        updated_at: profileData.updated_at
+      };
+
+      setUser(() => updatedUser);
+      setProfile(() => updatedProfile);
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      // Use basic Supabase user if profile fetch fails
-      setUser({
-        id: supabaseUser.id,
-        email: supabaseUser.email || '',
-        name: supabaseUser.user_metadata?.name || '',
-        role: 'user', // Default to user role
-        avatar: '',
-        email_verified: !!supabaseUser.email_confirmed_at
-      });
-      setProfile(null);
+      console.error('Error in loadUserAndProfile:', error);
+      toast.error('Error loading user profile');
     }
   };
 
-  // Helper to ensure role is one of the allowed values
-  const validateRole = (role: any): 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur' => {
-    const validRoles = ['admin', 'user', 'fournisseur', 'pending_fournisseur'];
-    return validRoles.includes(role) ? (role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') : 'user';
+  // Helper function to validate and normalize role values
+  const validateRole = (role: any): Role => {
+    const validRoles: Role[] = ['admin', 'user', 'agriculteur', 'fournisseur'];
+    return validRoles.includes(role) ? role : 'user';
   };
 
-  // Helper to process preferences into the expected format
-  const processPreferences = (prefs: any) => {
-    if (!prefs) return {
+  // Helper function to process and normalize user preferences
+  const processPreferences = (prefs: any): UserPreferences => {
+    const defaultPrefs: UserPreferences = {
       language: 'fr',
-      notifications: { email: true, app: true },
+      notifications: {
+        email: true,
+        app: true
+      },
       theme: 'light'
     };
-    
-    if (typeof prefs === 'object') {
-      return {
-        language: ['fr', 'en', 'ar'].includes(prefs.language) ? prefs.language : 'fr',
-        notifications: {
-          email: Boolean(prefs.notifications?.email),
-          app: Boolean(prefs.notifications?.app)
-        },
-        theme: ['light', 'dark', 'system'].includes(prefs.theme) ? prefs.theme : 'light'
-      };
-    }
-    
+
+    if (!prefs) return defaultPrefs;
+
     return {
-      language: 'fr',
-      notifications: { email: true, app: true },
-      theme: 'light'
+      language: prefs.language || defaultPrefs.language,
+      notifications: {
+        email: prefs.notifications?.email ?? defaultPrefs.notifications.email,
+        app: prefs.notifications?.app ?? defaultPrefs.notifications.app
+      },
+      theme: prefs.theme || defaultPrefs.theme
     };
   };
 
@@ -223,24 +259,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign in a user
   const signIn = async (email: string, password: string) => {
     setLoading(true);
+    
+    // Add timeout for the sign-in process
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Délai de connexion dépassé')), 10000);
+    });
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log('Attempting to sign in with email:', email);
+      
+      // Race between auth request and timeout
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeoutPromise
+      ]) as any;
 
       if (error) {
-        if (error.message.includes('Invalid login')) {
-          toast.error('Email ou mot de passe incorrect');
-        } else {
-          toast.error(error.message || 'Une erreur est survenue lors de la connexion');
-        }
-        throw error;
+        console.error('Supabase auth error:', error);
+        toast.error('Erreur de connexion: ' + error.message);
+        return;
       }
 
+      if (!data?.user || !data?.session) {
+        console.error('No user or session data returned');
+        toast.error('Erreur de connexion: données utilisateur manquantes');
+        return;
+      }
+
+      console.log('Sign in successful, setting session');
+      setSession(data.session);
+      
+      console.log('Loading user profile');
+      await loadUserAndProfile(data.user);
+      
       toast.success('Connexion réussie!');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Sign in error:', error);
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      toast.error('Erreur lors de la connexion: ' + (error.message || 'Erreur inconnue'));
     } finally {
       setLoading(false);
     }
@@ -266,35 +325,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Update user profile
-  const updateProfile = async (updates: Partial<User>): Promise<User> => {
-    if (!user) throw new Error('User not authenticated');
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: updates.name,
-          phone_number: updates.phone_number,
-          address: updates.address,
-          bio: updates.bio,
-          avatar: updates.avatar,
-          updated_at: new Date().toISOString(),
-          ...(updates.preferences && { preferences: updates.preferences })
-        })
-        .eq('id', user.id);
+  const updateProfile = async (updates: Partial<Profile>): Promise<void> => {
+    if (!user) throw new Error('No user logged in');
 
-      if (error) throw error;
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        name: updates.name,
+        phone_number: updates.phone_number,
+        address: updates.address,
+        bio: updates.bio,
+        avatar: updates.avatar,
+        preferences: updates.preferences ? JSON.stringify(updates.preferences) : undefined,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
 
-      // Update local user state with new values
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      
-      toast.success('Profil mis à jour avec succès');
-      return updatedUser;
-    } catch (error) {
+    if (error) {
       console.error('Error updating profile:', error);
-      toast.error('Erreur lors de la mise à jour du profil');
       throw error;
+    }
+
+    // Reload user and profile data
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      await loadUserAndProfile(currentUser);
     }
   };
 
@@ -382,11 +439,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       // Update local user state
-      const updatedUser: User = { 
-        ...user, 
-        role: 'pending_fournisseur' 
+      const updatedUser: User = {
+        ...user,
+        role: 'pending_supplier' as Role
       };
-      setUser(updatedUser);
+      setUser(() => updatedUser);
       
       toast.success('Demande pour devenir fournisseur envoyée');
     } catch (error) {
@@ -396,50 +453,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Role check helpers
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
-
-  const isFournisseur = () => {
-    return user?.role === 'fournisseur';
-  };
-
-  const isPendingFournisseur = () => {
-    return user?.role === 'pending_fournisseur';
-  };
+  // Role check functions
+  const isAdmin = () => user?.role === 'admin';
+  const isAgriculteur = () => user?.role === 'agriculteur';
+  const isFournisseur = () => user?.role === 'fournisseur';
 
   // Derived isAuthenticated value
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user && !!session;
 
-  // Backward compatibility aliases
-  const login = signIn;
-  const logout = signOut;
-  const signup = signUp;
-
-  const value = {
+  const value: AuthContextProps = {
     user,
-    session,
     profile,
-    signUp,
-    signIn,
-    signOut,
     loading,
-    isLoading: loading, // Alias for backward compatibility
     isAuthenticated,
-    isAdmin,
-    isFournisseur,
-    isPendingFournisseur,
+    signIn,
+    signUp,
+    signOut,
     updateProfile,
-    requestPasswordReset,
-    confirmPasswordReset,
-    verifyEmail,
-    becomeFournisseur,
-    
-    // Aliases for backward compatibility
-    login,
-    logout,
-    signup
+    isAdmin,
+    isAgriculteur,
+    isFournisseur
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

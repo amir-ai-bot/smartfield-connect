@@ -15,7 +15,7 @@ import {
   rejectFournisseurRequest,
   addFournisseur
 } from '@/services/adminService';
-import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { 
   Card, 
   CardContent, 
@@ -148,7 +148,7 @@ type ProjectWithUser = {
   creator_avatar?: string;
 };
 
-const AdminPage: React.FC = () => {
+const Admin = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -301,7 +301,6 @@ const AdminPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Navbar />
         <main className="container mx-auto flex-1 p-4 pt-20">
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
@@ -396,10 +395,8 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      
-      <main className="container mx-auto flex-1 p-2 sm:p-4 pt-20 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Administration</h1>
           <p className="text-gray-500">Gérer les utilisateurs et les données de l'application</p>
@@ -928,6 +925,7 @@ const AdminPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Footer />
     </div>
   );
 };
@@ -1047,4 +1045,4 @@ const ProjectsTab = () => {
   );
 };
 
-export default AdminPage;
+export default Admin;
