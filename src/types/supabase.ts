@@ -1,26 +1,15 @@
 
-// Media item type for messages
-export interface MediaItem {
-  id: string;
-  message_id: string;
-  media_type: "image" | "document" | "audio";
-  media_url: string;
-  created_at: string;
-}
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
-// User profile type
 export interface Profile {
   id: string;
-  name: string;
   email?: string;
+  name?: string;
   avatar?: string;
-  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  role?: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
   phone_number?: string;
-  email_verified?: boolean;
   address?: string;
   bio?: string;
-  created_at?: string;
-  updated_at?: string;
   preferences?: {
     language?: 'fr' | 'en' | 'ar';
     notifications?: {
@@ -29,9 +18,11 @@ export interface Profile {
     };
     theme?: 'light' | 'dark' | 'system';
   };
+  email_verified?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// User type
 export interface User {
   id: string;
   name: string;
@@ -52,7 +43,6 @@ export interface User {
   };
 }
 
-// Supplier type
 export interface Supplier {
   id: string;
   user_id?: string;
@@ -61,9 +51,38 @@ export interface Supplier {
   location: string;
   phone: string;
   products: string[];
-  rating: number;
+  rating: number;  // Required for type safety
   avatar?: string;
-  email?: string;
-  image?: string;
-  isFavorite?: boolean;
+  email?: string;  // Added email for supplier
+  image?: string;  // Added image for supplier display
 }
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+}
+
+export interface MediaItem {
+  id: string;
+  message_id: string;
+  media_type: 'image' | 'audio' | 'document';
+  media_url: string;
+  created_at: string;
+}
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];

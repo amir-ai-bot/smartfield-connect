@@ -65,35 +65,6 @@ export type Database = {
         }
         Relationships: []
       }
-      favorite_suppliers: {
-        Row: {
-          created_at: string
-          id: string
-          supplier_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          supplier_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          supplier_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "favorite_suppliers_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       fournisseur_ratings: {
         Row: {
           comment: string | null
@@ -341,7 +312,6 @@ export type Database = {
           contact_info: string | null
           created_at: string | null
           id: string
-          image: string | null
           location: string | null
           name: string
           phone: string | null
@@ -355,7 +325,6 @@ export type Database = {
           contact_info?: string | null
           created_at?: string | null
           id?: string
-          image?: string | null
           location?: string | null
           name: string
           phone?: string | null
@@ -369,7 +338,6 @@ export type Database = {
           contact_info?: string | null
           created_at?: string | null
           id?: string
-          image?: string | null
           location?: string | null
           name?: string
           phone?: string | null
@@ -510,13 +478,6 @@ export type Database = {
       }
     }
     Functions: {
-      add_favorite_supplier: {
-        Args: {
-          p_user_id: string
-          p_supplier_id: string
-        }
-        Returns: boolean
-      }
       admin_cleanup_orphaned_auth: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -558,13 +519,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      check_favorite_supplier: {
-        Args: {
-          p_user_id: string
-          p_supplier_id: string
-        }
-        Returns: boolean
-      }
       create_verification_code: {
         Args: {
           p_user_id: string
@@ -598,12 +552,6 @@ export type Database = {
           products: string[]
           avatar: string
         }[]
-      }
-      get_favorite_suppliers: {
-        Args: {
-          p_user_id: string
-        }
-        Returns: Json[]
       }
       get_fournisseur_ratings: {
         Args: {
@@ -645,13 +593,6 @@ export type Database = {
           p_expires_at: string
         }
         Returns: string
-      }
-      remove_favorite_supplier: {
-        Args: {
-          p_user_id: string
-          p_supplier_id: string
-        }
-        Returns: boolean
       }
       verify_code: {
         Args: {
