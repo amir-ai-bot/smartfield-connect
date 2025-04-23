@@ -34,8 +34,9 @@ const SuppliersPage = () => {
       // Extract unique categories
       const uniqueCategories = Array.from(
         new Set(data.map(supplier => supplier.category))
-      );
-      setCategories(uniqueCategories as string[]);
+      ).filter(Boolean) as string[];
+      
+      setCategories(uniqueCategories);
     } catch (error) {
       console.error("Error loading suppliers:", error);
       toast.error("Erreur lors du chargement des fournisseurs");
@@ -118,13 +119,11 @@ const SuppliersPage = () => {
               <SupplierCard 
                 key={supplier.id} 
                 id={supplier.id}
-                user_id={supplier.user_id}
                 name={supplier.name}
                 category={supplier.category}
-                rating={supplier.rating || 0} // Provide default value
+                rating={supplier.rating || 0} 
                 location={supplier.location}
                 phone={supplier.phone}
-                email={supplier.email}
                 products={supplier.products}
                 avatar={supplier.avatar}
               />
