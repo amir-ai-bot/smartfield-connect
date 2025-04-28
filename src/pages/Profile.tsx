@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -528,8 +527,6 @@ const Profile = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col md:flex-row mb-8">
           <div className="md:w-1/3 lg:w-1/4 md:pr-8">
@@ -647,7 +644,6 @@ const Profile = () => {
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );

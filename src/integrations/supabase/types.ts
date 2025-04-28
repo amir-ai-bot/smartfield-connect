@@ -65,6 +65,35 @@ export type Database = {
         }
         Relationships: []
       }
+      favorite_suppliers: {
+        Row: {
+          created_at: string
+          id: string
+          supplier_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          supplier_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          supplier_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fournisseur_ratings: {
         Row: {
           comment: string | null
@@ -132,163 +161,315 @@ export type Database = {
           address: string | null
           avatar: string | null
           bio: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
+          email_verified: boolean | null
           id: string
           name: string | null
           phone_number: string | null
           preferences: Json | null
           role: string | null
-          tags: string[] | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           address?: string | null
           avatar?: string | null
           bio?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
+          email_verified?: boolean | null
           id: string
           name?: string | null
           phone_number?: string | null
           preferences?: Json | null
           role?: string | null
-          tags?: string[] | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           address?: string | null
           avatar?: string | null
           bio?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
+          email_verified?: boolean | null
           id?: string
           name?: string | null
           phone_number?: string | null
           preferences?: Json | null
           role?: string | null
-          tags?: string[] | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
       projects: {
         Row: {
-          created_at: string
+          created_at: string | null
           crop: string | null
           description: string | null
           end_date: string | null
           id: string
           image: string | null
           is_public: boolean | null
-          last_modified: string | null
           location: string | null
           progress: number | null
           start_date: string | null
           status: string | null
           title: string
-          updated_at: string
-          user_id: string
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           crop?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
           image?: string | null
           is_public?: boolean | null
-          last_modified?: string | null
           location?: string | null
           progress?: number | null
           start_date?: string | null
           status?: string | null
           title: string
-          updated_at?: string
-          user_id: string
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           crop?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
           image?: string | null
           is_public?: boolean | null
-          last_modified?: string | null
           location?: string | null
           progress?: number | null
           start_date?: string | null
           status?: string | null
           title?: string
-          updated_at?: string
-          user_id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          created_at: string | null
+          id: string
+          price: number | null
+          project_id: string | null
+          quantity: number | null
+          service_id: string | null
+          status: string | null
+          supplier_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          price?: number | null
+          project_id?: string | null
+          quantity?: number | null
+          service_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          price?: number | null
+          project_id?: string | null
+          quantity?: number | null
+          service_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          availability: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: number | null
+          supplier_id: string | null
+          type: Database["public"]["Enums"]["service_type"] | null
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          availability?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: number | null
+          supplier_id?: string | null
+          type?: Database["public"]["Enums"]["service_type"] | null
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          availability?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number | null
+          supplier_id?: string | null
+          type?: Database["public"]["Enums"]["service_type"] | null
+          unit?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
       suppliers: {
         Row: {
-          category: string
+          category: string | null
+          contact_info: string | null
           created_at: string | null
           id: string
-          location: string
+          image: string | null
+          location: string | null
+          name: string
           phone: string | null
           products: string[] | null
           rating: number | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
-          category: string
+          category?: string | null
+          contact_info?: string | null
           created_at?: string | null
           id?: string
-          location: string
+          image?: string | null
+          location?: string | null
+          name: string
           phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
-          category?: string
+          category?: string | null
+          contact_info?: string | null
           created_at?: string | null
           id?: string
-          location?: string
+          image?: string | null
+          location?: string | null
+          name?: string
           phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      training_materials: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          url?: string | null
         }
         Relationships: []
       }
       verification_codes: {
         Row: {
           code: string
-          created_at: string
+          created_at: string | null
           expires_at: string
           id: string
           type: string
-          used: boolean
-          user_id: string
+          used: boolean | null
+          user_id: string | null
         }
         Insert: {
           code: string
-          created_at?: string
+          created_at?: string | null
           expires_at: string
           id?: string
           type: string
-          used?: boolean
-          user_id: string
+          used?: boolean | null
+          user_id?: string | null
         }
         Update: {
           code?: string
-          created_at?: string
+          created_at?: string | null
           expires_at?: string
           id?: string
           type?: string
-          used?: boolean
-          user_id?: string
+          used?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      weather_alerts: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          message: string | null
+          project_id: string | null
+          severity: string | null
+          start_date: string | null
+          type: Database["public"]["Enums"]["weather_alert_type"] | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          severity?: string | null
+          start_date?: string | null
+          type?: Database["public"]["Enums"]["weather_alert_type"] | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          severity?: string | null
+          start_date?: string | null
+          type?: Database["public"]["Enums"]["weather_alert_type"] | null
         }
         Relationships: []
       }
@@ -297,6 +478,9 @@ export type Database = {
       projects_with_users: {
         Row: {
           created_at: string | null
+          creator_avatar: string | null
+          creator_email: string | null
+          creator_name: string | null
           crop: string | null
           description: string | null
           end_date: string | null
@@ -309,40 +493,49 @@ export type Database = {
           status: string | null
           title: string | null
           updated_at: string | null
-          user_email: string | null
           user_id: string | null
-          user_name: string | null
         }
         Relationships: []
       }
       public_projects_view: {
         Row: {
           created_at: string | null
-          crop: string | null
+          creator: string | null
+          creator_avatar: string | null
           description: string | null
-          end_date: string | null
           id: string | null
-          image: string | null
-          is_public: boolean | null
-          location: string | null
-          progress: number | null
-          start_date: string | null
-          status: string | null
           title: string | null
-          user_avatar: string | null
-          user_id: string | null
-          user_name: string | null
         }
         Relationships: []
       }
     }
     Functions: {
+      add_favorite_supplier: {
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
+        Returns: boolean
+      }
+      admin_cleanup_orphaned_auth: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          deleted_count: number
+          deleted_emails: string[]
+        }[]
+      }
       admin_create_user: {
         Args: {
           user_name: string
           user_email: string
           user_password: string
           user_role?: string
+        }
+        Returns: undefined
+      }
+      admin_delete_auth_user: {
+        Args: {
+          target_user_id: string
         }
         Returns: undefined
       }
@@ -365,8 +558,51 @@ export type Database = {
         }
         Returns: undefined
       }
+      check_favorite_supplier: {
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
+        Returns: boolean
+      }
+      create_verification_code: {
+        Args: {
+          p_user_id: string
+          p_type?: string
+        }
+        Returns: string
+      }
+      exec_sql: {
+        Args: {
+          sql: string
+        }
+        Returns: undefined
+      }
+      force_delete_user: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: undefined
+      }
       get_all_suppliers: {
         Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          name: string
+          category: string
+          rating: number
+          location: string
+          phone: string
+          email: string
+          products: string[]
+          avatar: string
+        }[]
+      }
+      get_favorite_suppliers: {
+        Args: {
+          p_user_id: string
+        }
         Returns: Json[]
       }
       get_fournisseur_ratings: {
@@ -401,9 +637,36 @@ export type Database = {
         }
         Returns: string
       }
+      insert_verification_code: {
+        Args: {
+          p_user_id: string
+          p_code: string
+          p_type: string
+          p_expires_at: string
+        }
+        Returns: string
+      }
+      remove_favorite_supplier: {
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
+        Returns: boolean
+      }
+      verify_code: {
+        Args: {
+          p_user_id: string
+          p_code: string
+          p_type?: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      project_status: "draft" | "active" | "completed" | "cancelled"
+      service_type: "equipment" | "seeds" | "fertilizers" | "consulting"
+      user_role: "admin" | "farmer" | "supplier"
+      weather_alert_type: "rain" | "drought" | "frost" | "heat_wave"
     }
     CompositeTypes: {
       [_ in never]: never

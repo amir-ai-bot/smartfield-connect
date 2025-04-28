@@ -372,43 +372,59 @@ export const getAllProjects = async () => {
 };
 
 // Approve a fournisseur request
-export const approveFournisseurRequest = async (userId: string) => {
+export const approveFournisseurRequest = async (userId: string): Promise<boolean> => {
   try {
     // First, update the user's role to 'fournisseur'
-    const { error: roleError } = await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
       .update({ role: 'fournisseur' })
       .eq('id', userId);
 
-    if (roleError) {
-      console.error('Error updating user role:', roleError);
+    if (updateError) {
+      console.error('Error updating user role:', updateError);
       toast.error('Erreur lors de la mise à jour du rôle');
-      throw roleError;
+      return false;
     }
 
-    // Then, create a supplier entry for the user
+    // Get user's profile data to create supplier entry
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      toast.error('Erreur lors de la récupération du profil');
+      return false;
+    }
+
+    // Create supplier entry
     const { error: supplierError } = await supabase
       .from('suppliers')
       .insert({
         user_id: userId,
-        category: 'À définir',
-        location: 'À définir',
+        name: profile?.name || 'Fournisseur',
+        category: 'Autre',
+        location: 'Non spécifié',
         products: [],
-        rating: 0,
-        phone: ''
-      });
+        rating: 0
+      })
+      .select()
+      .single();
 
     if (supplierError) {
       console.error('Error creating supplier entry:', supplierError);
-      toast.error('Erreur lors de la création du compte fournisseur');
-      throw supplierError;
+      toast.error('Erreur lors de la création du profil fournisseur');
+      return false;
     }
 
     toast.success('Demande de fournisseur approuvée avec succès');
     return true;
   } catch (error) {
     console.error('Error in approveFournisseurRequest:', error);
-    throw error;
+    toast.error('Erreur lors de l\'approbation de la demande');
+    return false;
   }
 };
 
@@ -471,17 +487,18 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
       throw new Error('No user ID returned after creation');
     }
 
-    // Create the supplier entry directly
+    // Instead of using a non-existent RPC function, directly insert into the suppliers table
     const { error: supplierError } = await supabase
       .from('suppliers')
       .insert({
         user_id: authData.user.id,
+        name: fournisseurData.name, // Required field
         category: fournisseurData.category,
         location: fournisseurData.location,
         products: fournisseurData.products,
-        rating: 0,
-        phone: fournisseurData.phone
-    });
+        phone: fournisseurData.phone,
+        rating: 0 // Default rating
+      });
 
     if (supplierError) {
       console.error('Error creating supplier:', supplierError);
@@ -494,5 +511,97 @@ export const addFournisseur = async (fournisseurData: FournisseurData) => {
   } catch (error) {
     console.error('Error in addFournisseur:', error);
     throw error;
+  }
+};
+
+// Add a new supplier
+export const addSupplier = async (
+  userId: string, 
+  name: string, 
+  category: string, 
+  products: string[] = [],
+  location: string = 'Non spécifié',
+): Promise<string | null> => {
+  try {
+    // Check if the user exists
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found:', userError);
+      return null;
+    }
+
+    // Use the suppliers table directly instead of calling a function that doesn't exist
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: userId,
+        category: category,
+        location: location,
+        products: products,
+        rating: 0,
+        name: name || userData.name || 'Supplier' // Include the required name field
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error adding supplier:', error);
+      return null;
+    }
+
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error in addSupplier:', error);
+    return null;
+  }
+};
+
+// Set a user as admin
+export const setUserAsAdmin = async (email: string): Promise<boolean> => {
+  try {
+    // Get the user's profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('Failed to get user profile:', profileError);
+      return false;
+    }
+
+    // Update the user's role to admin in the profiles table
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('id', profile.id);
+
+    if (updateError) {
+      console.error('Failed to update user role:', updateError);
+      return false;
+    }
+
+    // Update the user's metadata in auth.users
+    const { error: metadataError } = await supabase.auth.admin.updateUserById(
+      profile.id,
+      { user_metadata: { role: 'admin' } }
+    );
+
+    if (metadataError) {
+      console.error('Failed to update user metadata:', metadataError);
+      return false;
+    }
+
+    console.log('Successfully set user as admin');
+    return true;
+  } catch (error) {
+    console.error('Error setting user as admin:', error);
+    return false;
   }
 };

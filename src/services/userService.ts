@@ -146,12 +146,18 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
 export const becomeFournisseur = async (userId: string): Promise<User> => {
   try {
     // Check if user is admin before allowing role change
-    const { data: userData } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .single();
       
+    if (userError) {
+      console.error('Error checking user role:', userError.message);
+      toast.error("Erreur lors de la vérification du rôle");
+      throw new Error(userError.message);
+    }
+    
     if (userData?.role === 'admin') {
       toast.error("Un administrateur ne peut pas devenir fournisseur");
       throw new Error("Admin cannot become fournisseur");

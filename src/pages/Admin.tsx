@@ -15,7 +15,7 @@ import {
   rejectFournisseurRequest,
   addFournisseur
 } from '@/services/adminService';
-import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { 
   Card, 
   CardContent, 
@@ -126,16 +126,38 @@ type Project = {
   user_email?: string;
 };
 
-const AdminPage: React.FC = () => {
+type ProjectWithUser = {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  progress: number;
+  status: 'active' | 'planning' | 'completed';
+  image?: string;
+  user_name?: string;
+  user_id: string;
+  created_at: string;
+  description?: string;
+  is_public?: boolean;
+  updated_at?: string;
+  user_email?: string;
+  creator_name?: string;
+  creator_email?: string;
+  creator_avatar?: string;
+};
+
+const Admin = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [codes, setCodes] = useState<VerificationCode[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithUser | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
   const [showNewFournisseurDialog, setShowNewFournisseurDialog] = useState(false);
@@ -182,10 +204,12 @@ const AdminPage: React.FC = () => {
         
         const typedProjects = projectsData.map(project => ({
           ...project,
-          status: (project.status as string).toLowerCase() === 'active' ? 'active' :
-                 (project.status as string).toLowerCase() === 'planning' ? 'planning' : 
+          user_name: project.creator_name || 'Unknown',
+          user_email: project.creator_email,
+          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
+                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
                  'completed'
-        })) as Project[];
+        })) as ProjectWithUser[];
         
         setProjects(typedProjects);
       } catch (error) {
@@ -231,7 +255,7 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleDeleteProject = async (project: Project) => {
+  const handleDeleteProject = async (project: ProjectWithUser) => {
     setSelectedProject(project);
     setIsDeleteProjectDialogOpen(true);
   };
@@ -277,7 +301,6 @@ const AdminPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Navbar />
         <main className="container mx-auto flex-1 p-4 pt-20">
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
@@ -291,7 +314,6 @@ const AdminPage: React.FC = () => {
     try {
       await approveFournisseurRequest(userId);
       
-      // Update the users list and pending fournisseurs list
       setUsers(users.map(u => 
         u.id === userId 
           ? { ...u, role: 'fournisseur' } 
@@ -313,7 +335,6 @@ const AdminPage: React.FC = () => {
     try {
       await rejectFournisseurRequest(userId);
       
-      // Update the users list and pending fournisseurs list
       setUsers(users.map(u => 
         u.id === userId 
           ? { ...u, role: 'user' } 
@@ -333,18 +354,15 @@ const AdminPage: React.FC = () => {
 
   const handleAddFournisseur = async () => {
     try {
-      // Validate required fields
       if (!newFournisseurForm.name || !newFournisseurForm.email || !newFournisseurForm.password) {
         toast.error('Veuillez remplir tous les champs obligatoires.');
         return;
       }
 
-      // Convert products string to array
       const productsArray = newFournisseurForm.products
         ? newFournisseurForm.products.split(',').map(p => p.trim())
         : [];
 
-      // Create the supplier
       await addFournisseur({
         name: newFournisseurForm.name,
         email: newFournisseurForm.email,
@@ -355,7 +373,6 @@ const AdminPage: React.FC = () => {
         products: productsArray
       });
 
-      // Close dialog and reset form
       setShowNewFournisseurDialog(false);
       setNewFournisseurForm({
         name: '',
@@ -367,7 +384,6 @@ const AdminPage: React.FC = () => {
         password: ''
       });
 
-      // Fetch updated users and suppliers
       const updatedUsers = await getAllUsers();
       setUsers(updatedUsers);
       
@@ -379,10 +395,8 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      
-      <main className="container mx-auto flex-1 p-2 sm:p-4 pt-20 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Administration</h1>
           <p className="text-gray-500">Gérer les utilisateurs et les données de l'application</p>
@@ -625,75 +639,7 @@ const AdminPage: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="projects">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion des projets</CardTitle>
-                <CardDescription>
-                  Voir et gérer tous les projets de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Titre</TableHead>
-                        <TableHead>Culture</TableHead>
-                        <TableHead>Créateur</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Date de création</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {projects.map((project) => (
-                        <TableRow key={project.id}>
-                          <TableCell className="font-medium">{project.title}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Sprout className="mr-1 h-4 w-4 text-green-500" />
-                              <span>{project.crop}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{project.user_name || "Utilisateur inconnu"}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                project.status === 'active' ? "success" :
-                                project.status === 'planning' ? "info" :
-                                "secondary"
-                              }
-                            >
-                              {project.status === 'active' ? "Actif" :
-                               project.status === 'planning' ? "Planification" :
-                               "Complété"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                              onClick={() => handleDeleteProject(project)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <div className="text-xs text-gray-500">
-                  Total: {projects.length} projets
-                </div>
-              </CardFooter>
-            </Card>
+            <ProjectsTab />
           </TabsContent>
           
           <TabsContent value="codes">
@@ -979,8 +925,124 @@ const AdminPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Footer />
     </div>
   );
 };
 
-export default AdminPage;
+const ProjectsTab = () => {
+  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        const allProjects = await getAllProjects();
+        
+        const typedProjects = allProjects.map(project => ({
+          ...project,
+          user_name: project.creator_name || 'Unknown',
+          user_email: project.creator_email,
+          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
+                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
+                 'completed'
+        })) as ProjectWithUser[];
+        
+        setProjects(typedProjects);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
+
+  const getStatusBadgeClass = (status: string | undefined) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      case 'planning':
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion des projets</CardTitle>
+        <CardDescription>
+          Voir et gérer tous les projets de l'application
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Titre</TableHead>
+                <TableHead>Culture</TableHead>
+                <TableHead>Créateur</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Date de création</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projects.map((project) => (
+                <TableRow key={project.id}>
+                  <TableCell className="font-medium">{project.title}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Sprout className="mr-1 h-4 w-4 text-green-500" />
+                      <span>{project.crop}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{project.user_name || project.creator_name || "Utilisateur inconnu"}</TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={
+                        project.status === 'active' ? "success" :
+                        project.status === 'planning' ? "info" :
+                        "secondary"
+                      }
+                    >
+                      {project.status === 'active' ? "Actif" :
+                       project.status === 'planning' ? "Planification" :
+                       "Complété"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                      onClick={() => deleteProject(project.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <div className="text-xs text-gray-500">
+          Total: {projects.length} projets
+        </div>
+      </CardFooter>
+    </Card>
+  );
+};
+
+export default Admin;
