@@ -1,3 +1,4 @@
+
 import { createBrowserRouter } from 'react-router-dom';
 import App from './App';
 import Index from './pages/Index';
@@ -12,8 +13,6 @@ import ConversationDetail from './pages/ConversationDetail';
 import Favorites from './pages/Favorites';
 import SupplierProfilePage from './pages/SupplierProfilePage';
 import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
-import AdminRoute from './components/auth/AdminRoute';
 
 const router = createBrowserRouter([
   {
@@ -70,13 +69,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/admin",
-        element: <AdminRoute />,
-        children: [
-          {
-            path: "",
-            element: <Admin />
-          }
-        ]
+        element: <Admin />
       },
       {
         path: "/suppliers",
@@ -92,7 +85,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/projects/:id",
-        element: <ProjectDetail />
+        element: <Projects />
       },
       {
         path: "/projects",
@@ -113,10 +106,6 @@ const router = createBrowserRouter([
       {
         path: "/favorites",
         element: <Favorites />
-      },
-      {
-        path: "*",
-        element: <NotFound />
       }
     ]
   }
