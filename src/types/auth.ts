@@ -1,54 +1,21 @@
-import { User as SupabaseUser } from '@supabase/supabase-js';
-
-export type Role = 'user' | 'admin' | 'agriculteur' | 'fournisseur' | 'pending_fournisseur';
-
-export interface UserPreferences {
-  language: string;
-  notifications: {
-    email: boolean;
-    app: boolean;
-  };
-  theme: 'light' | 'dark';
-}
-
-export interface User extends Omit<SupabaseUser, 'role'> {
-  name: string;
-  role: Role;
-  avatar?: string;
-  phone_number?: string;
-  address?: string;
-  bio?: string;
-  preferences: UserPreferences;
-  email_verified: boolean;
-}
-
-export interface Profile {
+export interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
   avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
   phone_number?: string;
+  email_verified?: boolean;
   address?: string;
   bio?: string;
-  preferences: UserPreferences;
-  email_verified: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface AuthContextProps {
-  user: User | null;
-  profile: Profile | null;
-  loading: boolean;
-  isAuthenticated: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
-  isAdmin: () => boolean;
-  isAgriculteur: () => boolean;
-  isFournisseur: () => boolean;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
 }
 
 export interface AuthState {
@@ -106,6 +73,15 @@ export interface ProfileUpdateFormData {
   address?: string;
   bio?: string;
   avatar?: File | null;
+}
+
+export interface UserPreferences {
+  language?: 'fr' | 'en' | 'ar';
+  notifications?: {
+    email?: boolean;
+    app?: boolean;
+  };
+  theme?: 'light' | 'dark' | 'system';
 }
 
 export interface ProjectData {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSupplierById } from '@/services/supplierService';
@@ -50,7 +51,19 @@ const SupplierProfilePage = () => {
           
           if (supplierData) {
             const ratingsData = await getFournisseurRatings(supplierData.user_id);
-            setRatings(ratingsData);
+            // Convert the returned data to match the Rating interface
+            const formattedRatings = ratingsData.map((rating: any) => ({
+              id: rating.id,
+              rating: rating.rating,
+              comment: rating.comment,
+              created_at: rating.created_at,
+              profiles: {
+                id: rating.profiles?.id || '',
+                name: rating.profiles?.name || 'Anonyme',
+                avatar: rating.profiles?.avatar
+              }
+            }));
+            setRatings(formattedRatings);
           }
         } catch (error) {
           console.error('Error loading supplier profile:', error);
@@ -98,7 +111,19 @@ const SupplierProfilePage = () => {
     
     try {
       const ratingsData = await getFournisseurRatings(supplier.user_id);
-      setRatings(ratingsData);
+      // Convert the returned data to match the Rating interface
+      const formattedRatings = ratingsData.map((rating: any) => ({
+        id: rating.id,
+        rating: rating.rating,
+        comment: rating.comment,
+        created_at: rating.created_at,
+        profiles: {
+          id: rating.profiles?.id || '',
+          name: rating.profiles?.name || 'Anonyme',
+          avatar: rating.profiles?.avatar
+        }
+      }));
+      setRatings(formattedRatings);
     } catch (error) {
       console.error('Error refreshing ratings:', error);
     }

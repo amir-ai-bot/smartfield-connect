@@ -1,4 +1,6 @@
+
 import { useState, useEffect } from 'react';
+import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import SupplierCard from '@/components/SupplierCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +39,8 @@ const Favorites = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col space-y-6">
           <div className="flex items-center mb-6">
@@ -63,14 +67,16 @@ const Favorites = () => {
                 >
                   <SupplierCard 
                     id={supplier.id}
+                    user_id={supplier.user_id || supplier.id} // Add the missing user_id property
                     name={supplier.name || "Fournisseur"}
-                    category={supplier.category || "Divers"}
-                    rating={supplier.rating || 4.5}
-                    location={supplier.location || "Non spécifié"}
-                    phone={supplier.phone || "Non spécifié"}
+                    category={supplier.tags?.[0] || "Divers"}
+                    rating={4.5}
+                    location={supplier.address || "Non spécifié"}
+                    phone={supplier.phone_number || "Non spécifié"}
                     email={supplier.email || "Non spécifié"}
-                    products={supplier.products || []}
-                    avatar={supplier.avatar || ""}
+                    products={supplier.tags || []}
+                    image={supplier.avatar || "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"}
+                    isFavorite={true}
                   />
                 </div>
               ))}
