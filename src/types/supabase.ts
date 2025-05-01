@@ -69,6 +69,9 @@ export interface Project {
 }
 
 export interface ProjectWithUser extends Project {
+  creator_name?: string;
+  creator_email?: string;
+  creator_avatar?: string;
   user_name?: string;
   user_email?: string;
   user_avatar?: string;

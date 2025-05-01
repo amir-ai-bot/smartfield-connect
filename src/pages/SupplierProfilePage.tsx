@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
-import { Rating as SupabaseRating } from '@/types/supabase';
+import { Rating } from '@/types/supabase';
 import RatingComponent from '@/components/RatingComponent';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +15,7 @@ import { createSupplierConversation } from '@/services/supplierService';
 import { toast } from 'sonner';
 
 // Define a local Rating type that matches what's expected
-interface Rating extends SupabaseRating {
+interface ExtendedRating extends Rating {
   profiles: {
     id: string;
     name: string;
@@ -24,8 +25,8 @@ interface Rating extends SupabaseRating {
 
 const SupplierProfilePage = () => {
   const { id } = useParams<{ id: string }>();
-  const [supplier, setSupplier] = useState(null);
-  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [supplier, setSupplier] = useState<any>(null);
+  const [ratings, setRatings] = useState<ExtendedRating[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -42,14 +43,31 @@ const SupplierProfilePage = () => {
     const fetchRatings = async () => {
       if (id) {
         const data = await getRatingsByFournisseurId(id);
-        setRatings(data as unknown as Rating[]);
+        // Make sure we have the expected shape with profiles
+        const formattedRatings = data.map((rating: any) => ({
+          ...rating,
+          profiles: rating.profiles || { 
+            id: rating.user_id,
+            name: 'Anonymous',
+          }
+        }));
+        setRatings(formattedRatings as ExtendedRating[]);
       }
     };
     fetchRatings();
   }, [id]);
 
-  const handleRatingAdded = async (newRating: Rating) => {
-    setRatings([...ratings, newRating as unknown as Rating]);
+  const handleRatingAdded = async (newRating: any) => {
+    // Make sure the new rating has the expected shape
+    const formattedRating = {
+      ...newRating,
+      profiles: newRating.profiles || { 
+        id: newRating.user_id,
+        name: 'Anonymous',
+      }
+    };
+    
+    setRatings([...ratings, formattedRating as ExtendedRating]);
   };
 
   if (!supplier) {
@@ -113,7 +131,7 @@ const SupplierProfilePage = () => {
       <div className="mb-4">
         <h2 className="text-xl font-semibold mb-2">Produits</h2>
         <ul>
-          {supplier.products.map((product, index) => (
+          {supplier.products && supplier.products.map((product: string, index: number) => (
             <li key={index} className="list-disc ml-6">{product}</li>
           ))}
         </ul>

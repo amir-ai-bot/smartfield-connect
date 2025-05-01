@@ -1,5 +1,5 @@
 
-import { createAdminAccount } from '@/services/authService';
+import { createAdminAccount } from '@/services/adminService';
 import { toast } from 'sonner';
 
 export const setupAdminAccount = async () => {

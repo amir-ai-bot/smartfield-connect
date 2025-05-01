@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User } from '@/types/auth';
+import { User, UserRole, UserPreferences } from '@/types/auth';
 
 // Authentication functions
 export const signIn = async (email: string, password: string): Promise<User | null> => {
@@ -35,22 +35,37 @@ export const signIn = async (email: string, password: string): Promise<User | nu
       console.error('Error fetching user profile:', profileError);
     }
 
+    // Handle profile data mapping and preferences
+    let preferences: UserPreferences = {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+
+    if (profileData?.preferences) {
+      const prefs = profileData.preferences as any;
+      preferences = {
+        language: (prefs.language || 'fr') as 'fr' | 'en' | 'ar',
+        notifications: {
+          email: prefs.notifications?.email !== undefined ? Boolean(prefs.notifications.email) : true,
+          app: prefs.notifications?.app !== undefined ? Boolean(prefs.notifications.app) : true
+        },
+        theme: (prefs.theme || 'light') as 'light' | 'dark' | 'system'
+      };
+    }
+
     // Combine auth user with profile data
     const user: User = {
       id: data.user.id,
       email: data.user.email || '',
-      name: profileData?.name || data.user.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      name: profileData?.display_name || data.user.user_metadata?.name || '',
+      role: (profileData?.role || 'user') as UserRole,
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!data.user.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences
     };
 
     toast.success('Connexion réussie!');
@@ -177,22 +192,37 @@ export const getCurrentUser = async (): Promise<User | null> => {
       console.error('Error fetching user profile:', profileError);
     }
 
+    // Handle profile data mapping and preferences
+    let preferences: UserPreferences = {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+
+    if (profileData?.preferences) {
+      const prefs = profileData.preferences as any;
+      preferences = {
+        language: (prefs.language || 'fr') as 'fr' | 'en' | 'ar',
+        notifications: {
+          email: prefs.notifications?.email !== undefined ? Boolean(prefs.notifications.email) : true,
+          app: prefs.notifications?.app !== undefined ? Boolean(prefs.notifications.app) : true
+        },
+        theme: (prefs.theme || 'light') as 'light' | 'dark' | 'system'
+      };
+    }
+
     // Combine auth user with profile data
     const user: User = {
       id: authUser.id,
       email: authUser.email || '',
-      name: profileData?.name || authUser.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      name: profileData?.display_name || authUser.user_metadata?.name || '',
+      role: (profileData?.role || 'user') as UserRole,
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences
     };
 
     return user;
@@ -245,22 +275,37 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
       throw authError || new Error('User not found');
     }
 
+    // Handle profile data mapping and preferences
+    let preferences: UserPreferences = {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+
+    if (profileData?.preferences) {
+      const prefs = profileData.preferences as any;
+      preferences = {
+        language: (prefs.language || 'fr') as 'fr' | 'en' | 'ar',
+        notifications: {
+          email: prefs.notifications?.email !== undefined ? Boolean(prefs.notifications.email) : true,
+          app: prefs.notifications?.app !== undefined ? Boolean(prefs.notifications.app) : true
+        },
+        theme: (prefs.theme || 'light') as 'light' | 'dark' | 'system'
+      };
+    }
+
     // Combine auth user with updated profile data
     const updatedUser: User = {
       id: authUser.id,
       email: authUser.email || '',
-      name: profileData?.name || authUser.user_metadata?.name || '',
-      role: profileData?.role || 'user',
+      name: profileData?.display_name || authUser.user_metadata?.name || '',
+      role: (profileData?.role || 'user') as UserRole,
       avatar: profileData?.avatar || undefined,
       phone_number: profileData?.phone_number || undefined,
       email_verified: !!authUser.email_confirmed_at,
       address: profileData?.address || undefined,
       bio: profileData?.bio || undefined,
-      preferences: profileData?.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
+      preferences
     };
 
     toast.success('Profil mis à jour avec succès');

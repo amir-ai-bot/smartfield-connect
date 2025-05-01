@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,32 +25,30 @@ const Projects = () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select(`
-          *,
-          profiles(display_name, avatar)
-        `);
+        .select('*');
 
       if (error) {
         throw error;
       }
 
-      const formattedProjects = data.map(project => ({
+      // Get user profiles for each project
+      const formattedProjects: ProjectData[] = data.map(project => ({
         id: project.id,
         title: project.name,
-        description: project.description,
-        status: project.status,
-        user_id: project.owner_id,
-        created_at: project.created_at,
-        updated_at: project.updated_at,
-        image: '', // Assuming a default or placeholder
-        crop: '', // Assuming a default or placeholder
-        location: '', // Assuming a default or placeholder
-        startDate: '', // Assuming a default or placeholder
-        endDate: '', // Assuming a default or placeholder
-        progress: 0, // Assuming a default or placeholder
-        isPublic: true, // Assuming a default or placeholder
-        user_name: project.profiles?.display_name || 'Unknown',
-        user_avatar: project.profiles?.avatar || null,
+        description: project.description || '',
+        status: (project.status || 'planning') as 'planning' | 'active' | 'completed',
+        user_id: project.owner_id || '',
+        created_at: project.created_at || '',
+        updated_at: project.updated_at || '',
+        image: '', // Default value
+        crop: '', // Default value
+        location: '', // Default value
+        startDate: '', // Default value
+        endDate: '', // Default value
+        progress: 0, // Default value
+        isPublic: true, // Default value
+        user_name: 'Unknown', // Will be updated after getting profiles
+        user_avatar: null, // Will be updated after getting profiles
       }));
 
       setProjects(formattedProjects);
@@ -105,9 +104,7 @@ const Projects = () => {
     setShowForm(true);
   };
 
-  const projectsToAdd: ProjectData[] = [];
-
-  const handleSubmit = async (projectData: ProjectData) => {
+  const handleSubmit = async (projectData: Partial<ProjectData>) => {
     if (!user) return;
 
     try {
@@ -126,18 +123,23 @@ const Projects = () => {
           throw error;
         }
 
-        updateProject({ ...editingProject, ...projectData });
+        updateProject({ 
+          ...editingProject, 
+          title: projectData.title || editingProject.title,
+          description: projectData.description || editingProject.description,
+          status: projectData.status || editingProject.status
+        });
         toast.success('Project updated successfully.');
       } else {
         // Create new project
         const { data, error } = await supabase
           .from('projects')
-          .insert(projectsToAdd.map(project => ({
-            name: project.title,
-            description: project.description,
-            status: project.status,
-            owner_id: project.user_id
-          })))
+          .insert({
+            name: projectData.title,
+            description: projectData.description,
+            status: projectData.status || 'planning',
+            owner_id: user.id
+          })
           .select()
           .single();
 
@@ -145,24 +147,26 @@ const Projects = () => {
           throw error;
         }
 
-        addProject({
+        const newProject: ProjectData = {
           id: data.id,
           title: data.name,
-          description: data.description,
-          status: data.status,
+          description: data.description || '',
+          status: (data.status || 'planning') as 'planning' | 'active' | 'completed',
           user_id: data.owner_id,
           created_at: data.created_at,
           updated_at: data.updated_at,
-          image: '', // Assuming a default or placeholder
-          crop: '', // Assuming a default or placeholder
-          location: '', // Assuming a default or placeholder
-          startDate: '', // Assuming a default or placeholder
-          endDate: '', // Assuming a default or placeholder
-          progress: 0, // Assuming a default or placeholder
-          isPublic: true, // Assuming a default or placeholder
+          image: '', // Default value
+          crop: '', // Default value
+          location: '', // Default value
+          startDate: '', // Default value
+          endDate: '', // Default value
+          progress: 0, // Default value
+          isPublic: true, // Default value
           user_name: user.name,
           user_avatar: user.avatar || null,
-        });
+        };
+        
+        addProject(newProject);
         toast.success('Project created successfully.');
       }
     } catch (error) {
@@ -201,8 +205,9 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.map((project) => (
-          <ProjectCard key={project.id} project={project}>
-            <div className="flex justify-end space-x-2">
+          <div key={project.id}>
+            <ProjectCard project={project} />
+            <div className="flex justify-end space-x-2 mt-2">
               <button
                 onClick={() => openEditForm(project)}
                 className="text-blue-500 hover:text-blue-700"
@@ -218,7 +223,7 @@ const Projects = () => {
                 Delete
               </button>
             </div>
-          </ProjectCard>
+          </div>
         ))}
       </div>
     </div>

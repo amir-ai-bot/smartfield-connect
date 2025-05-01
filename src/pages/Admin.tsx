@@ -379,7 +379,7 @@ const Admin = () => {
               <TableRow key={project.id}>
                 <TableCell className="font-medium">{project.name}</TableCell>
                 <TableCell>{project.status}</TableCell>
-                <TableCell>{project.creator_name} ({project.creator_email})</TableCell>
+                <TableCell>{project.user_name || project.creator_name || 'Unknown'} ({project.user_email || project.creator_email || 'Unknown'})</TableCell>
                 <TableCell>{formatDate(project.created_at || new Date(), 'PPP')}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteProject(project.id)}>
