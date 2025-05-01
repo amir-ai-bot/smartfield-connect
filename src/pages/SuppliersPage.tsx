@@ -1,158 +1,184 @@
-
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ComboBox } from '@/components/ui/ComboBox';
-import { getSuppliers } from '@/services/supplierService';
-import { useAuth } from '@/contexts/AuthContext';
-import SupplierCard from '@/components/SupplierCard';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getAllSuppliers, searchSuppliers } from '@/services/supplierService';
 import { toast } from 'sonner';
-import BecomeSupplierDialog from '@/components/suppliers/BecomeSupplierDialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useLanguage } from '@/contexts/LanguageContext';
+import ComboBox from '@/components/ui/ComboBox';
+
+interface SupplierCardProps {
+  id: string;
+  name: string;
+  category: string;
+  rating?: number;
+  location: string;
+  phone: string;
+  email?: string;
+  products: string[];
+  avatar?: string;
+}
+
+const SupplierCard: React.FC<SupplierCardProps> = ({ id, name, category, rating, location, phone, email, products, avatar }) => {
+  const { t } = useLanguage();
+
+  return (
+    <Card className="bg-white shadow-md rounded-lg overflow-hidden">
+      <CardHeader>
+        <div className="flex items-center space-x-4">
+          <Avatar>
+            <AvatarImage src={avatar} alt={name} />
+            <AvatarFallback>{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <CardTitle className="text-lg font-semibold">{name}</CardTitle>
+        </div>
+        <CardDescription>
+          <Badge variant="secondary">{category}</Badge>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex items-center">
+          <span className="font-medium">{t('location')}:</span>
+          <span className="ml-1">{location}</span>
+        </div>
+        <div className="flex items-center">
+          <span className="font-medium">{t('phone')}:</span>
+          <span className="ml-1">{phone}</span>
+        </div>
+        {email && (
+          <div className="flex items-center">
+            <span className="font-medium">Email:</span>
+            <span className="ml-1">{email}</span>
+          </div>
+        )}
+        <div>
+          <span className="font-medium">{t('products')}:</span>
+          <ul className="list-disc pl-5">
+            {products.map((product, index) => (
+              <li key={index}>{product}</li>
+            ))}
+          </ul>
+        </div>
+      </CardContent>
+      <CardFooter className="justify-between items-center">
+        <div>
+          <span className="font-medium">{t('rating')}:</span>
+          <span className="ml-1">{rating || 'N/A'}</span>
+        </div>
+        <Link to={`/suppliers/${id}`}>
+          <Button variant="secondary" size="sm">
+            {t('viewDetails')}
+          </Button>
+        </Link>
+      </CardFooter>
+    </Card>
+  );
+};
 
 const SuppliersPage = () => {
-  const { user, isAuthenticated, becomeFournisseur, isPendingFournisseur } = useAuth();
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [filteredSuppliers, setFilteredSuppliers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchText, setSearchText] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [showBecomeSupplierDialog, setShowBecomeSupplierDialog] = useState(false);
-  
+  const [suppliers, setSuppliers] = useState<SupplierCardProps[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
+  const [selectedCategory, setSelectedCategory] = useState('');
+
   useEffect(() => {
-    document.title = "Fournisseurs | AgriSmart";
     loadSuppliers();
   }, []);
-  
+
   const loadSuppliers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await getSuppliers();
-      setSuppliers(data);
-      setFilteredSuppliers(data);
-      
-      // Extract unique categories
-      const uniqueCategories = Array.from(
-        new Set(data.map(supplier => supplier.category))
-      );
-      setCategories(uniqueCategories as string[]);
+      const suppliersData = await getAllSuppliers();
+      setSuppliers(suppliersData);
     } catch (error) {
-      console.error("Error loading suppliers:", error);
-      toast.error("Erreur lors du chargement des fournisseurs");
+      console.error('Error loading suppliers:', error);
+      toast.error('Failed to load suppliers');
     } finally {
       setLoading(false);
     }
   };
-  
-  useEffect(() => {
-    // Filter suppliers based on search text and selected category
-    const filtered = suppliers.filter(supplier => {
-      const matchesText = searchText === '' || 
-        supplier.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        (supplier.products && supplier.products.some((product: string) => 
-          product.toLowerCase().includes(searchText.toLowerCase())
-        ));
-      
-      const matchesCategory = selectedCategory === '' || supplier.category === selectedCategory;
-      
-      return matchesText && matchesCategory;
-    });
-    
-    setFilteredSuppliers(filtered);
-  }, [searchText, selectedCategory, suppliers]);
-  
-  const handleBecomeSupplier = () => {
-    if (!isAuthenticated) {
-      toast.error("Veuillez vous connecter pour devenir fournisseur");
-      return;
+
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      const searchResults = await searchSuppliers(searchQuery);
+      setSuppliers(searchResults);
+    } catch (error) {
+      console.error('Error searching suppliers:', error);
+      toast.error('Failed to search suppliers');
+    } finally {
+      setLoading(false);
     }
-    
-    setShowBecomeSupplierDialog(true);
   };
-  
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    // Implement category-based filtering here if needed
+  };
+
+  const categoryOptions = [
+    { value: '', label: 'All Categories' },
+    { value: 'Fertilisants', label: 'Fertilisants' },
+    { value: 'Équipement', label: 'Équipement' },
+    { value: 'Semences', label: 'Semences' },
+    // Add more categories as needed
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 pb-20 md:pb-8 mt-16">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-6">Fournisseurs agricoles</h1>
-          
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <Input
-              placeholder="Rechercher par nom ou produit..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="md:w-1/3"
-            />
-            
-            <ComboBox
-              items={categories.map(cat => ({ value: cat, label: cat }))}
-              placeholder="Filtrer par catégorie"
-              onValueChange={(value) => setSelectedCategory(value)}
-              className="md:w-1/3"
-            />
-            
-            {isAuthenticated && !isPendingFournisseur() && (
-              <Button 
-                onClick={handleBecomeSupplier}
-                className="bg-agri-green-500 hover:bg-agri-green-600"
-              >
-                Devenir fournisseur
-              </Button>
-            )}
-            
-            {isPendingFournisseur && isPendingFournisseur() && (
-              <div className="flex items-center text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200 text-sm">
-                <span>Votre demande pour devenir fournisseur est en cours d'examen</span>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
-          </div>
-        ) : filteredSuppliers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredSuppliers.map((supplier) => (
-              <SupplierCard 
-                key={supplier.id} 
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-semibold mb-4">{t('suppliers')}</h1>
+
+      <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 mb-4">
+        <Input
+          type="text"
+          placeholder={t('searchSuppliers')}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <Button onClick={handleSearch} disabled={loading}>
+          <Search className="mr-2 h-4 w-4" />
+          {t('search')}
+        </Button>
+      </div>
+
+      {/* Category ComboBox */}
+      <ComboBox
+        items={categoryOptions}
+        placeholder="Select Category"
+        value={selectedCategory}
+        onValueChange={handleCategoryChange}
+        className="mb-4"
+      />
+
+      {loading ? (
+        <p>{t('loading')}</p>
+      ) : (
+        <ScrollArea className="rounded-md border p-2 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {suppliers.map((supplier) => (
+              <SupplierCard
+                key={supplier.id}
                 id={supplier.id}
-                user_id={supplier.user_id}
                 name={supplier.name}
                 category={supplier.category}
-                rating={supplier.rating || 0} // Provide default value
+                rating={supplier.rating}
                 location={supplier.location}
                 phone={supplier.phone}
                 email={supplier.email}
                 products={supplier.products}
                 avatar={supplier.avatar}
+                // Don't pass user_id, it's not needed by SupplierCard
               />
             ))}
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-card p-8 text-center">
-            <div className="mx-auto mb-4 h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium mb-2">Aucun fournisseur trouvé</h3>
-            <p className="text-gray-600 mb-4">Essayez de modifier vos critères de recherche</p>
-            <Button onClick={() => {
-              setSearchText('');
-              setSelectedCategory('');
-            }}>
-              Réinitialiser la recherche
-            </Button>
-          </div>
-        )}
-      </div>
-      
-      <BecomeSupplierDialog 
-        open={showBecomeSupplierDialog} 
-        onOpenChange={setShowBecomeSupplierDialog} 
-      />
+        </ScrollArea>
+      )}
     </div>
   );
 };

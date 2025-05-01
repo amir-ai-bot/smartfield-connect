@@ -6,10 +6,18 @@ import { toast } from 'sonner';
 
 type Language = 'fr' | 'en' | 'ar';
 
+interface LanguageValue {
+  fr: string;
+  en: string;
+  ar: string;
+}
+
+interface TranslationCategory {
+  [key: string]: LanguageValue;
+}
+
 interface Translations {
-  [key: string]: {
-    [key: string]: string;
-  };
+  [key: string]: TranslationCategory;
 }
 
 interface LanguageContextProps {
@@ -156,6 +164,21 @@ const translations: Translations = {
       en: 'Planning',
       ar: 'في مرحلة التخطيط',
     },
+    home: {
+      fr: 'Accueil',
+      en: 'Home',
+      ar: 'الرئيسية',
+    },
+    weather: {
+      fr: 'Météo',
+      en: 'Weather',
+      ar: 'الطقس',
+    },
+    admin: {
+      fr: 'Administration',
+      en: 'Admin',
+      ar: 'الإدارة',
+    },
   },
 };
 
@@ -201,10 +224,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           
           // Check if the user has a language preference
-          const userLanguage = data?.preferences?.language;
-          if (userLanguage && ['fr', 'en', 'ar'].includes(userLanguage)) {
-            setLanguageState(userLanguage as Language);
-            setFlattenedTranslations(flattenTranslations(translations, userLanguage as Language));
+          if (data?.preferences && typeof data.preferences === 'object') {
+            const userPreferences = data.preferences as { language?: string };
+            const userLanguage = userPreferences.language;
+            if (userLanguage && ['fr', 'en', 'ar'].includes(userLanguage)) {
+              setLanguageState(userLanguage as Language);
+              setFlattenedTranslations(flattenTranslations(translations, userLanguage as Language));
+            }
           }
         } catch (error) {
           console.error('Error loading language preference:', error);
@@ -225,7 +251,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Get the current preferences
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('preferences')
           .eq('id', user.id)
           .single();
         
@@ -234,16 +260,23 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         
         // Update preferences with new language
-        const updatedPreferences = {
-          ...data?.preferences,
-          language: lang,
-        };
+        const currentPreferences = data?.preferences || {};
+        let updatedPreferences;
+        
+        if (typeof currentPreferences === 'object') {
+          updatedPreferences = {
+            ...currentPreferences,
+            language: lang
+          };
+        } else {
+          updatedPreferences = { language: lang };
+        }
         
         // Update the user's profile with the new preferences
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
-            preferences: updatedPreferences,
+            preferences: updatedPreferences
           })
           .eq('id', user.id);
         
