@@ -1,48 +1,38 @@
 
-import { format, parseISO } from 'date-fns';
-import { fr, enUS, ar } from 'date-fns/locale';
+import { formatDistanceToNow, format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-// Function to format date based on locale
-export const formatDate = (date: string | Date, formatPattern: string = 'PPP', locale: string = 'fr'): string => {
-  const locales = {
-    fr,
-    en: enUS,
-    ar
-  };
-
+/**
+ * Format a date relative to now (e.g., "2 hours ago", "3 days ago")
+ */
+export const timeAgo = (date: string | Date): string => {
   try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
-    return format(dateObj, formatPattern, { locale: locales[locale as keyof typeof locales] });
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return formatDistanceToNow(dateObj, { addSuffix: true, locale: fr });
   } catch (error) {
     console.error('Error formatting date:', error);
-    return String(date);
+    return 'Date inconnue';
   }
 };
 
-// Function to get time ago (e.g., "2 hours ago")
-export const getTimeAgo = (date: string | Date): string => {
-  const now = new Date();
-  const pastDate = typeof date === 'string' ? new Date(date) : date;
-  
-  const seconds = Math.floor((now.getTime() - pastDate.getTime()) / 1000);
-  
-  // Time intervals in seconds
-  const intervals = {
-    year: 31536000,
-    month: 2592000,
-    week: 604800,
-    day: 86400,
-    hour: 3600,
-    minute: 60
-  };
-  
-  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
-    const interval = Math.floor(seconds / secondsInUnit);
-    
-    if (interval >= 1) {
-      return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
-    }
+/**
+ * Format a date using the specified format
+ */
+export const formatDate = (date: string | Date, formatString: string = 'dd/MM/yyyy'): string => {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return format(dateObj, formatString, { locale: fr });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Date invalide';
   }
-  
-  return 'just now';
+};
+
+/**
+ * Get a date that's X days in the future from now
+ */
+export const getFutureDate = (days: number): Date => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
 };

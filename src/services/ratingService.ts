@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Supplier, Rating } from '@/types/supabase';
+import { Rating, Supplier } from '@/types/supabase';
 
 // Get a supplier by ID
 export const getSupplierById = async (id: string): Promise<Supplier | null> => {
@@ -24,32 +24,29 @@ export const getSupplierById = async (id: string): Promise<Supplier | null> => {
   }
 };
 
-// Get ratings for a supplier - Since we don't have an actual ratings table,
-// we'll simulate ratings based on supplier data
+// Get ratings for a supplier
 export const getRatingsByFournisseurId = async (fournisseurId: string) => {
   try {
-    // Get the supplier to check if they have any rating
-    const { data: supplier, error } = await supabase
+    const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('*')
       .eq('id', fournisseurId)
       .single();
 
-    if (error) {
-      throw error;
+    if (supplierError) {
+      throw supplierError;
     }
 
-    // Create a mock rating based on the supplier's overall rating
+    // Create a mock rating since we don't have a ratings table yet
     if (supplier && supplier.rating) {
-      // Generate a single mock rating for demonstration
-      const mockRating: Rating = {
+      const mockRating = {
         id: "mock-rating-1",
         user_id: "system",
-        fournisseur_id: fournisseurId,
+        supplier_id: fournisseurId,
         rating: supplier.rating,
         comment: "Évaluation moyenne du fournisseur",
         created_at: supplier.updated_at,
-        user: {
+        profiles: {
           id: "system",
           name: "Système",
           avatar: null
@@ -75,7 +72,7 @@ export const addRating = async (
   comment?: string
 ) => {
   try {
-    // Since we don't have a ratings table, we'll just update the supplier's rating
+    // Update the supplier's rating directly since we don't have a ratings table
     const { data, error } = await supabase
       .from('suppliers')
       .update({ rating })
@@ -91,10 +88,15 @@ export const addRating = async (
     const mockRating = {
       id: crypto.randomUUID(),
       user_id: userId,
-      fournisseur_id: fournisseurId,
+      supplier_id: fournisseurId,
       rating,
       comment,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      profiles: {
+        id: userId,
+        name: "User", // This would normally come from the profiles table
+        avatar: null
+      }
     };
 
     return mockRating;

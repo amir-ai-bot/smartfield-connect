@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Rating } from '@/types/auth';
 import { Star } from 'lucide-react';
+import { addRating } from '@/services/ratingService';
 
 interface RatingComponentProps {
   fournisseurId?: string;
@@ -46,7 +47,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     }
 
     try {
-      // Insert new rating - Using supplier_id instead of fournisseur_id
+      // First check if the supplier exists
       const { data, error } = await supabase
         .from('suppliers')
         .select('id')
@@ -56,35 +57,16 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
       if (error) {
         throw new Error('Supplier not found');
       }
-        
-      // Now create the rating
-      const { data: ratingData, error: ratingError } = await supabase
-        .from('suppliers')
-        .update({ rating: rating })
-        .eq('id', fournisseurId)
-        .select();
       
-      if (ratingError) {
-        throw ratingError;
+      // Now add the rating
+      const newRating = await addRating(user.id, fournisseurId, rating, comment);
+      
+      if (!newRating) {
+        throw new Error("Failed to add rating");
       }
 
-      // Create a mock rating response since we don't have a ratings table
-      const newRating: Rating = {
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        supplier_id: fournisseurId,
-        rating: rating,
-        comment: comment,
-        created_at: new Date().toISOString(),
-        profiles: {
-          id: user.id,
-          name: user.name,
-          avatar: user.avatar
-        }
-      };
-
       toast.success('Avis ajouté avec succès!');
-      onRatingAdded(newRating);
+      onRatingAdded(newRating as Rating);
       
       // Reset form
       setRating(0);

@@ -1,136 +1,107 @@
 
 import React from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { LoadingImage } from '../ui/LoadingImage';
+import { Calendar, MapPin, User, Tractor } from 'lucide-react';
+import { ProjectData } from '@/types/auth';
 
 interface ProjectCardProps {
-  id: string;
-  title: string;
-  crop: string;
-  image?: string;
-  location?: string;
-  progress?: number;
-  startDate?: string;
-  endDate?: string;
-  status: 'planning' | 'active' | 'completed';
-  creatorName?: string;
-  creatorAvatar?: string;
+  project: ProjectData;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({
-  id,
-  title,
-  crop,
-  image,
-  location,
-  progress = 0,
-  startDate,
-  endDate,
-  status,
-  creatorName,
-  creatorAvatar
-}) => {
-  const getStatusColor = () => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'planning':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return 'bg-blue-500 hover:bg-blue-600';
       case 'active':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-500 hover:bg-green-600';
       case 'completed':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-gray-500 hover:bg-gray-600';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-500 hover:bg-gray-600';
     }
   };
 
-  const getStatusText = () => {
+  // Helper function to get status text
+  const getStatusText = (status: string) => {
     switch (status) {
-      case 'planning': return 'Planification';
-      case 'active': return 'Actif';
-      case 'completed': return 'Complété';
-      default: return 'Inconnu';
+      case 'planning':
+        return 'En planification';
+      case 'active':
+        return 'Actif';
+      case 'completed':
+        return 'Terminé';
+      default:
+        return 'Inconnu';
     }
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      <div className="h-40 overflow-hidden bg-gray-100">
-        {image ? (
-          <LoadingImage
-            src={image}
-            alt={title}
-            className="w-full h-full object-cover"
-            fallbackSrc="https://images.unsplash.com/photo-1516267126728-e517143465af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-400">Pas d'image</span>
-          </div>
+    <Card className="overflow-hidden transition-shadow hover:shadow-md">
+      <div className="relative h-32 overflow-hidden">
+        <img
+          src={project.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=500&q=60'}
+          alt={project.title}
+          className="w-full h-full object-cover"
+        />
+        <Badge className={`absolute top-2 right-2 ${getStatusColor(project.status)}`}>
+          {getStatusText(project.status)}
+        </Badge>
+        {project.isPublic && (
+          <Badge className="absolute top-2 left-2 bg-purple-500 hover:bg-purple-600">
+            Public
+          </Badge>
         )}
       </div>
-      
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-medium text-lg line-clamp-1">{title}</h3>
-            
-            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              {crop && (
-                <Badge variant="outline" className="mr-1">
-                  {crop}
-                </Badge>
-              )}
-              <Badge className={`${getStatusColor()} border`}>
-                {getStatusText()}
-              </Badge>
+      <CardHeader className="p-4 pb-0">
+        <CardTitle className="text-lg font-semibold">{project.title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {project.description || 'Aucune description'}
+        </p>
+        
+        <div className="space-y-1 text-xs text-gray-500">
+          {project.location && (
+            <div className="flex items-center">
+              <MapPin className="h-3.5 w-3.5 mr-1" />
+              <span>{project.location}</span>
             </div>
-          </div>
-          
-          {creatorAvatar && (
-            <div className="w-8 h-8 rounded-full overflow-hidden">
-              <LoadingImage
-                src={creatorAvatar}
-                alt={creatorName || "Project Creator"}
-                className="w-full h-full object-cover"
-              />
+          )}
+          {project.crop && (
+            <div className="flex items-center">
+              <Tractor className="h-3.5 w-3.5 mr-1" />
+              <span>{project.crop}</span>
+            </div>
+          )}
+          {project.startDate && (
+            <div className="flex items-center">
+              <Calendar className="h-3.5 w-3.5 mr-1" />
+              <span>Début: {new Date(project.startDate).toLocaleDateString()}</span>
+            </div>
+          )}
+          {project.user_name && (
+            <div className="flex items-center">
+              <User className="h-3.5 w-3.5 mr-1" />
+              <span>{project.user_name}</span>
             </div>
           )}
         </div>
         
-        {location && (
-          <div className="flex items-center text-sm text-gray-500 mt-2">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span className="truncate">{location}</span>
+        <div className="mt-3 pt-2 border-t">
+          <div className="flex items-center">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className="bg-agri-green-500 h-1.5 rounded-full"
+                style={{ width: `${project.progress}%` }}
+              />
+            </div>
+            <span className="ml-2 text-xs font-medium text-gray-500">{project.progress}%</span>
           </div>
-        )}
-        
-        {startDate && endDate && (
-          <div className="flex items-center text-sm text-gray-500 mt-2">
-            <Calendar className="h-4 w-4 mr-1" />
-            <span>{startDate.split('T')[0]} - {endDate.split('T')[0]}</span>
-          </div>
-        )}
-      </CardContent>
-      
-      <CardFooter className="px-4 pb-4 pt-0">
-        <div className="w-full">
-          <div className="flex justify-between items-center text-sm mb-1">
-            <span className="text-gray-500">Progression</span>
-            <span className="font-medium">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
         </div>
-      </CardFooter>
-      
-      <Link 
-        to={`/projects/${id}`} 
-        className="absolute inset-0 w-full h-full z-10"
-        aria-label={`Voir les détails de ${title}`}
-      />
+      </CardContent>
     </Card>
   );
 };

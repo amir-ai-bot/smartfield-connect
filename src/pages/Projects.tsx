@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectData } from '@/types/auth';
 import { toast } from 'sonner';
+import { navigateToProject } from '@/utils/navigation';
 
 const Projects = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -155,7 +155,9 @@ const Projects = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
-            <ProjectCard key={project.id} {...project} />
+            <div key={project.id} onClick={() => navigateToProject(project.id)}>
+              <ProjectCard project={project} />
+            </div>
           ))}
         </div>
       )}
