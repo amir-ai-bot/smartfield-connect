@@ -61,16 +61,16 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       created_at: item.created_at,
       updated_at: item.updated_at,
       user: item.user_profile ? {
-        id: item.user_profile.id,
-        name: item.user_profile.name || 'Unknown',
-        avatar: item.user_profile.avatar || '',
-        email: item.user_profile.email || ''
+        id: item.user_profile?.id || '',
+        name: item.user_profile?.name || 'Unknown',
+        avatar: item.user_profile?.avatar || '',
+        email: item.user_profile?.email || ''
       } : undefined,
       fournisseur: item.fournisseur_profile ? {
-        id: item.fournisseur_profile.id,
-        name: item.fournisseur_profile.name || 'Unknown',
-        avatar: item.fournisseur_profile.avatar || '',
-        email: item.fournisseur_profile.email || ''
+        id: item.fournisseur_profile?.id || '',
+        name: item.fournisseur_profile?.name || 'Unknown',
+        avatar: item.fournisseur_profile?.avatar || '',
+        email: item.fournisseur_profile?.email || ''
       } : undefined
     }));
   } catch (error) {
@@ -93,10 +93,14 @@ export async function getConversation(conversationId: string): Promise<Conversat
         fournisseur_profile:fournisseur_id(id, name, avatar, email)
       `)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error('Error fetching conversation:', error);
+      return null;
+    }
+
+    if (!data) {
       return null;
     }
 
@@ -108,16 +112,16 @@ export async function getConversation(conversationId: string): Promise<Conversat
       created_at: data.created_at,
       updated_at: data.updated_at,
       user: data.user_profile ? {
-        id: data.user_profile.id,
-        name: data.user_profile.name || 'Unknown',
-        avatar: data.user_profile.avatar || '',
-        email: data.user_profile.email || ''
+        id: data.user_profile?.id || '',
+        name: data.user_profile?.name || 'Unknown',
+        avatar: data.user_profile?.avatar || '',
+        email: data.user_profile?.email || ''
       } : undefined,
       fournisseur: data.fournisseur_profile ? {
-        id: data.fournisseur_profile.id,
-        name: data.fournisseur_profile.name || 'Unknown',
-        avatar: data.fournisseur_profile.avatar || '',
-        email: data.fournisseur_profile.email || ''
+        id: data.fournisseur_profile?.id || '',
+        name: data.fournisseur_profile?.name || 'Unknown',
+        avatar: data.fournisseur_profile?.avatar || '',
+        email: data.fournisseur_profile?.email || ''
       } : undefined
     };
   } catch (error) {
@@ -380,10 +384,10 @@ export async function getFournisseurRatings(fournisseurId: string): Promise<Rati
       rating: item.rating,
       comment: item.comment,
       created_at: item.created_at,
-      profiles: {
+      user: {
         id: item.profiles?.id || '',
         name: item.profiles?.name || 'Anonymous',
-        avatar: item.profiles?.avatar
+        avatar: item.profiles?.avatar || null
       }
     }));
   } catch (error) {
@@ -486,6 +490,28 @@ export async function isFournisseurFavorite(userId: string, supplierId: string):
     return !!data;
   } catch (error) {
     console.error('Error in isFournisseurFavorite:', error);
+    return false;
+  }
+}
+
+// Mark messages as read
+export async function markMessagesAsRead(conversationId: string, userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', userId)
+      .eq('read', false);
+    
+    if (error) {
+      console.error('Error marking messages as read:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in markMessagesAsRead:', error);
     return false;
   }
 }
