@@ -47,18 +47,18 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     }
 
     try {
-      // First check if the supplier exists
-      const { data, error } = await supabase
+      // Check if the supplier exists
+      const { data: supplier, error: supplierError } = await supabase
         .from('suppliers')
         .select('id')
         .eq('id', fournisseurId)
         .single();
         
-      if (error) {
+      if (supplierError) {
         throw new Error('Supplier not found');
       }
       
-      // Now add the rating
+      // Add the rating
       const newRating = await addRating(user.id, fournisseurId, rating, comment);
       
       if (!newRating) {

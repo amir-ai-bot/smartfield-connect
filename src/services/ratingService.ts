@@ -107,6 +107,9 @@ export const addRating = async (
   }
 };
 
+// This function is an alias for addRating to maintain compatibility
+export const rateFournisseur = addRating;
+
 // Update supplier's average rating
 export const updateSupplierAverageRating = async (fournisseurId: string) => {
   try {

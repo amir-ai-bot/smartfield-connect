@@ -27,10 +27,12 @@ export interface ComboBoxProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   className?: string;
+  items?: { value: string; label: string }[]; // Added for backward compatibility
 }
 
 export function ComboBox({
   options,
+  items, // Added for backward compatibility
   value,
   onValueChange,
   placeholder = "Sélectionner une option",
@@ -40,6 +42,7 @@ export function ComboBox({
 }: ComboBoxProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(value || "");
+  const itemsToUse = items || options; // Use items if provided, otherwise options
 
   React.useEffect(() => {
     if (value !== undefined) {
@@ -55,7 +58,7 @@ export function ComboBox({
     }
   };
 
-  const selectedOption = options.find(option => option.value === selectedValue);
+  const selectedOption = itemsToUse.find(option => option.value === selectedValue);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -75,7 +78,7 @@ export function ComboBox({
           <CommandInput placeholder={searchPlaceholder} />
           <CommandEmpty>{emptyMessage}</CommandEmpty>
           <CommandGroup>
-            {options.map((option) => (
+            {itemsToUse.map((option) => (
               <CommandItem
                 key={option.value}
                 value={option.value}

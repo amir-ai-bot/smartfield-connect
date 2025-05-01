@@ -1,26 +1,20 @@
-
-// Define user preferences type
-export type UserPreferences = {
-  language?: 'fr' | 'en' | 'ar';
-  notifications?: {
-    email?: boolean;
-    app?: boolean;
+export interface UserPreferences {
+  language: 'fr' | 'en' | 'ar';
+  notifications: {
+    email: boolean;
+    app: boolean;
   };
-  theme?: 'light' | 'dark' | 'system';
-};
+  theme: 'light' | 'dark' | 'system';
+}
 
-// Define user roles
-export type UserRole = 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
-
-// User type
 export interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   role: UserRole;
   avatar?: string;
   phone_number?: string;
-  email_verified?: boolean;
+  email_verified: boolean;
   address?: string;
   bio?: string;
   created_at?: string;
@@ -28,36 +22,25 @@ export interface User {
   preferences?: UserPreferences;
 }
 
-// Project data type
-export interface ProjectData {
+export interface Profile {
   id: string;
-  title: string;
-  description?: string;
-  status: 'planning' | 'active' | 'completed';
-  user_id: string;
+  email?: string;
+  display_name?: string;
+  avatar?: string;
+  role?: UserRole;
+  phone_number?: string;
+  address?: string;
+  bio?: string;
   created_at?: string;
   updated_at?: string;
-  image?: string;
-  crop?: string;
-  location?: string;
-  startDate?: string;
-  endDate?: string;
-  progress: number;
-  isPublic: boolean;
-  user_name?: string;
-  user_avatar?: string;
+  preferences?: UserPreferences;
 }
 
-// Auth response types
+export type UserRole = 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+
 export interface AuthResponse {
   user: User | null;
-  error: Error | null;
-}
-
-// Form data types
-export interface LoginCredentials {
-  email: string;
-  password: string;
+  error: any;
 }
 
 export interface LoginFormData {
@@ -65,19 +48,12 @@ export interface LoginFormData {
   password: string;
 }
 
-export interface SignupCredentials {
-  name: string;
-  email: string;
-  password: string;
-  phone_number?: string;
-}
-
 export interface SignupFormData {
   name: string;
   email: string;
+  phone_number?: string;
   password: string;
   confirmPassword: string;
-  phone_number?: string;
 }
 
 export interface ResetPasswordFormData {
@@ -85,40 +61,26 @@ export interface ResetPasswordFormData {
 }
 
 export interface NewPasswordFormData {
-  code: string;
   password: string;
   confirmPassword: string;
-}
-
-export interface ForgotPasswordCredentials {
-  email: string;
-}
-
-export interface ResetPasswordCredentials {
-  password: string;
-  code: string;
-}
-
-export interface VerifyEmailCredentials {
-  email: string;
-  code: string;
+  code?: string;
 }
 
 export interface VerifyEmailFormData {
   code: string;
+  email?: string;
 }
 
-// Define a ratings table type
 export interface Rating {
   id: string;
   user_id: string;
-  supplier_id: string; // Using supplier_id instead of fournisseur_id for consistency
+  supplier_id: string;
   rating: number;
   comment?: string;
-  created_at?: string;
+  created_at: string;
   profiles?: {
     id: string;
     name: string;
-    avatar?: string;
+    avatar: string | null;
   };
 }

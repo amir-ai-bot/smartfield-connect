@@ -95,7 +95,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connexion...
+              Connexion en cours...
             </>
           ) : (
             'Se connecter'

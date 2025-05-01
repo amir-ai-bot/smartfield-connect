@@ -36,3 +36,6 @@ export const getFutureDate = (days: number): Date => {
   date.setDate(date.getDate() + days);
   return date;
 };
+
+// Alias for backward compatibility
+export const getTimeAgo = timeAgo;
