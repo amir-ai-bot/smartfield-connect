@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { timeAgo } from '@/lib/utils';
 import { toast } from 'sonner';
 import { LoadingImage } from '@/components/ui/LoadingImage';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChatWindowProps {
   conversationId: string;

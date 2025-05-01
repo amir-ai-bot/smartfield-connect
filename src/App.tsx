@@ -35,9 +35,11 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      // Add better error handling
-      onError: (error) => {
-        console.error('Query error:', error);
+      // Updated to use proper error handling without onError
+      meta: {
+        errorHandler: (error: any) => {
+          console.error('Query error:', error);
+        }
       }
     },
   },

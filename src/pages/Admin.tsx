@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   getAllUsers, 
-  promoteToAdmin, 
-  demoteToUser, 
   getAllVerificationCodes, 
-  updateUserRole, 
-  deleteUser,
-  getAnalyticsData,
+  getAnalyticsData, 
   getAllProjects,
+  updateUserRole,
+  deleteUser,
   deleteProject,
   approveFournisseurRequest,
   rejectFournisseurRequest,
@@ -51,7 +49,7 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
+  Tooltip as RechartsTooltip, 
   ResponsiveContainer, 
   PieChart, 
   Pie, 
@@ -69,7 +67,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -78,17 +75,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-
-type User = {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  avatar?: string;
-  created_at: string;
-};
+import { User } from '@/types/supabase';
 
 type VerificationCode = {
   id: string;
@@ -110,15 +98,15 @@ type AnalyticsData = {
 type Project = {
   id: string;
   title: string;
-  crop: string;
-  location: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
+  crop?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
+  progress?: number;
   status: 'active' | 'planning' | 'completed';
   image?: string;
   user_name?: string;
-  user_id: string;
+  user_id?: string;
   created_at: string;
   description?: string;
   is_public?: boolean;
@@ -126,23 +114,7 @@ type Project = {
   user_email?: string;
 };
 
-type ProjectWithUser = {
-  id: string;
-  title: string;
-  crop: string;
-  location: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
-  status: 'active' | 'planning' | 'completed';
-  image?: string;
-  user_name?: string;
-  user_id: string;
-  created_at: string;
-  description?: string;
-  is_public?: boolean;
-  updated_at?: string;
-  user_email?: string;
+type ProjectWithUser = Project & {
   creator_name?: string;
   creator_email?: string;
   creator_avatar?: string;
@@ -179,7 +151,7 @@ const AdminPage: React.FC = () => {
         return;
       }
       
-      if (user.role !== 'admin') {
+      if (!isAdmin()) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;
@@ -195,23 +167,14 @@ const AdminPage: React.FC = () => {
           getAllProjects()
         ]);
         
-        setUsers(usersData);
-        setCodes(codesData);
-        setAnalytics(analyticsData);
+        setUsers(usersData as User[]);
+        setCodes(codesData as VerificationCode[]);
+        setAnalytics(analyticsData as AnalyticsData);
         
         const pendingUsers = usersData.filter(u => u.role === 'pending_fournisseur');
-        setPendingFournisseurs(pendingUsers);
+        setPendingFournisseurs(pendingUsers as User[]);
         
-        const typedProjects = projectsData.map(project => ({
-          ...project,
-          user_name: project.creator_name || 'Unknown',
-          user_email: project.creator_email,
-          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
-                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
-                 'completed'
-        })) as ProjectWithUser[];
-        
-        setProjects(typedProjects);
+        setProjects(projectsData as ProjectWithUser[]);
       } catch (error) {
         console.error('Error fetching admin data:', error);
         toast.error('Failed to load admin data');
@@ -221,7 +184,7 @@ const AdminPage: React.FC = () => {
     };
     
     checkAdmin();
-  }, [user, navigate]);
+  }, [user, navigate, isAdmin]);
   
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
@@ -716,7 +679,7 @@ const AdminPage: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
                         <YAxis />
-                        <Tooltip />
+                        <RechartsTooltip />
                         <Bar dataKey="count" fill="#8884d8" />
                       </BarChart>
                     </ResponsiveContainer>
@@ -757,7 +720,7 @@ const AdminPage: React.FC = () => {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <RechartsTooltip />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -1048,3 +1011,8 @@ const ProjectsTab = () => {
 };
 
 export default AdminPage;
+
+function isAdmin() {
+  // Implement your logic to check if the user is an admin
+  return user?.role === 'admin';
+}

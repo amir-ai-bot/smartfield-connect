@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', supabaseUser.id)
+        .eq('user_id', supabaseUser.id)
         .single();
 
       if (error) {
@@ -105,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Create the profile object with safe types
       const profileData: Profile = {
         ...data,
+        id: supabaseUser.id,
         role: safeRole,
         preferences: safePreferences
       };
@@ -113,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const enhancedUser: User = {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
-        name: data?.name || supabaseUser.user_metadata?.name || '',
+        name: data?.display_name || supabaseUser.user_metadata?.name || '',
         role: safeRole,
         avatar: data?.avatar || '',
         phone_number: data?.phone_number || '',

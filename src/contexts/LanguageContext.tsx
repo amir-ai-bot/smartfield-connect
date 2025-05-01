@@ -229,11 +229,11 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
         if (user) {
           const { data } = await supabase
             .from('profiles')
-            .select('preferences')
-            .eq('id', user.id)
+            .select('*')
+            .eq('user_id', user.id)
             .single();
           
-          if (data?.preferences) {
+          if (data && data.preferences) {
             const prefs = data.preferences as UserPreferences;
             if (prefs.language && ['en', 'fr', 'ar'].includes(prefs.language)) {
               setLanguage(prefs.language);
@@ -260,12 +260,12 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
       if (user) {
         const { data } = await supabase
           .from('profiles')
-          .select('preferences')
-          .eq('id', user.id)
+          .select('*')
+          .eq('user_id', user.id)
           .single();
         
         let updatedPreferences: UserPreferences = { language: lang };
-        if (data?.preferences) {
+        if (data && data.preferences) {
           const existingPrefs = data.preferences as UserPreferences;
           updatedPreferences = { 
             ...existingPrefs,
@@ -275,8 +275,10 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
         
         await supabase
           .from('profiles')
-          .update({ preferences: updatedPreferences })
-          .eq('id', user.id);
+          .update({ 
+            preferences: updatedPreferences
+          })
+          .eq('user_id', user.id);
       }
     } catch (error) {
       console.error('Error updating language preference:', error);
