@@ -33,6 +33,35 @@ export type Database = {
         }
         Relationships: []
       }
+      favorite_suppliers: {
+        Row: {
+          created_at: string | null
+          id: string
+          supplier_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          supplier_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          supplier_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_suppliers_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_items: {
         Row: {
           created_at: string | null
@@ -124,31 +153,43 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          avatar: string | null
           bio: string | null
           created_at: string | null
           display_name: string | null
-          id: number
+          email: string | null
+          id: string
+          phone_number: string | null
+          preferences: Json | null
           role: string | null
           updated_at: string | null
-          user_id: string | null
         }
         Insert: {
+          address?: string | null
+          avatar?: string | null
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
-          id?: never
+          email?: string | null
+          id: string
+          phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
         Update: {
+          address?: string | null
+          avatar?: string | null
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
-          id?: never
+          email?: string | null
+          id?: string
+          phone_number?: string | null
+          preferences?: Json | null
           role?: string | null
           updated_at?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }

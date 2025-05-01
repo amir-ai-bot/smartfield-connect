@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User } from '@/types/supabase';
+import { User, VerificationCode } from '@/types/supabase';
 
 // Get all users
 export const getAllUsers = async (): Promise<User[]> => {
@@ -17,13 +17,21 @@ export const getAllUsers = async (): Promise<User[]> => {
 
     // Format users with proper types
     const users = authUsersData.map(userData => ({
-      id: userData.user_id || '',
+      id: userData.id || '',
       email: userData.email || '',
       name: userData.display_name || '',
       role: (userData.role || 'user') as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
       avatar: userData.avatar || '',
+      phone_number: userData.phone_number || '',
+      address: userData.address || '',
+      bio: userData.bio || '',
       created_at: userData.created_at || '',
-      updated_at: userData.updated_at || ''
+      updated_at: userData.updated_at || '',
+      preferences: userData.preferences || {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      }
     }));
 
     return users;
@@ -35,7 +43,7 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 // Get all verification codes
-export const getAllVerificationCodes = async () => {
+export const getAllVerificationCodes = async (): Promise<VerificationCode[]> => {
   try {
     const { data, error } = await supabase
       .rpc('admin_get_verification_codes');
@@ -106,7 +114,7 @@ export const getAllProjects = async () => {
       .from('projects')
       .select(`
         *,
-        profiles:user_id (display_name, email, avatar)
+        profiles:owner_id (display_name, email, avatar)
       `);
 
     if (error) {
@@ -115,7 +123,13 @@ export const getAllProjects = async () => {
 
     // Transform the data to match the expected format
     const projects = data.map(project => ({
-      ...project,
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      owner_id: project.owner_id,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
       creator_name: project.profiles?.display_name || 'Unknown',
       creator_email: project.profiles?.email || '',
       creator_avatar: project.profiles?.avatar || ''
@@ -135,7 +149,7 @@ export const updateUserRole = async (userId: string, newRole: string) => {
     const { error } = await supabase
       .from('profiles')
       .update({ role: newRole })
-      .eq('user_id', userId);
+      .eq('id', userId);
 
     if (error) {
       throw error;
@@ -192,7 +206,7 @@ export const approveFournisseurRequest = async (userId: string) => {
     const { error } = await supabase
       .from('profiles')
       .update({ role: 'fournisseur' })
-      .eq('user_id', userId);
+      .eq('id', userId);
 
     if (error) {
       throw error;
@@ -212,7 +226,7 @@ export const rejectFournisseurRequest = async (userId: string) => {
     const { error } = await supabase
       .from('profiles')
       .update({ role: 'user' })
-      .eq('user_id', userId);
+      .eq('id', userId);
 
     if (error) {
       throw error;
@@ -248,7 +262,7 @@ export const addFournisseur = async (supplierData: {
     // Get the user ID we just created
     const { data: userData, error: userError } = await supabase
       .from('profiles')
-      .select('user_id')
+      .select('id')
       .eq('email', supplierData.email)
       .single();
 
@@ -260,7 +274,7 @@ export const addFournisseur = async (supplierData: {
     const { error: supplierError } = await supabase
       .from('suppliers')
       .insert({
-        user_id: userData.user_id,
+        user_id: userData.id,
         name: supplierData.name,
         category: supplierData.category,
         location: supplierData.location,

@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', supabaseUser.id)
+        .eq('id', supabaseUser.id)
         .single();
 
       if (error) {
@@ -275,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: updates.name,
+          display_name: updates.name,
           phone_number: updates.phone_number,
           address: updates.address,
           bio: updates.bio,
