@@ -13,39 +13,29 @@ const ProtectedRoute = () => {
 
   // Don't redirect while checking authentication
   if (isLoading) {
-    return null;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
-    // On mobile, show auth dialog instead of just redirecting
+    // On mobile, show auth dialog
     if (isMobile) {
-      // Show toast on mobile
-      toast.info('Veuillez vous connecter pour accéder à cette page');
-      
-      // Show the auth dialog
       return (
-        <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentification requise</h2>
-            <p className="text-gray-600">Veuillez vous connecter pour accéder à cette page</p>
-          </div>
-          
-          <AuthDialog 
-            open={true} 
-            onOpenChange={(open) => {
-              if (!open) {
-                // Redirect to home if dialog is closed
-                window.location.href = '/';
-              }
-            }}
+        <>
+          <Navigate to="/" replace />
+          <AuthDialog
+            open={true}
+            onOpenChange={setShowAuthDialog}
             initialView="login"
           />
-        </div>
+        </>
       );
     }
     
-    // Default behavior for desktop
-    toast.info('Veuillez vous connecter pour accéder à cette page');
+    toast.error('Veuillez vous connecter pour accéder à cette page');
     return <Navigate to="/" replace />;
   }
 

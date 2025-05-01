@@ -1,224 +1,209 @@
 import { supabase } from '@/integrations/supabase/client';
-import { PostgrestError } from '@supabase/supabase-js';
+import { toast } from 'sonner';
+import { Supplier } from '@/types/supabase';
 
-export interface Supplier {
+// Types for suppliers
+export interface SupplierBasic {
   id: string;
-  user_id: string;
   name: string;
   category: string;
-  rating: number;
   location: string;
-  phone?: string;
-  email?: string;
-  products?: string[];
-  image?: string;
+  phone: string;
+  products: string[];
+  rating?: number;
   avatar?: string;
+  user_id?: string;
+  email?: string;
 }
 
-export const getSuppliers = async (): Promise<Supplier[]> => {
+// Get all suppliers
+export async function getSuppliers(): Promise<Supplier[]> {
   try {
     const { data, error } = await supabase
-      .rpc('get_all_suppliers');
-
+      .from('suppliers')
+      .select('*, profiles(avatar, name, email)')
+      .order('created_at', { ascending: false });
+    
     if (error) {
       console.error('Error fetching suppliers:', error);
       throw error;
     }
 
-    return (data || []).map((item: any) => ({
+    // Transform data to match Supplier interface
+    return (data || []).map(item => ({
       id: item.id,
-      user_id: item.user_id,
-      name: item.name || 'Fournisseur',
+      user_id: item.user_id || undefined,
+      name: item.profiles?.name || item.name || 'Unknown',
       category: item.category || 'Divers',
-      rating: item.rating || 0,
       location: item.location || 'Non spécifié',
-      phone: item.phone,
-      email: item.email,
+      phone: item.phone || 'Non spécifié',
       products: item.products || [],
-      avatar: item.avatar,
-      image: item.avatar, // For backward compatibility
+      rating: item.rating || 0,
+      avatar: item.profiles?.avatar || undefined,
+      email: item.profiles?.email || undefined,
+      image: item.profiles?.avatar || undefined // Use avatar as image
     }));
   } catch (error) {
     console.error('Error in getSuppliers:', error);
     return [];
   }
-};
+}
 
-export const getAllSuppliers = getSuppliers; // Export alias for getSuppliers
+// Alias for getSuppliers for backward compatibility
+export const getAllSuppliers = getSuppliers;
 
-export const initializeDefaultSuppliers = async (): Promise<boolean> => {
-  try {
-    // Check if there are any existing suppliers
-    const { count, error: countError } = await supabase
-      .from('suppliers')
-      .select('*', { count: 'exact', head: true });
-    
-    if (countError) {
-      console.error('Error checking suppliers:', countError);
-      return false;
-    }
-    
-    // If there are already suppliers, no need to initialize
-    if (count && count > 0) {
-      return true;
-    }
-    
-    // Create some default suppliers if none exist
-    const defaultSuppliers = [
-      {
-        name: 'AgriEquipment',
-        category: 'Matériel agricole',
-        rating: 4.5,
-        location: 'Tunis, Tunisia',
-        phone: '+216 71 123 456',
-        user_id: '00000000-0000-0000-0000-000000000001', // Mock user ID
-        products: ['Tracteurs', 'Moissonneuses', 'Pulvérisateurs']
-      },
-      {
-        name: 'BioAgri',
-        category: 'Agriculture biologique',
-        rating: 4.7,
-        location: 'Sousse, Tunisia',
-        phone: '+216 73 654 321',
-        user_id: '00000000-0000-0000-0000-000000000002', // Mock user ID
-        products: ['Fertilisants bio', 'Pesticides naturels', 'Semences bio']
-      },
-      {
-        name: 'AgroSolutions',
-        category: 'Irrigation',
-        rating: 4.3,
-        location: 'Sfax, Tunisia',
-        phone: '+216 74 987 654',
-        user_id: '00000000-0000-0000-0000-000000000003', // Mock user ID
-        products: ['Systèmes d\'irrigation', 'Pompes', 'Filtres']
-      }
-    ];
-    
-    const { error: insertError } = await supabase
-      .from('suppliers')
-      .insert(defaultSuppliers);
-    
-    if (insertError) {
-      console.error('Error creating default suppliers:', insertError);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error in initializeDefaultSuppliers:', error);
-    return false;
-  }
-};
-
-export const getSupplierById = async (id: string): Promise<Supplier | null> => {
+// Get a supplier by ID
+export async function getSupplier(id: string): Promise<Supplier | null> {
   try {
     const { data, error } = await supabase
       .from('suppliers')
-      .select(`
-        id,
-        user_id,
-        category,
-        rating,
-        location,
-        phone,
-        products,
-        profiles:user_id (
-          name,
-          email,
-          avatar
-        )
-      `)
+      .select('*, profiles(avatar, name, email)')
       .eq('id', id)
       .single();
-
+    
     if (error) {
       console.error('Error fetching supplier:', error);
-      throw error;
+      return null;
     }
 
     if (!data) return null;
-    
-    // Handle the case where profiles might be null or not an object
-    const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
-    const profileName = profileData ? String(profileData.name || '') : '';
-    const profileEmail = profileData ? String(profileData.email || '') : '';
-    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
 
+    // Transform data to match Supplier interface
     return {
       id: data.id,
-      user_id: data.user_id,
-      name: profileName || 'Fournisseur',
+      user_id: data.user_id || undefined,
+      name: data.profiles?.name || data.name || 'Unknown',
       category: data.category || 'Divers',
-      rating: data.rating || 0,
       location: data.location || 'Non spécifié',
       phone: data.phone || 'Non spécifié',
-      email: profileEmail || 'Non spécifié',
       products: data.products || [],
-      avatar: profileAvatar || '',
-      image: profileAvatar || '', // For backward compatibility
+      rating: data.rating || 0,
+      avatar: data.profiles?.avatar || undefined,
+      email: data.profiles?.email || undefined,
+      image: data.profiles?.avatar || undefined // Use avatar as image
     };
   } catch (error) {
-    console.error('Error in getSupplierById:', error);
+    console.error('Error in getSupplier:', error);
     return null;
   }
-};
+}
 
-export const addSupplier = async (
-  userId: string,
-  category: string,
-  location: string,
-  products: string[] = [],
-  phone?: string
-): Promise<string | null> => {
+// Alias for getSupplier for backward compatibility
+export const getSupplierById = getSupplier;
+
+// Create a supplier conversation
+export async function createSupplierConversation(userId: string, supplierId: string): Promise<string | null> {
   try {
-    // First, get the user's name to satisfy the name requirement
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', userId)
-      .single();
-    
-    if (userError || !userData) {
-      console.error('Error getting user data:', userError);
+    // First get the supplier to retrieve the user_id of the supplier
+    const supplier = await getSupplier(supplierId);
+    if (!supplier || !supplier.user_id) {
+      toast.error('Fournisseur non trouvé ou informations manquantes');
       return null;
     }
     
+    // Check if conversation already exists
+    const { data: existingConversation, error: checkError } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('fournisseur_id', supplier.user_id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking existing conversation:', checkError);
+    }
+    
+    // Return existing conversation if found
+    if (existingConversation) {
+      return existingConversation.id;
+    }
+    
+    // Create new conversation
     const { data, error } = await supabase
-      .from('suppliers')
+      .from('conversations')
       .insert({
         user_id: userId,
-        category,
-        location,
-        products,
-        phone,
-        // name is required but we're using profiles for actual names, so use a placeholder
-        name: userData.name || 'Supplier'
+        fournisseur_id: supplier.user_id
       })
       .select('id')
       .single();
-
+    
     if (error) {
-      console.error('Error adding supplier:', error);
+      console.error('Error creating conversation:', error);
       throw error;
     }
 
     return data?.id || null;
   } catch (error) {
-    console.error('Error in addSupplier:', error);
+    console.error('Error in createSupplierConversation:', error);
+    toast.error('Erreur lors de la création de la conversation');
     return null;
   }
-};
+}
 
-export const updateSupplier = async (
-  id: string,
-  updates: Partial<Omit<Supplier, 'id' | 'user_id' | 'name' | 'email' | 'avatar' | 'image'>>
-): Promise<boolean> => {
+// Search suppliers by category, name, or products
+export async function searchSuppliers(query: string): Promise<Supplier[]> {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*, profiles(avatar, name, email)')
+      .or(`name.ilike.%${query}%,category.ilike.%${query}%,products.cs.{${query}}`)
+      .order('rating', { ascending: false });
+    
+    if (error) {
+      console.error('Error searching suppliers:', error);
+      throw error;
+    }
+
+    // Transform data to match Supplier interface
+    return (data || []).map(item => ({
+      id: item.id,
+      user_id: item.user_id || undefined,
+      name: item.profiles?.name || item.name || 'Unknown',
+      category: item.category || 'Divers',
+      location: item.location || 'Non spécifié',
+      phone: item.phone || 'Non spécifié',
+      products: item.products || [],
+      rating: item.rating || 0,
+      avatar: item.profiles?.avatar || undefined,
+      email: item.profiles?.email || undefined,
+      image: item.profiles?.avatar || undefined // Use avatar as image
+    }));
+  } catch (error) {
+    console.error('Error in searchSuppliers:', error);
+    return [];
+  }
+}
+
+// Create a new supplier
+export async function createSupplier(supplier: Omit<Supplier, 'id'>): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert(supplier)
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error creating supplier:', error);
+      throw error;
+    }
+
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error in createSupplier:', error);
+    return null;
+  }
+}
+
+// Update an existing supplier
+export async function updateSupplier(id: string, supplier: Partial<Supplier>): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('suppliers')
-      .update(updates)
+      .update(supplier)
       .eq('id', id);
-
+    
     if (error) {
       console.error('Error updating supplier:', error);
       throw error;
@@ -229,15 +214,16 @@ export const updateSupplier = async (
     console.error('Error in updateSupplier:', error);
     return false;
   }
-};
+}
 
-export const deleteSupplier = async (id: string): Promise<boolean> => {
+// Delete a supplier
+export async function deleteSupplier(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('suppliers')
       .delete()
       .eq('id', id);
-
+    
     if (error) {
       console.error('Error deleting supplier:', error);
       throw error;
@@ -248,105 +234,94 @@ export const deleteSupplier = async (id: string): Promise<boolean> => {
     console.error('Error in deleteSupplier:', error);
     return false;
   }
-};
+}
 
-export const createSupplierConversation = async (userId: string, supplierId: string): Promise<string> => {
+// Initialize default suppliers if none exist
+export async function initializeDefaultSuppliers(): Promise<boolean> {
   try {
-    // First check if there's already a conversation between these users
-    const { data: existingConversation, error: fetchError } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('fournisseur_id', supplierId)
-      .limit(1)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      // PGRST116 is "No rows returned" - that's expected if there's no existing conversation
-      console.error('Error checking existing conversations:', fetchError);
-      throw fetchError;
-    }
-
-    // If there's an existing conversation, return its ID
-    if (existingConversation) {
-      return existingConversation.id;
-    }
-
-    // Otherwise, create a new conversation
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({
-        user_id: userId,
-        fournisseur_id: supplierId
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
-    }
-
-    return data.id;
-  } catch (error) {
-    console.error('Error in createSupplierConversation:', error);
-    throw error;
-  }
-};
-
-export const getSupplierByUserId = async (userId: string): Promise<Supplier | null> => {
-  try {
-    const { data, error } = await supabase
+    // Check if suppliers exist
+    const { count, error: countError } = await supabase
       .from('suppliers')
-      .select(`
-        id,
-        user_id,
-        category,
-        rating,
-        location,
-        phone,
-        products,
-        profiles:user_id (
-          name,
-          email,
-          avatar
-        )
-      `)
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No supplier found for this user
-        return null;
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error checking suppliers count:', countError);
+      throw countError;
+    }
+    
+    // If suppliers already exist, do nothing
+    if (count && count > 0) {
+      console.log('Suppliers already exist, skipping initialization');
+      return true;
+    }
+    
+    // Add default suppliers
+    const defaultSuppliers = [
+      {
+        name: 'AgriFert SARL',
+        category: 'Fertilisants',
+        location: 'Tunis',
+        phone: '+216 71 123 456',
+        products: ['Fertilisant organique', 'Engrais NPK', 'Compost'],
+        rating: 4.5
+      },
+      {
+        name: 'MaterielAgri Plus',
+        category: 'Équipement',
+        location: 'Sfax',
+        phone: '+216 74 987 654',
+        products: ['Tracteurs', 'Moissonneuses', 'Pièces détachées'],
+        rating: 4.2
+      },
+      {
+        name: 'Semences du Sud',
+        category: 'Semences',
+        location: 'Gabès',
+        phone: '+216 75 456 789',
+        products: ['Semences de blé', 'Semences de tomates', 'Plants d\'oliviers'],
+        rating: 4.7
       }
-      console.error('Error fetching supplier by user ID:', error);
+    ];
+    
+    const { error: insertError } = await supabase
+      .from('suppliers')
+      .insert(defaultSuppliers);
+    
+    if (insertError) {
+      console.error('Error adding default suppliers:', insertError);
+      throw insertError;
+    }
+    
+    console.log('Default suppliers added successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in initializeDefaultSuppliers:', error);
+    return false;
+  }
+}
+
+// Delete all default suppliers (for testing/reset)
+export async function deleteDefaultSuppliers(): Promise<boolean> {
+  try {
+    const defaultNames = [
+      'AgriFert SARL',
+      'MaterielAgri Plus',
+      'Semences du Sud'
+    ];
+    
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .in('name', defaultNames);
+    
+    if (error) {
+      console.error('Error deleting default suppliers:', error);
       throw error;
     }
-
-    if (!data) return null;
     
-    // Handle the case where profiles might be null or not an object
-    const profileData = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
-    const profileName = profileData ? String(profileData.name || '') : '';
-    const profileEmail = profileData ? String(profileData.email || '') : '';
-    const profileAvatar = profileData ? String(profileData.avatar || '') : '';
-
-    return {
-      id: data.id,
-      user_id: data.user_id,
-      name: profileName || 'Fournisseur',
-      category: data.category || 'Divers',
-      rating: data.rating || 0,
-      location: data.location || 'Non spécifié',
-      phone: data.phone || 'Non spécifié',
-      email: profileEmail || 'Non spécifié',
-      products: data.products || [],
-      avatar: profileAvatar || '',
-      image: profileAvatar || '', // For backward compatibility
-    };
+    return true;
   } catch (error) {
-    console.error('Error in getSupplierByUserId:', error);
-    return null;
+    console.error('Error in deleteDefaultSuppliers:', error);
+    return false;
   }
-};
+}
