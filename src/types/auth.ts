@@ -54,7 +54,13 @@ export interface AuthResponse {
   error: Error | null;
 }
 
+// Form data types
 export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface LoginFormData {
   email: string;
   password: string;
 }
@@ -64,6 +70,24 @@ export interface SignupCredentials {
   email: string;
   password: string;
   phone_number?: string;
+}
+
+export interface SignupFormData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  phone_number?: string;
+}
+
+export interface ResetPasswordFormData {
+  email: string;
+}
+
+export interface NewPasswordFormData {
+  code: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export interface ForgotPasswordCredentials {
@@ -78,4 +102,23 @@ export interface ResetPasswordCredentials {
 export interface VerifyEmailCredentials {
   email: string;
   code: string;
+}
+
+export interface VerifyEmailFormData {
+  code: string;
+}
+
+// Define a ratings table type
+export interface Rating {
+  id: string;
+  user_id: string;
+  supplier_id: string; // Using supplier_id instead of fournisseur_id for consistency
+  rating: number;
+  comment?: string;
+  created_at?: string;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
 }

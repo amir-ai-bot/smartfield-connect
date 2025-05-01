@@ -18,6 +18,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }
     title: project?.title || '',
     description: project?.description || '',
     status: project?.status || 'planning',
+    location: project?.location || '',
+    crop: project?.crop || '',
+    startDate: project?.startDate || '',
+    endDate: project?.endDate || '',
+    isPublic: project?.isPublic || false
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -27,6 +32,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }
 
   const handleStatusChange = (value: string) => {
     setFormData({ ...formData, status: value as 'planning' | 'active' | 'completed' });
+  };
+
+  const handleIsPublicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, isPublic: e.target.checked });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +68,52 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }
           rows={4}
         />
       </div>
+      
+      <div>
+        <Label htmlFor="location">Emplacement</Label>
+        <Input
+          id="location"
+          name="location"
+          value={formData.location}
+          onChange={handleInputChange}
+          placeholder="Emplacement du projet"
+        />
+      </div>
+      
+      <div>
+        <Label htmlFor="crop">Culture</Label>
+        <Input
+          id="crop"
+          name="crop"
+          value={formData.crop}
+          onChange={handleInputChange}
+          placeholder="Type de culture"
+        />
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="startDate">Date de début</Label>
+          <Input
+            id="startDate"
+            name="startDate"
+            type="date"
+            value={formData.startDate}
+            onChange={handleInputChange}
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="endDate">Date de fin</Label>
+          <Input
+            id="endDate"
+            name="endDate"
+            type="date"
+            value={formData.endDate}
+            onChange={handleInputChange}
+          />
+        </div>
+      </div>
 
       <div>
         <Label htmlFor="status">Statut</Label>
@@ -75,6 +130,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }
             <SelectItem value="completed">Terminé</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="isPublic"
+          checked={formData.isPublic}
+          onChange={handleIsPublicChange}
+          className="rounded border-gray-300"
+        />
+        <Label htmlFor="isPublic">Projet public</Label>
       </div>
 
       <div className="flex justify-end space-x-2">

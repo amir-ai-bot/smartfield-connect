@@ -1,231 +1,164 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PlusCircle } from 'lucide-react';
+import ProjectForm from '@/components/ProjectForm';
+import { ProjectCard } from '@/components/Projects/ProjectCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { ProjectData } from '@/types/auth';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import ProjectCard from '@/components/ProjectCard';
-import ProjectForm from '@/components/ProjectForm';
 
 const Projects = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingProject, setEditingProject] = useState<ProjectData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchProjects();
+    if (user) {
+      fetchProjects();
+    }
   }, [user]);
 
   const fetchProjects = async () => {
-    if (!user) return;
-
     try {
-      const { data, error } = await supabase
+      setIsLoading(true);
+      
+      // Fetch projects from the database
+      const { data: projectsData, error } = await supabase
         .from('projects')
-        .select('*');
+        .select('*')
+        .eq('owner_id', user?.id)
+        .order('created_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      // Get user profiles for each project
-      const formattedProjects: ProjectData[] = data.map(project => ({
+      // Transform Supabase data to match ProjectData format
+      const formattedProjects = projectsData.map(project => ({
         id: project.id,
         title: project.name,
         description: project.description || '',
-        status: (project.status || 'planning') as 'planning' | 'active' | 'completed',
-        user_id: project.owner_id || '',
-        created_at: project.created_at || '',
-        updated_at: project.updated_at || '',
-        image: '', // Default value
-        crop: '', // Default value
-        location: '', // Default value
-        startDate: '', // Default value
-        endDate: '', // Default value
-        progress: 0, // Default value
-        isPublic: true, // Default value
-        user_name: 'Unknown', // Will be updated after getting profiles
-        user_avatar: null, // Will be updated after getting profiles
+        status: project.status as 'planning' | 'active' | 'completed',
+        user_id: project.owner_id,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        image: '',
+        crop: '',
+        location: '',
+        startDate: '',
+        endDate: '',
+        progress: 0,
+        isPublic: false,
+        user_name: user?.name,
+        user_avatar: user?.avatar
       }));
-
+      
       setProjects(formattedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects.');
+      toast.error('Erreur lors du chargement des projets');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const addProject = (newProject: ProjectData) => {
-    setProjects([...projects, newProject]);
-  };
-
-  const updateProject = (updatedProject: ProjectData) => {
-    setProjects(
-      projects.map((project) =>
-        project.id === updatedProject.id ? updatedProject : project
-      )
-    );
-    setEditingProject(null);
-  };
-
-  const deleteProject = async (projectId: string) => {
+  const handleCreateProject = async (projectData: Partial<ProjectData>) => {
+    if (!user) return;
+    
     try {
-      const { error } = await supabase
+      // Map ProjectData to Supabase projects table format
+      const newProject = {
+        name: projectData.title || 'Nouveau projet',
+        description: projectData.description,
+        status: projectData.status || 'planning',
+        owner_id: user.id
+      };
+      
+      const { data, error } = await supabase
         .from('projects')
-        .delete()
-        .eq('id', projectId);
-
+        .insert(newProject)
+        .select()
+        .single();
+        
       if (error) {
         throw error;
       }
-
-      setProjects(projects.filter((project) => project.id !== projectId));
-      toast.success('Project deleted successfully.');
+      
+      // Transform Supabase response to ProjectData format
+      const formattedProject: ProjectData = {
+        id: data.id,
+        title: data.name,
+        description: data.description || '',
+        status: data.status as 'planning' | 'active' | 'completed',
+        user_id: data.owner_id,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        image: '',
+        crop: projectData.crop || '',
+        location: projectData.location || '',
+        startDate: projectData.startDate || '',
+        endDate: projectData.endDate || '',
+        progress: 0,
+        isPublic: projectData.isPublic || false,
+        user_name: user.name,
+        user_avatar: user.avatar
+      };
+      
+      setProjects(prev => [formattedProject, ...prev]);
+      toast.success('Projet créé avec succès');
+      setIsDialogOpen(false);
     } catch (error) {
-      console.error('Error deleting project:', error);
-      toast.error('Failed to delete project.');
+      console.error('Error creating project:', error);
+      toast.error('Erreur lors de la création du projet');
     }
   };
 
-  const openForm = () => {
-    setShowForm(true);
-  };
-
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingProject(null);
-  };
-
-  const openEditForm = (project: ProjectData) => {
-    setEditingProject(project);
-    setShowForm(true);
-  };
-
-  const handleSubmit = async (projectData: Partial<ProjectData>) => {
-    if (!user) return;
-
-    try {
-      if (editingProject) {
-        // Update existing project
-        const { error } = await supabase
-          .from('projects')
-          .update({
-            name: projectData.title,
-            description: projectData.description,
-            status: projectData.status,
-          })
-          .eq('id', editingProject.id);
-
-        if (error) {
-          throw error;
-        }
-
-        updateProject({ 
-          ...editingProject, 
-          title: projectData.title || editingProject.title,
-          description: projectData.description || editingProject.description,
-          status: projectData.status || editingProject.status
-        });
-        toast.success('Project updated successfully.');
-      } else {
-        // Create new project
-        const { data, error } = await supabase
-          .from('projects')
-          .insert({
-            name: projectData.title,
-            description: projectData.description,
-            status: projectData.status || 'planning',
-            owner_id: user.id
-          })
-          .select()
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        const newProject: ProjectData = {
-          id: data.id,
-          title: data.name,
-          description: data.description || '',
-          status: (data.status || 'planning') as 'planning' | 'active' | 'completed',
-          user_id: data.owner_id,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          image: '', // Default value
-          crop: '', // Default value
-          location: '', // Default value
-          startDate: '', // Default value
-          endDate: '', // Default value
-          progress: 0, // Default value
-          isPublic: true, // Default value
-          user_name: user.name,
-          user_avatar: user.avatar || null,
-        };
-        
-        addProject(newProject);
-        toast.success('Project created successfully.');
-      }
-    } catch (error) {
-      console.error('Error submitting project:', error);
-      toast.error('Failed to submit project.');
-    } finally {
-      closeForm();
-    }
-  };
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-48">Chargement des projets...</div>;
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Projects</h1>
-
-      <div className="mb-4">
-        <button
-          onClick={openForm}
-          className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-        >
-          <Plus className="inline-block mr-2" />
-          Add Project
-        </button>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">Mes Projets</h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <PlusCircle className="h-5 w-5" />
+              Nouveau Projet
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Créer un nouveau projet</DialogTitle>
+            </DialogHeader>
+            <ProjectForm 
+              onSubmit={handleCreateProject} 
+              onCancel={() => setIsDialogOpen(false)} 
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <ProjectForm
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-              project={editingProject}
-            />
-          </div>
+      {projects.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <p className="text-gray-600 mb-4">Vous n'avez pas encore de projets</p>
+          <Button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-2">
+            <PlusCircle className="h-5 w-5" />
+            Créer mon premier projet
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => (
+            <ProjectCard key={project.id} {...project} />
+          ))}
         </div>
       )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects.map((project) => (
-          <div key={project.id}>
-            <ProjectCard project={project} />
-            <div className="flex justify-end space-x-2 mt-2">
-              <button
-                onClick={() => openEditForm(project)}
-                className="text-blue-500 hover:text-blue-700"
-              >
-                <Edit className="inline-block mr-1" size={16} />
-                Edit
-              </button>
-              <button
-                onClick={() => deleteProject(project.id)}
-                className="text-red-500 hover:text-red-700"
-              >
-                <Trash2 className="inline-block mr-1" size={16} />
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };

@@ -1,358 +1,240 @@
+
 import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types/auth';
 import { toast } from 'sonner';
-import { User, UserRole, UserPreferences } from '@/types/auth';
-import { VerificationCode, ProjectWithUser } from '@/types/supabase';
+
+// Create an admin account
+export const createAdminAccount = async (
+  adminName: string,
+  adminEmail: string, 
+  adminPassword: string
+): Promise<User | null> => {
+  try {
+    // Call the Supabase function to create an admin account
+    const { data, error } = await supabase.rpc('admin_create_user', {
+      user_name: adminName,
+      user_email: adminEmail,
+      user_password: adminPassword,
+      user_role: 'admin'
+    });
+
+    if (error) throw error;
+
+    // Get the user details from auth
+    const { data: userData, error: userError } = await supabase.auth.signInWithPassword({
+      email: adminEmail,
+      password: adminPassword
+    });
+
+    if (userError) throw userError;
+
+    const user = userData.user;
+    if (!user) throw new Error('User not created');
+
+    // Convert to our User type
+    const adminUser: User = {
+      id: user.id,
+      email: user.email || adminEmail,
+      name: adminName,
+      role: 'admin',
+      email_verified: user.email_confirmed_at ? true : false,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+
+    return adminUser;
+  } catch (error) {
+    console.error('Error creating admin account:', error);
+    throw error;
+  }
+};
 
 // Get all users
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    // Get auth users
-    const { data: authUsersData, error: authUsersError } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (authUsersError) {
-      throw authUsersError;
-    }
+    if (error) throw error;
 
-    // Format users with proper types
-    const users: User[] = authUsersData.map(userData => {
-      // Handle preferences to make sure it's correctly typed
-      let preferences: UserPreferences = {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      };
-
-      if (userData.preferences) {
-        const prefs = userData.preferences as any;
-        preferences = {
-          language: (prefs.language || 'fr') as 'fr' | 'en' | 'ar',
-          notifications: {
-            email: prefs.notifications?.email !== undefined ? Boolean(prefs.notifications.email) : true,
-            app: prefs.notifications?.app !== undefined ? Boolean(prefs.notifications.app) : true
-          },
-          theme: (prefs.theme || 'light') as 'light' | 'dark' | 'system'
-        };
-      }
-
-      return {
-        id: userData.id || '',
-        email: userData.email || '',
-        name: userData.display_name || '',
-        role: (userData.role || 'user') as UserRole,
-        avatar: userData.avatar || '',
-        phone_number: userData.phone_number || '',
-        address: userData.address || '',
-        bio: userData.bio || '',
-        created_at: userData.created_at || '',
-        updated_at: userData.updated_at || '',
-        preferences
-      };
-    });
+    // Convert to our User type format
+    const users = data.map(profile => ({
+      id: profile.id,
+      email: profile.email || '',
+      name: profile.display_name || '',
+      role: (profile.role as User['role']) || 'user',
+      avatar: profile.avatar || '',
+      phone_number: profile.phone_number || '',
+      address: profile.address || '',
+      bio: profile.bio || '',
+      created_at: profile.created_at || '',
+      updated_at: profile.updated_at || '',
+      preferences: profile.preferences as User['preferences']
+    }));
 
     return users;
   } catch (error) {
-    console.error('Error getting users:', error);
-    toast.error('Erreur lors du chargement des utilisateurs');
+    console.error('Error fetching users:', error);
+    toast.error('Erreur lors de la récupération des utilisateurs');
     return [];
   }
 };
 
-// Get all verification codes
-export const getAllVerificationCodes = async (): Promise<VerificationCode[]> => {
+// Get pending fournisseur requests
+export const getPendingFournisseurRequests = async (): Promise<User[]> => {
   try {
-    // For now, return empty array as the RPC function may not exist
-    return [];
-    
-    // When function is created, uncomment this:
-    // const { data, error } = await supabase.rpc('admin_get_verification_codes');
-    // if (error) throw error;
-    // return data || [];
-  } catch (error) {
-    console.error('Error getting verification codes:', error);
-    toast.error('Erreur lors du chargement des codes de vérification');
-    return [];
-  }
-};
-
-// Get analytics data
-export const getAnalyticsData = async () => {
-  try {
-    // Get user count
-    const { count: userCount, error: userCountError } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true });
+      .select('*')
+      .eq('role', 'pending_fournisseur')
+      .order('created_at', { ascending: false });
 
-    if (userCountError) {
-      throw userCountError;
-    }
+    if (error) throw error;
 
-    // Get project count
-    const { count: projectCount, error: projectCountError } = await supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true });
+    // Convert to our User type format
+    const users = data.map(profile => ({
+      id: profile.id,
+      email: profile.email || '',
+      name: profile.display_name || '',
+      role: (profile.role as User['role']) || 'pending_fournisseur',
+      avatar: profile.avatar || '',
+      phone_number: profile.phone_number || '',
+      address: profile.address || '',
+      bio: profile.bio || '',
+      created_at: profile.created_at || '',
+      updated_at: profile.updated_at || '',
+      preferences: profile.preferences as User['preferences']
+    }));
 
-    if (projectCountError) {
-      throw projectCountError;
-    }
-
-    // Get monthly registrations - dummy data for now
-    const registrationsByMonth = {
-      'Jan': 5,
-      'Feb': 8,
-      'Mar': 12,
-      'Apr': 7,
-      'May': 14,
-      'Jun': 20
-    };
-
-    return {
-      userCount: userCount || 0,
-      projectCount: projectCount || 0,
-      registrationsByMonth
-    };
+    return users;
   } catch (error) {
-    console.error('Error getting analytics data:', error);
-    toast.error('Erreur lors du chargement des données analytiques');
-    return {
-      userCount: 0,
-      projectCount: 0,
-      registrationsByMonth: {}
-    };
+    console.error('Error fetching pending fournisseur requests:', error);
+    toast.error('Erreur lors de la récupération des demandes de fournisseurs');
+    return [];
   }
 };
 
-// Get all projects
+// Get verification codes - simplified implementation since we don't have the actual table
+export const getVerificationCodes = async () => {
+  try {
+    // This is a simplified version since we don't have access to the verification_codes table
+    return [];
+  } catch (error) {
+    console.error('Error fetching verification codes:', error);
+    toast.error('Erreur lors de la récupération des codes de vérification');
+    return [];
+  }
+};
+
+// Get all projects with user info
 export const getAllProjects = async () => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
-        profiles:owner_id (display_name, email, avatar)
-      `);
+        profiles:owner_id (
+          id,
+          display_name,
+          email,
+          avatar
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    // Transform the data to match the expected format
-    const projects = data.map(project => {
-      // Get user data safely
+    // Transform data to include user profile info
+    const projectsWithUserInfo = data.map(project => {
+      // Handle potential null values or missing profile data
       const profileData = project.profiles || {};
       
       return {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        status: project.status,
-        owner_id: project.owner_id,
-        created_at: project.created_at,
-        updated_at: project.updated_at,
-        user_name: profileData.display_name || 'Unknown',
-        user_email: profileData.email || '',
-        user_avatar: profileData.avatar || '',
+        ...project,
         creator_name: profileData.display_name || 'Unknown',
-        creator_email: profileData.email || '',
-        creator_avatar: profileData.avatar || ''
+        creator_email: profileData.email || 'No email',
+        creator_avatar: profileData.avatar || null,
+        user_name: profileData.display_name || 'Unknown',
+        user_email: profileData.email || 'No email',
+        user_avatar: profileData.avatar || null
       };
     });
 
-    return projects;
+    return projectsWithUserInfo;
   } catch (error) {
-    console.error('Error getting projects:', error);
-    toast.error('Erreur lors du chargement des projets');
+    console.error('Error fetching all projects:', error);
+    toast.error('Erreur lors de la récupération des projets');
     return [];
   }
 };
 
-// Update user role
-export const updateUserRole = async (userId: string, newRole: string) => {
+// Delete a user
+export const deleteUser = async (userId: string): Promise<boolean> => {
+  try {
+    // Call the Supabase function to delete the user
+    const { error } = await supabase.rpc('admin_delete_user', {
+      user_id: userId
+    });
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    toast.error('Erreur lors de la suppression de l\'utilisateur');
+    return false;
+  }
+};
+
+// Change user role
+export const changeUserRole = async (userId: string, newRole: string): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('profiles')
       .update({ role: newRole })
       .eq('id', userId);
 
-    if (error) {
-      throw error;
-    }
-
-    toast.success(`Rôle mis à jour avec succès`);
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('Error updating user role:', error);
-    toast.error('Erreur lors de la mise à jour du rôle');
+    console.error('Error changing user role:', error);
+    toast.error('Erreur lors du changement de rôle de l\'utilisateur');
+    return false;
   }
 };
 
-// Delete user
-export const deleteUser = async (userId: string) => {
+// Verify a user's email
+export const verifyUserEmail = async (userId: string): Promise<boolean> => {
   try {
-    // Delete user from auth (this should cascade to profiles through RLS)
-    const { error } = await supabase.rpc('admin_delete_user', { user_id: userId });
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success('Utilisateur supprimé avec succès');
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    toast.error('Erreur lors de la suppression de l\'utilisateur');
-    throw error;
-  }
-};
-
-// Delete project
-export const deleteProject = async (projectId: string) => {
-  try {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId);
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success('Projet supprimé avec succès');
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    toast.error('Erreur lors de la suppression du projet');
-    throw error;
-  }
-};
-
-// Approve supplier request
-export const approveFournisseurRequest = async (userId: string) => {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'fournisseur' })
-      .eq('id', userId);
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success('Demande approuvée avec succès');
-  } catch (error) {
-    console.error('Error approving supplier request:', error);
-    toast.error('Erreur lors de l\'approbation de la demande');
-    throw error;
-  }
-};
-
-// Reject supplier request
-export const rejectFournisseurRequest = async (userId: string) => {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'user' })
-      .eq('id', userId);
-
-    if (error) {
-      throw error;
-    }
-
-    toast.success('Demande rejetée avec succès');
-  } catch (error) {
-    console.error('Error rejecting supplier request:', error);
-    toast.error('Erreur lors du rejet de la demande');
-    throw error;
-  }
-};
-
-// Add a new supplier
-export const addFournisseur = async (supplierData: {
-  name: string;
-  email: string;
-  password: string;
-  phone: string;
-  location: string;
-  category: string;
-  products: string[];
-}) => {
-  try {
-    // Create user with admin function
-    await supabase.rpc('admin_create_user', {
-      user_name: supplierData.name,
-      user_email: supplierData.email,
-      user_password: supplierData.password,
-      user_role: 'fournisseur'
+    // Call the Supabase function to verify the user's email
+    const { error } = await supabase.rpc('admin_verify_user', {
+      user_id: userId
     });
 
-    // Get the user ID we just created
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', supplierData.email)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to get created user');
-    }
-
-    // Create supplier record
-    const { error: supplierError } = await supabase
-      .from('suppliers')
-      .insert({
-        user_id: userData.id,
-        name: supplierData.name,
-        category: supplierData.category,
-        location: supplierData.location,
-        phone: supplierData.phone,
-        products: supplierData.products,
-        email: supplierData.email
-      });
-
-    if (supplierError) {
-      throw supplierError;
-    }
-
-    toast.success('Fournisseur ajouté avec succès');
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('Error adding supplier:', error);
-    toast.error('Erreur lors de l\'ajout du fournisseur');
-    throw error;
+    console.error('Error verifying user email:', error);
+    toast.error('Erreur lors de la vérification de l\'email de l\'utilisateur');
+    return false;
   }
 };
 
-// Add createAdminAccount function (missing in authService)
-export const createAdminAccount = async (
-  adminName: string,
-  adminEmail: string,
-  adminPassword: string
-) => {
+// Reset user password
+export const resetUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
   try {
-    // Create user with admin function
-    await supabase.rpc('admin_create_user', {
-      user_name: adminName,
-      user_email: adminEmail,
-      user_password: adminPassword,
-      user_role: 'admin'
+    // Call the Supabase function to reset the user's password
+    const { error } = await supabase.rpc('admin_update_user_password', {
+      user_id: userId,
+      new_password: newPassword
     });
-    
-    // Get created user
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', adminEmail)
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    return {
-      id: data.id,
-      name: data.display_name,
-      email: data.email,
-      role: 'admin' as UserRole
-    };
+
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('Error creating admin account:', error);
-    throw error;
+    console.error('Error resetting user password:', error);
+    toast.error('Erreur lors de la réinitialisation du mot de passe de l\'utilisateur');
+    return false;
   }
 };

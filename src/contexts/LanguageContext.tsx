@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -192,12 +191,25 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     }
   };
 
-  const t = (key: string): string => {
+  const getTranslation = (key: string): string => {
+    const defaultLanguage = 'fr';
+    const selectedLanguage = language || defaultLanguage;
+    
     if (!translations[key]) {
-      console.warn(`Translation key not found: ${key}`);
-      return key;
+      return key; // Return key if translation not found
     }
-    return translations[key][language];
+    
+    const translationObj = translations[key];
+    if (typeof translationObj === 'string') {
+      return translationObj;
+    }
+    
+    // Access the language directly instead of spread
+    return translationObj[selectedLanguage as keyof typeof translationObj] || translationObj[defaultLanguage] || key;
+  };
+
+  const t = (key: string): string => {
+    return getTranslation(key);
   };
 
   return (
