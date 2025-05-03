@@ -21,7 +21,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
   onSwitchToLogin,
   onSwitchToForgotPassword
 }) => {
-  const { signup } = useAuth();
+  const { signUp } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SignupFormData>();
 
@@ -32,7 +32,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
     }
     
     try {
-      await signup(data.name, data.email, data.password, data.phone_number);
+      await signUp(data.name, data.email, data.password, data.phone_number);
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
       if (onSuccess) onSuccess();
       navigate('/dashboard');
