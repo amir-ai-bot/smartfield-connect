@@ -149,7 +149,7 @@ const SuppliersPage = () => {
 
       {/* Category ComboBox */}
       <ComboBox
-        items={categoryOptions}
+        options={categoryOptions}
         placeholder="Select Category"
         value={selectedCategory}
         onValueChange={handleCategoryChange}

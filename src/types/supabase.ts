@@ -66,6 +66,13 @@ export interface Project {
   owner_id: string;
   created_at?: string;
   updated_at?: string;
+  crop?: string;
+  image?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
+  progress?: number;
+  is_public?: boolean;
 }
 
 export interface ProjectWithUser extends Project {
@@ -75,6 +82,8 @@ export interface ProjectWithUser extends Project {
   user_name?: string;
   user_email?: string;
   user_avatar?: string;
+  title?: string;
+  timeAgo?: string;
 }
 
 export interface Conversation {
@@ -135,4 +144,24 @@ export interface VerificationCode {
   created_at: string;
   expires_at: string;
   used: boolean;
+}
+
+export interface Analytics {
+  userCount: number;
+  projectCount: number;
+  supplierCount: number;
+  activeProjects: number;
+  newUsersThisMonth: number;
+  messagesSentToday: number;
+  usersByRole: {
+    user: number;
+    admin: number;
+    fournisseur: number;
+    pending_fournisseur: number;
+  };
+  projectsByStatus: {
+    active: number;
+    completed: number;
+    planning: number;
+  };
 }

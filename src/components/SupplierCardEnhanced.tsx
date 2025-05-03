@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, Mail, MapPin, Star, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toggleFavoriteFournisseur, isFournisseurFavorite, rateFournisseur } from '@/services/conversationService';
+import { toggleFavoriteFournisseur, isFournisseurFavorite } from '@/services/conversationService';
+import { rateFournisseur } from '@/services/ratingService';
 import { createSupplierConversation } from '@/services/supplierService';
 import { toast } from 'sonner';
 import AuthDialog from './auth/AuthDialog';
@@ -217,7 +218,7 @@ const SupplierCardEnhanced = ({
           open={showRatingDialog}
           onOpenChange={setShowRatingDialog}
           userId={user.id}
-          fournisseurId={user_id} // Use user_id instead of id to get the correct fournisseur id
+          fournisseurId={id} // Use id instead of user_id for the fournisseur
           fournisseurName={name}
           onRatingSubmitted={() => {
             // Refresh ratings if needed

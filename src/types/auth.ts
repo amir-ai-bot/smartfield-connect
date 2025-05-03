@@ -1,3 +1,4 @@
+
 export interface UserPreferences {
   language: 'fr' | 'en' | 'ar';
   notifications: {
@@ -83,4 +84,30 @@ export interface Rating {
     name: string;
     avatar: string | null;
   };
+}
+
+export interface ProjectData {
+  id: string;
+  title: string;
+  description: string;
+  status: 'planning' | 'active' | 'completed';
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+  image?: string;
+  crop: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  isPublic: boolean;
+  user_name?: string;
+  user_avatar?: string;
+}
+
+export interface ProjectFormProps {
+  onSubmit: (data: Partial<ProjectData>) => void;
+  onCancel: () => void;
+  project?: ProjectData | null;
+  onProjectCreated?: (newProject: ProjectData) => void;
 }

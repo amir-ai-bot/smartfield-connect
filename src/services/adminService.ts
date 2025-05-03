@@ -8,6 +8,7 @@ import { timeAgo } from '@/utils/dateUtils';
 export interface VerificationCode {
   id: string;
   user_id: string;
+  email: string;
   code: string;
   type: string;
   created_at: string;
@@ -37,7 +38,7 @@ export const getAllUsers = async (): Promise<User[]> => {
       phone_number: profile.phone_number || '',
       address: profile.address || '',
       bio: profile.bio || '',
-      email_verified: false, // We don't have this data from profiles
+      email_verified: true, // Default since we don't have this info
       created_at: profile.created_at,
       updated_at: profile.updated_at,
       preferences: profile.preferences || {
@@ -62,6 +63,7 @@ export const getVerificationCodes = async (): Promise<VerificationCode[]> => {
       {
         id: '1',
         user_id: 'mock-user-1',
+        email: 'test@example.com',
         code: '123456',
         type: 'email',
         created_at: new Date().toISOString(),
@@ -109,7 +111,7 @@ export const getAllProjects = async (): Promise<ProjectWithUser[]> => {
       .from('projects')
       .select(`
         *,
-        profiles:owner_id (id, display_name, email, avatar)
+        profiles:profiles!projects_owner_id_fkey (id, display_name, email, avatar)
       `)
       .order('created_at', { ascending: false });
     
@@ -117,23 +119,20 @@ export const getAllProjects = async (): Promise<ProjectWithUser[]> => {
       throw error;
     }
     
-    return data.map(project => {
-      const profile = project.profiles || {};
-      
-      return {
-        id: project.id,
-        title: project.name,
-        description: project.description || '',
-        status: project.status,
-        created_at: project.created_at,
-        updated_at: project.updated_at,
-        owner_id: project.owner_id,
-        creator_name: profile.display_name || 'Unknown',
-        creator_email: profile.email || 'no-email',
-        creator_avatar: profile.avatar || null,
-        timeAgo: timeAgo(project.created_at)
-      };
-    });
+    return data.map(project => ({
+      id: project.id,
+      name: project.name,
+      title: project.name, // Add title for compatibility
+      description: project.description || '',
+      status: project.status,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      owner_id: project.owner_id,
+      creator_name: project.profiles?.display_name || 'Unknown',
+      creator_email: project.profiles?.email || 'no-email',
+      creator_avatar: project.profiles?.avatar || null,
+      timeAgo: timeAgo(project.created_at || '')
+    }));
   } catch (error) {
     console.error('Error getting all projects:', error);
     toast.error('Erreur lors de la récupération des projets');
@@ -164,7 +163,7 @@ export const getPendingFournisseurRequests = async (): Promise<User[]> => {
       phone_number: profile.phone_number || '',
       address: profile.address || '',
       bio: profile.bio || '',
-      email_verified: false, // We don't have this data from profiles
+      email_verified: true, // Default since we don't have this info
       created_at: profile.created_at,
       updated_at: profile.updated_at,
       preferences: profile.preferences || {
@@ -246,9 +245,13 @@ export const deleteProject = async (projectId: string): Promise<boolean> => {
 // Approve fournisseur request
 export const approveFournisseurRequest = async (userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase.functions.invoke('approve-fournisseur-request', {
-      body: { userId }
-    });
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        role: 'fournisseur',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
     
     if (error) {
       throw error;
@@ -266,9 +269,13 @@ export const approveFournisseurRequest = async (userId: string): Promise<boolean
 // Reject fournisseur request
 export const rejectFournisseurRequest = async (userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase.functions.invoke('reject-fournisseur-request', {
-      body: { userId }
-    });
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        role: 'user',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
     
     if (error) {
       throw error;
@@ -290,8 +297,15 @@ export const createAdminAccount = async (
   password: string
 ): Promise<boolean> => {
   try {
-    const { error } = await supabase.functions.invoke('admin-create-user', {
-      body: { user_name: name, user_email: email, user_password: password, user_role: 'admin' }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: 'admin'
+        }
+      }
     });
     
     if (error) {
@@ -303,6 +317,26 @@ export const createAdminAccount = async (
   } catch (error) {
     console.error('Error creating admin account:', error);
     toast.error('Erreur lors de la création du compte administrateur');
+    return false;
+  }
+};
+
+// Add a new supplier (fournisseur)
+export const addFournisseur = async (supplierData: any): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('suppliers')
+      .insert(supplierData);
+    
+    if (error) {
+      throw error;
+    }
+    
+    toast.success('Fournisseur ajouté avec succès');
+    return true;
+  } catch (error) {
+    console.error('Error adding supplier:', error);
+    toast.error('Erreur lors de l\'ajout du fournisseur');
     return false;
   }
 };

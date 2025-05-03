@@ -17,7 +17,11 @@ import {
 } from "@/components/ui/popover";
 
 export interface ComboBoxProps {
-  options: {
+  options?: {
+    value: string;
+    label: string;
+  }[];
+  items?: {
     value: string;
     label: string;
   }[];
@@ -27,12 +31,11 @@ export interface ComboBoxProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   className?: string;
-  items?: { value: string; label: string }[]; // Added for backward compatibility
 }
 
 export function ComboBox({
   options,
-  items, // Added for backward compatibility
+  items,
   value,
   onValueChange,
   placeholder = "Sélectionner une option",
@@ -42,7 +45,7 @@ export function ComboBox({
 }: ComboBoxProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(value || "");
-  const itemsToUse = items || options; // Use items if provided, otherwise options
+  const itemsToUse = options || items || [];
 
   React.useEffect(() => {
     if (value !== undefined) {

@@ -70,7 +70,7 @@ export const addRating = async (
   fournisseurId: string,
   rating: number,
   comment?: string
-) => {
+): Promise<Rating | null> => {
   try {
     // Update the supplier's rating directly since we don't have a ratings table
     const { data, error } = await supabase
@@ -85,7 +85,7 @@ export const addRating = async (
     }
 
     // Create a mock rating response
-    const mockRating = {
+    const mockRating: Rating = {
       id: crypto.randomUUID(),
       user_id: userId,
       supplier_id: fournisseurId,
@@ -111,7 +111,7 @@ export const addRating = async (
 export const rateFournisseur = addRating;
 
 // Update supplier's average rating
-export const updateSupplierAverageRating = async (fournisseurId: string) => {
+export const updateSupplierAverageRating = async (fournisseurId: string): Promise<boolean> => {
   try {
     // In a real app with a ratings table we would calculate average
     // For now, just return true to simulate success

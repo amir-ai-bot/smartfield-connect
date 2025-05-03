@@ -5,15 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ProjectData } from '@/types/auth';
+import { ProjectData, ProjectFormProps } from '@/types/auth';
 
-interface ProjectFormProps {
-  onSubmit: (data: Partial<ProjectData>) => void;
-  onCancel: () => void;
-  project?: ProjectData | null;
-}
-
-const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, onProjectCreated }) => {
   const [formData, setFormData] = useState({
     title: project?.title || '',
     description: project?.description || '',
@@ -41,6 +35,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+    if (onProjectCreated) {
+      onProjectCreated(formData as ProjectData);
+    }
   };
 
   return (

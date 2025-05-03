@@ -3,6 +3,48 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProjectData } from '@/types/auth';
 
+// Get all projects (public ones)
+export const getProjects = async (): Promise<ProjectData[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        profiles!projects_owner_id_fkey (display_name, avatar)
+      `)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Map database fields to the expected ProjectData format
+    return data.map(project => ({
+      id: project.id,
+      title: project.name,
+      description: project.description || '',
+      status: convertStatus(project.status),
+      user_id: project.owner_id,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      image: project.image || '',
+      crop: project.crop || '',
+      location: project.location || '',
+      startDate: project.start_date || '',
+      endDate: project.end_date || '',
+      progress: project.progress || 0,
+      isPublic: project.is_public || false,
+      user_name: project.profiles?.display_name || '',
+      user_avatar: project.profiles?.avatar || ''
+    }));
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    toast.error('Error fetching projects');
+    return [];
+  }
+};
+
 // Get all projects for a user
 export const getUserProjects = async (userId: string): Promise<ProjectData[]> => {
   try {
@@ -88,43 +130,7 @@ export const getProject = async (projectId: string): Promise<ProjectData | null>
 
 // Get public projects
 export const getPublicProjects = async (): Promise<ProjectData[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        profiles!projects_owner_id_fkey (display_name, avatar)
-      `)
-      .eq('is_public', true)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw error;
-    }
-
-    return data.map(project => ({
-      id: project.id,
-      title: project.name,
-      description: project.description || '',
-      status: convertStatus(project.status),
-      user_id: project.owner_id,
-      created_at: project.created_at,
-      updated_at: project.updated_at,
-      image: project.image || '',
-      crop: project.crop || '',
-      location: project.location || '',
-      startDate: project.start_date || '',
-      endDate: project.end_date || '',
-      progress: project.progress || 0,
-      isPublic: project.is_public || false,
-      user_name: project.profiles?.display_name || '',
-      user_avatar: project.profiles?.avatar || ''
-    }));
-  } catch (error) {
-    console.error('Error fetching public projects:', error);
-    toast.error('Error fetching public projects');
-    return [];
-  }
+  return getProjects();
 };
 
 // Create a new project
