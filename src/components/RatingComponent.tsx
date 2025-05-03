@@ -75,7 +75,8 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
         rating: newRating.rating,
         comment: newRating.comment,
         created_at: newRating.created_at || new Date().toISOString(),
-        profiles: newRating.profiles || {
+        // Fix the type error by providing a proper profiles object
+        profiles: {
           id: user.id,
           name: user.name || '',
           avatar: user.avatar || null
@@ -93,8 +94,8 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     }
   };
 
-  // Star rating component
-  const StarRating = () => {
+  // Create StarRating component outside the main component to avoid duplicate identifier error
+  const renderStarRating = () => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -120,7 +121,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     <form onSubmit={handleSubmit} className="space-y-4 mb-4">
       <div>
         <label className="block text-sm font-medium mb-1">Votre note</label>
-        <StarRating />
+        {renderStarRating()}
       </div>
       <div>
         <label htmlFor="comment" className="block text-sm font-medium mb-1">

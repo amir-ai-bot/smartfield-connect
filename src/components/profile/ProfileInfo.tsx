@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { User } from '@/types/auth';
 import { Input } from '@/components/ui/input';
@@ -84,19 +85,29 @@ const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
         email_verified: user.email_verified || false
       };
       
-      const updatedUser = await updateProfile({
+      const updatedUserData = {
         name,
         email,
         phone_number: phone,
         address,
         bio,
         avatar
-      });
+      };
       
+      await updateProfile(updatedUserData);
       toast.success('Profil mis à jour avec succès');
       
-      // Call onUpdate if provided
+      // Call onUpdate if provided with the updated user object
       if (onUpdate) {
+        const updatedUser: User = {
+          ...user,
+          name,
+          email,
+          phone_number: phone,
+          address,
+          bio,
+          avatar
+        };
         onUpdate(updatedUser);
       }
       

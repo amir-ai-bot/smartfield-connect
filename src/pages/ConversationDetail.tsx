@@ -13,6 +13,24 @@ import { format } from 'date-fns';
 import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, markMessagesAsRead, sendMessage } from '@/services/conversationService';
 import RatingDialog from '@/components/conversation/RatingDialog';
 
+interface ParticipantProfile {
+  id?: string;
+  name?: string;
+  avatar?: string;
+  email?: string;
+  role?: string;
+}
+
+interface ConversationData {
+  id: string;
+  participant1_id: string;
+  participant2_id: string;
+  last_message_at?: string;
+  created_at?: string;
+  participant1Profile?: ParticipantProfile;
+  participant2Profile?: ParticipantProfile;
+}
+
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -21,7 +39,7 @@ const ConversationDetail = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [messageText, setMessageText] = useState('');
-  const [conversation, setConversation] = useState<any>(null);
+  const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
@@ -51,9 +69,9 @@ const ConversationDetail = () => {
 
       setConversation(conversationData);
 
-      // Check if participant profiles are valid
-      const participant1Profile = conversationData.participant1Profile || {};
-      const participant2Profile = conversationData.participant2Profile || {};
+      // Ensure participant profiles are properly typed
+      const participant1Profile = conversationData.participant1Profile || {} as ParticipantProfile;
+      const participant2Profile = conversationData.participant2Profile || {} as ParticipantProfile;
 
       // Determine if the other user is a supplier to check favorites
       const isSupplier = 

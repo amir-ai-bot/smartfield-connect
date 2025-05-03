@@ -1,4 +1,3 @@
-
 export interface UserPreferences {
   language: 'fr' | 'en' | 'ar';
   notifications: {

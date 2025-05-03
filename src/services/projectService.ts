@@ -1,288 +1,200 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectData } from '@/types/auth';
+import { toast } from 'sonner';
 
-// Add the getPublicProjects function at the top
-export const getPublicProjects = async (limit = 10) => {
+// Get all projects (public and those owned by the user)
+export const getProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
-        profiles:owner_id (display_name, avatar, email)
+        profiles:owner_id(id, display_name, avatar, email)
       `)
       .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-      
-    if (error) throw error;
-    
-    // Map the data to match the expected ProjectData format
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) return [];
+
+    // Transform the data to match the ProjectData interface
     return data.map(project => ({
       id: project.id,
       title: project.name,
-      name: project.name,
       description: project.description || '',
-      status: project.status,
+      status: project.status as 'planning' | 'active' | 'completed',
       user_id: project.owner_id,
       owner_id: project.owner_id,
       created_at: project.created_at,
       updated_at: project.updated_at,
-      image: project.image || '',
+      image: project.image || undefined,
       crop: project.crop_type || '',
       crop_type: project.crop_type || '',
       location: project.location || '',
-      startDate: project.start_date || new Date().toISOString(),
-      endDate: project.end_date || new Date().toISOString(),
-      start_date: project.start_date || new Date().toISOString(),
-      end_date: project.end_date || new Date().toISOString(),
+      startDate: project.start_date || '',
+      endDate: project.end_date || '',
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
       progress: project.progress || 0,
       isPublic: project.is_public || false,
       is_public: project.is_public || false,
       user_name: project.profiles?.display_name || '',
-      user_avatar: project.profiles?.avatar || '',
-      creator_name: project.profiles?.display_name || '',
-      creator_avatar: project.profiles?.avatar || '',
-      creator_email: project.profiles?.email || ''
+      user_avatar: project.profiles?.avatar || ''
     }));
   } catch (error) {
-    console.error('Error fetching public projects:', error);
+    console.error('Error getting projects:', error);
+    toast.error('Erreur lors de la récupération des projets');
     return [];
   }
 };
 
-export const getProjects = async (userId: string): Promise<ProjectData[]> => {
+// Get projects by user ID
+export const getUserProjects = async (userId: string): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
-        profiles:owner_id (display_name, avatar, email)
+        profiles:owner_id(id, display_name, avatar, email)
       `)
       .eq('owner_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching projects:', error);
-      return [];
+      throw error;
     }
 
-    // Map the data to match the expected ProjectData format
+    if (!data) return [];
+
+    // Transform the data to match the ProjectData interface
     return data.map(project => ({
       id: project.id,
       title: project.name,
-      name: project.name,
       description: project.description || '',
-      status: project.status,
+      status: project.status as 'planning' | 'active' | 'completed',
       user_id: project.owner_id,
       owner_id: project.owner_id,
       created_at: project.created_at,
       updated_at: project.updated_at,
-      image: project.image || '',
+      image: project.image || undefined,
       crop: project.crop_type || '',
       crop_type: project.crop_type || '',
       location: project.location || '',
-      startDate: project.start_date || new Date().toISOString(),
-      endDate: project.end_date || new Date().toISOString(),
-      start_date: project.start_date || new Date().toISOString(),
-      end_date: project.end_date || new Date().toISOString(),
+      startDate: project.start_date || '',
+      endDate: project.end_date || '',
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
       progress: project.progress || 0,
       isPublic: project.is_public || false,
       is_public: project.is_public || false,
       user_name: project.profiles?.display_name || '',
-      user_avatar: project.profiles?.avatar || '',
-      creator_name: project.profiles?.display_name || '',
-      creator_avatar: project.profiles?.avatar || '',
-      creator_email: project.profiles?.email || ''
+      user_avatar: project.profiles?.avatar || ''
     }));
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    console.error('Error getting user projects:', error);
+    toast.error('Erreur lors de la récupération des projets');
     return [];
   }
 };
 
-export const getProjectById = async (projectId: string): Promise<ProjectData | null> => {
+// Get public projects
+export const getPublicProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
-        profiles:owner_id (display_name, avatar, email)
+        profiles:owner_id(id, display_name, avatar, email)
+      `)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) return [];
+
+    // Transform the data to match the ProjectData interface
+    return data.map(project => ({
+      id: project.id,
+      title: project.name,
+      description: project.description || '',
+      status: project.status as 'planning' | 'active' | 'completed',
+      user_id: project.owner_id,
+      owner_id: project.owner_id,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      image: project.image || undefined,
+      crop: project.crop_type || '',
+      crop_type: project.crop_type || '',
+      location: project.location || '',
+      startDate: project.start_date || '',
+      endDate: project.end_date || '',
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
+      progress: project.progress || 0,
+      isPublic: project.is_public || false,
+      is_public: project.is_public || false,
+      user_name: project.profiles?.display_name || '',
+      user_avatar: project.profiles?.avatar || ''
+    }));
+  } catch (error) {
+    console.error('Error getting public projects:', error);
+    toast.error('Erreur lors de la récupération des projets publics');
+    return [];
+  }
+};
+
+// Get a single project by ID
+export const getProject = async (projectId: string): Promise<ProjectData | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        profiles:owner_id(id, display_name, avatar, email)
       `)
       .eq('id', projectId)
       .single();
 
     if (error) {
-      console.error('Error fetching project by ID:', error);
-      return null;
+      throw error;
     }
 
-    // Map the data to match the expected ProjectData format
+    if (!data) return null;
+
+    // Transform the data to match the ProjectData interface
     return {
       id: data.id,
       title: data.name,
-      name: data.name,
       description: data.description || '',
-      status: data.status,
+      status: data.status as 'planning' | 'active' | 'completed',
       user_id: data.owner_id,
       owner_id: data.owner_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      image: data.image || '',
+      image: data.image || undefined,
       crop: data.crop_type || '',
       crop_type: data.crop_type || '',
       location: data.location || '',
-      startDate: data.start_date || new Date().toISOString(),
-      endDate: data.end_date || new Date().toISOString(),
-      start_date: data.start_date || new Date().toISOString(),
-      end_date: data.end_date || new Date().toISOString(),
+      startDate: data.start_date || '',
+      endDate: data.end_date || '',
+      start_date: data.start_date || '',
+      end_date: data.end_date || '',
       progress: data.progress || 0,
       isPublic: data.is_public || false,
       is_public: data.is_public || false,
       user_name: data.profiles?.display_name || '',
-      user_avatar: data.profiles?.avatar || '',
-      creator_name: data.profiles?.display_name || '',
-      creator_avatar: data.profiles?.avatar || '',
-      creator_email: data.profiles?.email || ''
+      user_avatar: data.profiles?.avatar || ''
     };
   } catch (error) {
-    console.error('Error fetching project by ID:', error);
+    console.error('Error getting project:', error);
+    toast.error('Erreur lors de la récupération du projet');
     return null;
-  }
-};
-
-export const createProject = async (project: Omit<ProjectData, 'id' | 'created_at' | 'updated_at'>): Promise<ProjectData | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .insert([
-        {
-          name: project.title,
-          description: project.description,
-          status: project.status,
-          owner_id: project.user_id,
-          crop_type: project.crop,
-          location: project.location,
-          start_date: project.startDate,
-          end_date: project.endDate,
-          progress: project.progress,
-          is_public: project.isPublic,
-          image: project.image
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating project:', error);
-      return null;
-    }
-
-    return {
-      id: data.id,
-      title: data.name,
-      name: data.name,
-      description: data.description || '',
-      status: data.status,
-      user_id: data.owner_id,
-      owner_id: data.owner_id,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      image: data.image || '',
-      crop: data.crop_type || '',
-      crop_type: data.crop_type || '',
-      location: data.location || '',
-      startDate: data.start_date || new Date().toISOString(),
-      endDate: data.end_date || new Date().toISOString(),
-      start_date: data.start_date || new Date().toISOString(),
-      end_date: data.end_date || new Date().toISOString(),
-      progress: data.progress || 0,
-      isPublic: data.is_public || false,
-      is_public: data.is_public || false,
-      user_name: '',
-      user_avatar: '',
-      creator_name: '',
-      creator_avatar: '',
-      creator_email: ''
-    };
-  } catch (error) {
-    console.error('Error creating project:', error);
-    return null;
-  }
-};
-
-export const updateProject = async (projectId: string, updates: Partial<ProjectData>): Promise<ProjectData | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .update({
-        name: updates.title,
-        description: updates.description,
-        status: updates.status,
-        crop_type: updates.crop,
-        location: updates.location,
-        start_date: updates.startDate,
-        end_date: updates.endDate,
-        progress: updates.progress,
-        is_public: updates.isPublic,
-        image: updates.image
-      })
-      .eq('id', projectId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating project:', error);
-      return null;
-    }
-
-    return {
-      id: data.id,
-      title: data.name,
-      name: data.name,
-      description: data.description || '',
-      status: data.status,
-      user_id: data.owner_id,
-      owner_id: data.owner_id,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      image: data.image || '',
-      crop: data.crop_type || '',
-      crop_type: data.crop_type || '',
-      location: data.location || '',
-      startDate: data.start_date || new Date().toISOString(),
-      endDate: data.end_date || new Date().toISOString(),
-      start_date: data.start_date || new Date().toISOString(),
-      end_date: data.end_date || new Date().toISOString(),
-      progress: data.progress || 0,
-      isPublic: data.is_public || false,
-      is_public: data.is_public || false,
-      user_name: '',
-      user_avatar: '',
-      creator_name: '',
-      creator_avatar: '',
-      creator_email: ''
-    };
-  } catch (error) {
-    console.error('Error updating project:', error);
-    return null;
-  }
-};
-
-export const deleteProject = async (projectId: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId);
-
-    if (error) {
-      console.error('Error deleting project:', error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    return false;
   }
 };

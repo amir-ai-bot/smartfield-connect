@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProjects, getUserProjects } from '@/services/projectService';
 import ProjectCard from '@/components/Projects/ProjectCard'; 
-import ProjectForm from '@/components/ProjectForm';
+import ProjectForm from '@/components/Projects/ProjectForm';
 import { useNavigate } from 'react-router-dom';
 import { ProjectData } from '@/types/auth';
 
