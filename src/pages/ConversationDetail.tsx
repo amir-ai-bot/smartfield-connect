@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,37 +69,53 @@ const ConversationDetail = () => {
         return;
       }
 
-      setConversation(conversationData);
+      // Create a clean conversation object with proper typing
+      const cleanConversation: ConversationData = {
+        id: conversationData.id,
+        participant1_id: conversationData.participant1_id,
+        participant2_id: conversationData.participant2_id,
+        last_message_at: conversationData.last_message_at,
+        created_at: conversationData.created_at,
+        // Convert potentially problematic fields to safe ParticipantProfile objects
+        participant1: conversationData.participant1 && typeof conversationData.participant1 === 'object' ? {
+          id: conversationData.participant1.id || '',
+          name: conversationData.participant1.display_name || conversationData.participant1.name || 'Unknown',
+          avatar: conversationData.participant1.avatar || undefined,
+          email: conversationData.participant1.email || undefined,
+          role: conversationData.participant1.role || undefined,
+          display_name: conversationData.participant1.display_name || undefined
+        } : {},
+        participant2: conversationData.participant2 && typeof conversationData.participant2 === 'object' ? {
+          id: conversationData.participant2.id || '',
+          name: conversationData.participant2.display_name || conversationData.participant2.name || 'Unknown',
+          avatar: conversationData.participant2.avatar || undefined,
+          email: conversationData.participant2.email || undefined,
+          role: conversationData.participant2.role || undefined,
+          display_name: conversationData.participant2.display_name || undefined
+        } : {}
+      };
 
-      // Ensure participant profiles are properly typed
-      const participant1Profile = conversationData.participant1 || {} as ParticipantProfile;
-      const participant2Profile = conversationData.participant2 || {} as ParticipantProfile;
+      setConversation(cleanConversation);
 
       // Determine if the other user is a supplier to check favorites
-      const otherParticipantRole = 
-        (participant1Profile.id === user.id) ? 
-          participant2Profile.role : 
-          participant1Profile.role;
-          
-      const isSupplier = otherParticipantRole === 'fournisseur';
+      const otherParticipant = user.id === cleanConversation.participant1_id 
+        ? cleanConversation.participant2 
+        : cleanConversation.participant1;
+      
+      const isSupplier = otherParticipant && otherParticipant.role === 'fournisseur';
 
-      if (isSupplier) {
-        const supplierId = 
-          (participant1Profile.id === user.id) ? 
-            participant2Profile.id : 
-            participant1Profile.id;
-          
-        if (supplierId) {
-          const favoriteStatus = await isFournisseurFavorite(user.id, supplierId);
-          setIsFavorite(favoriteStatus);
-        }
+      if (isSupplier && otherParticipant && otherParticipant.id) {
+        const favoriteStatus = await isFournisseurFavorite(user.id, otherParticipant.id);
+        setIsFavorite(favoriteStatus);
       }
 
       const messagesData = await getMessages(id);
-      setMessages(messagesData);
+      setMessages(messagesData || []);
 
       // Mark messages as read
-      await markMessagesAsRead(id, user.id);
+      if (messagesData && messagesData.length > 0) {
+        await markMessagesAsRead(id, user.id);
+      }
       
       setLoading(false);
 

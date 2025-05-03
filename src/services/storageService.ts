@@ -3,85 +3,52 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
-// Upload avatar to storage and return the public URL
-export const uploadAvatar = async (file: File, userId: string): Promise<string> => {
+// Upload image to storage
+export const uploadImage = async (
+  file: File,
+  bucket: string = 'projects',
+  folder: string = 'images'
+): Promise<string | null> => {
   try {
-    // Generate a unique file name
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}-${uuidv4()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
-
-    // Upload file to Supabase storage
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      throw uploadError;
+    if (!file) {
+      throw new Error('No file provided');
     }
 
-    // Get public URL for the file
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error uploading avatar:', error);
-    toast.error('Erreur lors du téléchargement de l\'avatar');
-    throw error;
-  }
-};
-
-// Upload project image to storage and return the public URL
-export const uploadProjectImage = async (file: File, projectId: string): Promise<string> => {
-  try {
-    // Generate a unique file name
     const fileExt = file.name.split('.').pop();
-    const fileName = `${projectId}-${uuidv4()}.${fileExt}`;
-    const filePath = `projects/${fileName}`;
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
 
-    // Upload file to Supabase storage
     const { error: uploadError } = await supabase.storage
-      .from('projects')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    // Get public URL for the file
-    const { data } = supabase.storage
-      .from('projects')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error uploading project image:', error);
-    toast.error('Erreur lors du téléchargement de l\'image');
-    throw error;
-  }
-};
-
-// Get a default project image based on crop type
-export const getDefaultProjectImage = (cropType: string): string => {
-  const defaultImages: Record<string, string> = {
-    'Oliviers': 'https://images.unsplash.com/photo-1605517913091-3bbaaae59a27?q=80&w=1000&auto=format&fit=crop',
-    'Palmiers': 'https://images.unsplash.com/photo-1596650750347-58a3f57d6b14?q=80&w=1000&auto=format&fit=crop',
-    'Blé': 'https://images.unsplash.com/photo-1534265728325-em562ffe4fc3?q=80&w=1000&auto=format&fit=crop',
-    'Tomates': 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?q=80&w=1000&auto=format&fit=crop',
-    'Vignes': 'https://images.unsplash.com/photo-1596573986242-c21672adf988?q=80&w=1000&auto=format&fit=crop'
-  };
-
-  return defaultImages[cropType] || 'https://images.unsplash.com/photo-1504387432042-bef77bce5868?q=80&w=1000&auto=format&fit=crop';
-};
-
-// Delete a file from storage
-export const deleteFile = async (path: string, bucket: string = 'avatars'): Promise<boolean> => {
-  try {
-    const { error } = await supabase.storage
       .from(bucket)
-      .remove([path]);
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    toast.error('Error uploading image');
+    return null;
+  }
+};
+
+// Delete image from storage
+export const deleteImage = async (
+  url: string,
+  bucket: string = 'projects'
+): Promise<boolean> => {
+  try {
+    // Extract the file path from the URL
+    const urlParts = url.split('/');
+    const fileName = urlParts[urlParts.length - 1];
+    const folder = urlParts[urlParts.length - 2];
+    const filePath = `${folder}/${fileName}`;
+
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
 
     if (error) {
       throw error;
@@ -89,8 +56,47 @@ export const deleteFile = async (path: string, bucket: string = 'avatars'): Prom
 
     return true;
   } catch (error) {
-    console.error('Error deleting file:', error);
-    toast.error('Erreur lors de la suppression du fichier');
+    console.error('Error deleting image:', error);
+    toast.error('Error deleting image');
     return false;
+  }
+};
+
+// Get a default project image
+export const getDefaultProjectImage = (): string => {
+  return 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1950&q=80';
+};
+
+// Get a default user avatar
+export const getDefaultUserAvatar = (): string => {
+  return 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+};
+
+// Upload file to storage (generic function)
+export const uploadFile = async (
+  file: File,
+  bucket: string,
+  folder: string
+): Promise<string | null> => {
+  return uploadImage(file, bucket, folder);
+};
+
+// Download file from storage
+export const downloadFile = async (
+  filePath: string,
+  bucket: string
+): Promise<Blob | null> => {
+  try {
+    const { data, error } = await supabase.storage.from(bucket).download(filePath);
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    toast.error('Error downloading file');
+    return null;
   }
 };

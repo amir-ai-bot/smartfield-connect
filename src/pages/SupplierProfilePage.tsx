@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
@@ -139,7 +138,10 @@ const SupplierProfilePage = () => {
 
       <div>
         <h2 className="text-xl font-semibold mb-2">Avis</h2>
-        <RatingComponent fournisseurId={id} onRatingAdded={handleRatingAdded} />
+        <RatingComponent 
+          supplierId={id || ''}
+          onRatingAdded={handleRatingAdded} 
+        />
         <ScrollArea className="h-[300px] w-full rounded-md border p-4">
           {ratings.map((rating) => (
             <div key={rating.id} className="mb-2 p-2 border rounded">

@@ -64,6 +64,21 @@ export const getRatingsByFournisseurId = async (fournisseurId: string) => {
   }
 };
 
+// Get ratings for a supplier (alias function for compatibility)
+export const getRatingsForSupplier = getRatingsByFournisseurId;
+
+// Get a user's rating for a specific supplier
+export const getUserRatingForSupplier = async (userId: string, supplierId: string) => {
+  try {
+    // Since we don't have a ratings table, we'll just return null for now
+    // In a real application, you would query the ratings table
+    return null;
+  } catch (error) {
+    console.error('Error getting user rating:', error);
+    return null;
+  }
+};
+
 // Add a rating for a supplier
 export const addRating = async (
   userId: string,

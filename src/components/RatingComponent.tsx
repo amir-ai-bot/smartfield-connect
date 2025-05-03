@@ -14,9 +14,18 @@ import { Textarea } from '@/components/ui/textarea';
 interface RatingComponentProps {
   supplierId: string;
   userRating?: number;
+  fournisseurId?: string; // For backward compatibility
+  onRatingAdded?: (newRating: any) => void;
 }
 
-const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, userRating = 0 }) => {
+const RatingComponent: React.FC<RatingComponentProps> = ({ 
+  supplierId, 
+  userRating = 0, 
+  fournisseurId, // This is for backward compatibility
+  onRatingAdded 
+}) => {
+  // Use supplierId if provided, otherwise use fournisseurId
+  const actualSupplierId = supplierId || fournisseurId || '';
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -31,12 +40,12 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, userRatin
     if (open) {
       loadRatings();
     }
-  }, [open]);
+  }, [open, actualSupplierId]);
 
   const loadRatings = async () => {
     try {
       setLoading(true);
-      const ratingsData = await getRatingsForSupplier(supplierId);
+      const ratingsData = await getRatingsForSupplier(actualSupplierId);
       setRatings(ratingsData);
 
       // Calculate average rating
@@ -47,7 +56,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, userRatin
 
       // Get user's current rating if available
       if (user) {
-        const userRating = await getUserRatingForSupplier(user.id, supplierId);
+        const userRating = await getUserRatingForSupplier(user.id, actualSupplierId);
         if (userRating) {
           setUserCurrentRating(userRating.rating);
           setComment(userRating.comment || '');
@@ -76,8 +85,13 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, userRatin
 
     try {
       setSubmitting(true);
-      await addRating(user.id, supplierId, userCurrentRating, comment);
+      const result = await addRating(user.id, actualSupplierId, userCurrentRating, comment);
       toast.success('Votre évaluation a été enregistrée');
+      
+      if (result && onRatingAdded) {
+        onRatingAdded(result);
+      }
+      
       await loadRatings();
       setOpen(false);
     } catch (error) {

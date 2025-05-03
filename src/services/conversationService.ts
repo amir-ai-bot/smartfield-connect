@@ -28,34 +28,40 @@ export const getConversations = async (userId: string) => {
       // Determine which participant is the other user
       let otherUser;
       let isParticipant1 = conversation.participant1_id === userId;
-
+      
+      // Safely handle participant2 data
       if (isParticipant1) {
-        otherUser = conversation.participant2 && typeof conversation.participant2 === 'object' ? {
-          id: conversation.participant2.id || conversation.participant2_id || '',
-          name: conversation.participant2.display_name || 'Utilisateur inconnu',
-          avatar: conversation.participant2.avatar || null,
-          email: conversation.participant2.email || '',
-          role: conversation.participant2.role || 'user'
-        } : {
+        otherUser = {
           id: conversation.participant2_id || '',
-          name: 'Utilisateur inconnu',
-          avatar: null,
-          email: '',
-          role: 'user'
+          name: conversation.participant2 && typeof conversation.participant2 === 'object' 
+            ? (conversation.participant2.display_name || 'Utilisateur inconnu')
+            : 'Utilisateur inconnu',
+          avatar: conversation.participant2 && typeof conversation.participant2 === 'object'
+            ? conversation.participant2.avatar || null
+            : null,
+          email: conversation.participant2 && typeof conversation.participant2 === 'object'
+            ? conversation.participant2.email || ''
+            : '',
+          role: conversation.participant2 && typeof conversation.participant2 === 'object'
+            ? conversation.participant2.role || 'user'
+            : 'user'
         };
       } else {
-        otherUser = conversation.participant1 && typeof conversation.participant1 === 'object' ? {
-          id: conversation.participant1.id || conversation.participant1_id || '',
-          name: conversation.participant1.display_name || 'Utilisateur inconnu',
-          avatar: conversation.participant1.avatar || null,
-          email: conversation.participant1.email || '',
-          role: conversation.participant1.role || 'user'
-        } : {
+        // Safely handle participant1 data
+        otherUser = {
           id: conversation.participant1_id || '',
-          name: 'Utilisateur inconnu',
-          avatar: null,
-          email: '',
-          role: 'user'
+          name: conversation.participant1 && typeof conversation.participant1 === 'object'
+            ? (conversation.participant1.display_name || 'Utilisateur inconnu')
+            : 'Utilisateur inconnu',
+          avatar: conversation.participant1 && typeof conversation.participant1 === 'object'
+            ? conversation.participant1.avatar || null
+            : null,
+          email: conversation.participant1 && typeof conversation.participant1 === 'object'
+            ? conversation.participant1.email || ''
+            : '',
+          role: conversation.participant1 && typeof conversation.participant1 === 'object'
+            ? conversation.participant1.role || 'user'
+            : 'user'
         };
       }
 
@@ -121,7 +127,12 @@ export const getMessages = async (conversationId: string) => {
       throw error;
     }
 
-    return data || [];
+    // If data is null or not an array, return an empty array
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+
+    return data;
   } catch (error) {
     console.error('Error getting messages:', error);
     toast.error('Erreur lors de la récupération des messages');
@@ -135,14 +146,15 @@ export const getConversationMessages = getMessages;
 // Mark messages as read
 export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .neq('sender_id', userId);
 
     if (error) {
-      throw error;
+      console.error('Error marking messages as read:', error);
+      // Don't throw, just log the error
     }
 
     return true;
@@ -178,7 +190,6 @@ export const sendMessage = async (conversationId: string, content: string, sende
         sender_id: senderId,
         receiver_id: receiverId,
         content,
-        read: false
       })
       .select()
       .single();
@@ -334,4 +345,3 @@ export const getFavoriteFournisseurs = async (userId: string) => {
     return [];
   }
 };
-
