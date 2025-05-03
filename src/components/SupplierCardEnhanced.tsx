@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, Mail, MapPin, Star, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toggleFavoriteFournisseur, isFournisseurFavorite } from '@/services/conversationService';
-import { rateFournisseur } from '@/services/ratingService';
 import { createSupplierConversation } from '@/services/supplierService';
 import { toast } from 'sonner';
 import AuthDialog from './auth/AuthDialog';
@@ -94,13 +93,20 @@ const SupplierCardEnhanced = ({
     try {
       setIsLoading(true);
       const result = await toggleFavoriteFournisseur(user.id, id);
-      setIsFavorite(result.isFavorite);
       
-      toast.success(
-        result.isFavorite 
-          ? `${name} ajouté aux favoris` 
-          : `${name} retiré des favoris`
-      );
+      // Handle the case where result could be false or an object with isFavorite property
+      if (typeof result === 'object' && 'isFavorite' in result) {
+        setIsFavorite(result.isFavorite);
+        
+        toast.success(
+          result.isFavorite 
+            ? `${name} ajouté aux favoris` 
+            : `${name} retiré des favoris`
+        );
+      } else {
+        // Handle the case where the operation failed
+        toast.error('Erreur lors de la mise à jour des favoris');
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Erreur lors de la mise à jour des favoris');

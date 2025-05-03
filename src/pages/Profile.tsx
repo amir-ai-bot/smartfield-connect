@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ProfileInfo from '@/components/profile/ProfileInfo';
-import { uploadAvatar } from '@/services/storageService'; // Using storageService instead of uploadService
+import { uploadAvatar } from '@/services/storageService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Profile = () => {
