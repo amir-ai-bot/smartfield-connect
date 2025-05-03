@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProjectData } from "@/types/auth";
-import { Calendar, MapPin, Sprout, User } from 'lucide-react';
+import { Calendar, MapPin, Sprout, User as UserIcon } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProjectCardProps {
@@ -126,7 +125,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
           )}
           {project.user_name && (
             <div className="flex items-center">
-              <User className="h-3.5 w-3.5 mr-1" />
+              <UserIcon className="h-3.5 w-3.5 mr-1" />
               <span>{project.user_name}</span>
             </div>
           )}

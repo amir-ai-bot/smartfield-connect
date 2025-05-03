@@ -1,6 +1,25 @@
 import { supabase } from '@/integrations/supabase/client';
+import { Conversation } from '@/types/supabase';
 import { toast } from 'sonner';
-import { Profile } from '@/types/supabase';
+
+// Add the missing function
+export const getFavoriteFournisseurs = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_favorite_suppliers', { p_user_id: userId });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error getting favorite suppliers:", error);
+    toast.error("Erreur lors de la récupération des fournisseurs favoris");
+    return [];
+  }
+}
+
+export const getUserConversations = async (userId: string) => {
+  return getConversations(userId);
+}
 
 // Get conversation by id
 export const getConversation = async (conversationId: string, currentUserId: string) => {

@@ -75,7 +75,11 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
         rating: newRating.rating,
         comment: newRating.comment,
         created_at: newRating.created_at || new Date().toISOString(),
-        profiles: newRating.profiles || undefined
+        profiles: newRating.profiles || {
+          id: user.id,
+          name: user.name || '',
+          avatar: user.avatar || null
+        }
       };
       
       onRatingAdded(authRating);
@@ -90,7 +94,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
   };
 
   // Star rating component
-  const renderStarRating = () => {
+  const StarRating = () => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -116,7 +120,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     <form onSubmit={handleSubmit} className="space-y-4 mb-4">
       <div>
         <label className="block text-sm font-medium mb-1">Votre note</label>
-        {renderStarRating()}
+        <StarRating />
       </div>
       <div>
         <label htmlFor="comment" className="block text-sm font-medium mb-1">

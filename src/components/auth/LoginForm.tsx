@@ -20,13 +20,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
   onSwitchToSignup,
   onSwitchToForgotPassword
 }) => {
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password);
+      await signIn(data.email, data.password);
       if (onSuccess) onSuccess();
       navigate('/dashboard');
     } catch (error) {

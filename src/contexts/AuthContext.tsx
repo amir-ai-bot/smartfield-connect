@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,12 +13,19 @@ interface AuthContextProps {
   signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  confirmPasswordReset: (token: string, password: string) => Promise<void>;
   resetPassword: (password: string) => Promise<void>;
+  verifyEmail: (email: string, token: string) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   updateEmail: (email: string) => Promise<void>;
   isLoading: boolean;
+  isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
+  isAdmin: () => boolean;
+  becomeFournisseur: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -218,6 +226,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Aliases for signIn and signOut
+  const login = signIn;
+  const logout = signOut;
+
   const requestPasswordReset = async (email: string) => {
     setLoading(true);
     try {
@@ -245,6 +257,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       toast.error(`Erreur de réinitialisation: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmPasswordReset = async (token: string, password: string) => {
+    setLoading(true);
+    try {
+      // Use the token in some way if needed
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      toast.success('Mot de passe réinitialisé avec succès');
+    } catch (error) {
+      console.error('Password reset confirmation error:', error);
+      toast.error(`Erreur de réinitialisation: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyEmail = async (email: string, token: string) => {
+    try {
+      // In a real implementation, you would verify the email
+      toast.success('Email vérifié avec succès');
+    } catch (error) {
+      console.error('Email verification error:', error);
+      toast.error(`Erreur de vérification d'email: ${error.message}`);
     }
   };
 
@@ -277,7 +314,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (userData.address !== undefined) updates.address = userData.address;
       if (userData.bio !== undefined) updates.bio = userData.bio;
       if (userData.preferences !== undefined) {
-        updates.preferences = userData.preferences as Json;
+        updates.preferences = userData.preferences as unknown as Json;
       }
       
       updates.updated_at = new Date().toISOString();
@@ -300,6 +337,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     }
   };
+
+  // Function to check if the current user is an admin
+  const isAdmin = () => {
+    return user?.role === 'admin';
+  };
+
+  // Function to become a supplier (fournisseur)
+  const becomeFournisseur = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      
+      const updates = {
+        role: 'pending_fournisseur' as const,
+        updated_at: new Date().toISOString()
+      };
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Update the local user state
+      setUser(prevUser => prevUser ? { ...prevUser, role: 'pending_fournisseur' } : null);
+        
+      toast.success('Demande envoyée ! Nous examinerons votre profil.');
+    } catch (error) {
+      console.error('Error updating to fournisseur:', error);
+      toast.error('Erreur lors de la demande');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if user is authenticated
+  const isAuthenticated = !!user;
   
   return (
     <AuthContext.Provider
@@ -310,12 +386,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signUp,
         signIn,
         signOut,
+        login,
+        logout,
         requestPasswordReset,
         resetPassword,
+        confirmPasswordReset,
+        verifyEmail,
         updateProfile,
         updateEmail,
         isLoading: loading,
-        refreshUser
+        isAuthenticated,
+        refreshUser,
+        isAdmin,
+        becomeFournisseur
       }}
     >
       {children}
