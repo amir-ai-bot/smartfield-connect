@@ -1,210 +1,245 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Rating } from '@/types/auth';
+import { Profile } from '@/types/supabase';
 
-// Get conversations for the current user
-export const getConversations = async (userId: string) => {
+// Get conversation by id
+export const getConversation = async (conversationId: string, currentUserId: string) => {
   try {
     const { data, error } = await supabase
       .from('conversations')
       .select(`
         *,
-        participant1:profiles!conversations_participant1_id_fkey (id, display_name, avatar, email),
-        participant2:profiles!conversations_participant2_id_fkey (id, display_name, avatar, email)
+        participant1:participant1_id (id, display_name, avatar, email, role),
+        participant2:participant2_id (id, display_name, avatar, email, role)
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (error) {
+      console.error('Error getting conversation:', error);
+      return null;
+    }
+
+    // Extract profile data safely
+    let participant1Profile = {};
+    let participant2Profile = {};
+    
+    if (data.participant1 && typeof data.participant1 === 'object') {
+      participant1Profile = {
+        id: data.participant1.id || '',
+        name: data.participant1.display_name || '',
+        avatar: data.participant1.avatar || '',
+        email: data.participant1.email || '',
+        role: data.participant1.role || ''
+      };
+    }
+
+    if (data.participant2 && typeof data.participant2 === 'object') {
+      participant2Profile = {
+        id: data.participant2.id || '',
+        name: data.participant2.display_name || '',
+        avatar: data.participant2.avatar || '',
+        email: data.participant2.email || '',
+        role: data.participant2.role || ''
+      };
+    }
+
+    // Determine which profile is the other participant
+    let otherProfile;
+    if (data.participant1_id === currentUserId) {
+      otherProfile = participant2Profile;
+    } else {
+      otherProfile = participant1Profile;
+    }
+
+    return {
+      ...data,
+      participant1Profile,
+      participant2Profile,
+      otherProfile
+    };
+  } catch (error) {
+    console.error('Error in getConversation:', error);
+    return null;
+  }
+};
+
+// Get all conversations for a user (either as user or supplier)
+export const getConversations = async (userId: string): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        participant1:participant1_id (id, display_name, avatar, email),
+        participant2:participant2_id (id, display_name, avatar, email),
+        messages:messages (
+          content,
+          created_at,
+          sender_id,
+          read
+        )
       `)
       .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
-      .order('last_message_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error getting conversations:', error);
+      return [];
+    }
 
-    // Map the conversations to include user information, handling potential nulls safely
     return data.map(conversation => {
-      // Determine if the current user is participant1 or participant2
-      const isParticipant1 = conversation.participant1_id === userId;
-      
-      // Handle potential null relations with default values
-      const participant1 = conversation.participant1 || {};
-      const participant2 = conversation.participant2 || {};
-      
-      // Map the profile data with safe access
-      const participant1Profile = {
-        id: typeof participant1 === 'object' ? (participant1.id || '') : '',
-        name: typeof participant1 === 'object' ? (participant1.display_name || 'Unknown') : 'Unknown',
-        avatar: typeof participant1 === 'object' ? (participant1.avatar || null) : null,
-        email: typeof participant1 === 'object' ? (participant1.email || '') : ''
-      };
+      const participant1 = conversation.participant1 as any;
+      const participant2 = conversation.participant2 as any;
+      const messages = conversation.messages as any[];
 
-      const participant2Profile = {
-        id: typeof participant2 === 'object' ? (participant2.id || '') : '',
-        name: typeof participant2 === 'object' ? (participant2.display_name || 'Unknown') : 'Unknown',
-        avatar: typeof participant2 === 'object' ? (participant2.avatar || null) : null,
-        email: typeof participant2 === 'object' ? (participant2.email || '') : ''
-      };
+      const lastMessage = messages && messages.length > 0 ? messages[0].content : null;
+      const lastMessageTime = messages && messages.length > 0 ? messages[0].created_at : null;
+      const unreadCount = messages ? messages.filter(m => m.sender_id !== userId && !m.read).length : 0;
+
+      let otherParticipant;
+      if (participant1 && participant1.id === userId) {
+        otherParticipant = participant2;
+      } else {
+        otherParticipant = participant1;
+      }
 
       return {
         id: conversation.id,
         participant1_id: conversation.participant1_id,
         participant2_id: conversation.participant2_id,
-        created_at: conversation.created_at,
-        last_message_at: conversation.last_message_at,
-        participant1Profile,
-        participant2Profile,
-        otherProfile: isParticipant1 ? participant2Profile : participant1Profile
+        last_message: lastMessage,
+        last_message_time: lastMessageTime,
+        unread_count: unreadCount,
+        otherParticipant: otherParticipant
       };
     });
   } catch (error) {
     console.error('Error getting conversations:', error);
-    toast.error('Erreur lors de la récupération des conversations');
     return [];
   }
 };
 
-// Get a specific conversation by ID
-export const getConversation = async (conversationId: string, userId?: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select(`
-        *,
-        participant1:profiles!conversations_participant1_id_fkey (id, display_name, avatar, email),
-        participant2:profiles!conversations_participant2_id_fkey (id, display_name, avatar, email)
-      `)
-      .eq('id', conversationId)
-      .single();
-
-    if (error) throw error;
-
-    // Handle potential null relations with default values
-    const participant1 = data.participant1 || {};
-    const participant2 = data.participant2 || {};
-
-    // Determine if the current user is participant1 or participant2
-    const isParticipant1 = userId ? data.participant1_id === userId : false;
-    
-    // Map the profile data with safe access
-    const participant1Profile = {
-      id: typeof participant1 === 'object' ? (participant1.id || '') : '',
-      name: typeof participant1 === 'object' ? (participant1.display_name || 'Unknown') : 'Unknown',
-      avatar: typeof participant1 === 'object' ? (participant1.avatar || null) : null,
-      email: typeof participant1 === 'object' ? (participant1.email || '') : ''
-    };
-
-    const participant2Profile = {
-      id: typeof participant2 === 'object' ? (participant2.id || '') : '',
-      name: typeof participant2 === 'object' ? (participant2.display_name || 'Unknown') : 'Unknown',
-      avatar: typeof participant2 === 'object' ? (participant2.avatar || null) : null,
-      email: typeof participant2 === 'object' ? (participant2.email || '') : ''
-    };
-
-    return {
-      id: data.id,
-      participant1_id: data.participant1_id,
-      participant2_id: data.participant2_id,
-      created_at: data.created_at,
-      last_message_at: data.last_message_at,
-      participant1Profile,
-      participant2Profile,
-      otherProfile: isParticipant1 ? participant2Profile : participant1Profile
-    };
-  } catch (error) {
-    console.error('Error getting conversation:', error);
-    toast.error('Erreur lors de la récupération de la conversation');
-    return null;
-  }
-};
-
-// Get messages for a conversation
-export const getConversationMessages = async (conversationId: string) => {
+// Get messages for a specific conversation
+export const getConversationMessages = async (conversationId: string): Promise<any[]> => {
   try {
     const { data, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        sender:profiles!messages_sender_id_fkey (id, display_name, avatar),
-        receiver:profiles!messages_receiver_id_fkey (id, display_name, avatar)
-      `)
+      .select('*, sender:sender_id(id, display_name, avatar)')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error getting messages:', error);
+      return [];
+    }
 
-    return data.map(message => {
-      // Handle potential null relations with default values
-      const sender = message.sender || {};
-      const receiver = message.receiver || {};
-
-      return {
-        id: message.id,
-        content: message.content,
-        created_at: message.created_at,
-        sender_id: message.sender_id,
-        receiver_id: message.receiver_id,
-        sender: {
-          id: typeof sender === 'object' ? (sender.id || '') : '',
-          name: typeof sender === 'object' ? (sender.display_name || 'Unknown') : 'Unknown',
-          avatar: typeof sender === 'object' ? (sender.avatar || null) : null
-        },
-        receiver: {
-          id: typeof receiver === 'object' ? (receiver.id || '') : '',
-          name: typeof receiver === 'object' ? (receiver.display_name || 'Unknown') : 'Unknown',
-          avatar: typeof receiver === 'object' ? (receiver.avatar || null) : null
-        },
-        read: message.read || false
-      };
-    });
+    return data.map(message => ({
+      ...message,
+      sender: message.sender as any
+    }));
   } catch (error) {
-    console.error('Error getting conversation messages:', error);
-    toast.error('Erreur lors de la récupération des messages');
+    console.error('Error getting messages:', error);
     return [];
   }
 };
 
-// Send a message
+// Check if a fournisseur is in the user's favorites
+export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('favorite_suppliers')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('supplier_id', fournisseurId);
+
+    if (error) {
+      console.error('Error checking favorite status:', error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  } catch (error) {
+    console.error('Error checking favorite status:', error);
+    return false;
+  }
+};
+
+// Toggle a fournisseur in the user's favorites
+export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: string): Promise<{ isFavorite: boolean }> => {
+  try {
+    const isCurrentlyFavorite = await isFournisseurFavorite(userId, fournisseurId);
+
+    if (isCurrentlyFavorite) {
+      // Remove from favorites
+      const { error: deleteError } = await supabase
+        .from('favorite_suppliers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('supplier_id', fournisseurId);
+
+      if (deleteError) {
+        console.error('Error removing from favorites:', deleteError);
+        toast.error('Erreur lors de la suppression des favoris');
+        return { isFavorite: true }; // Return true to indicate it was already a favorite
+      }
+
+      toast.success('Retiré des favoris');
+      return { isFavorite: false };
+    } else {
+      // Add to favorites
+      const { error: insertError } = await supabase
+        .from('favorite_suppliers')
+        .insert({
+          user_id: userId,
+          supplier_id: fournisseurId
+        });
+
+      if (insertError) {
+        console.error('Error adding to favorites:', insertError);
+        toast.error('Erreur lors de l\'ajout aux favoris');
+        return { isFavorite: false }; // Return false to indicate it was not yet a favorite
+      }
+
+      toast.success('Ajouté aux favoris');
+      return { isFavorite: true };
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    toast.error('Erreur lors de la modification des favoris');
+    return { isFavorite: false };
+  }
+};
+
+// Send a message in a conversation
 export const sendMessage = async (
   conversationId: string,
   content: string,
   senderId: string
 ) => {
   try {
-    // Get the conversation to find the receiver
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', conversationId)
-      .single();
-
-    if (convError) throw convError;
-
-    // Determine the receiver
-    const receiverId = conversation.participant1_id === senderId
-      ? conversation.participant2_id
-      : conversation.participant1_id;
-
-    // Insert the message
-    const { data: message, error: msgError } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .insert({
         conversation_id: conversationId,
         sender_id: senderId,
-        receiver_id: receiverId,
-        content: content,
+        content,
         read: false
       })
-      .select()
+      .select('*, sender:sender_id(*), receiver:receiver_id(*)')
       .single();
 
-    if (msgError) throw msgError;
+    if (error) {
+      throw error;
+    }
 
-    // Update the conversation last_message_at
-    const { error: updateError } = await supabase
+    // Update conversation last_message_at
+    await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    if (updateError) throw updateError;
-
-    return message;
+    return data;
   } catch (error) {
     console.error('Error sending message:', error);
     toast.error('Erreur lors de l\'envoi du message');
@@ -213,105 +248,19 @@ export const sendMessage = async (
 };
 
 // Mark messages as read
-export const markMessagesAsRead = async (conversationId: string, userId: string) => {
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
   try {
     const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
-      .eq('receiver_id', userId)
-      .eq('read', false);
+      .neq('sender_id', userId);
 
-    if (error) throw error;
-
-    return true;
-  } catch (error) {
-    console.error('Error marking messages as read:', error);
-    return false;
-  }
-};
-
-// Alias for getConversations for backward compatibility
-export const getUserConversations = getConversations;
-
-// Functions for favorite suppliers
-export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('supplier_id', fournisseurId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    
-    return !!data;
-  } catch (error) {
-    console.error('Error checking if supplier is favorite:', error);
-    return false;
-  }
-};
-
-export const toggleFavoriteFournisseur = async (
-  userId: string, 
-  fournisseurId: string
-): Promise<{ isFavorite: boolean }> => {
-  try {
-    // First check if it's already a favorite
-    const isFavorite = await isFournisseurFavorite(userId, fournisseurId);
-    
-    if (isFavorite) {
-      // Remove from favorites
-      const { error } = await supabase
-        .from('favorite_suppliers')
-        .delete()
-        .eq('user_id', userId)
-        .eq('supplier_id', fournisseurId);
-      
-      if (error) throw error;
-      
-      return { isFavorite: false };
-    } else {
-      // Add to favorites
-      const { error } = await supabase
-        .from('favorite_suppliers')
-        .insert({
-          user_id: userId,
-          supplier_id: fournisseurId
-        });
-      
-      if (error) throw error;
-      
-      return { isFavorite: true };
+    if (error) {
+      throw error;
     }
   } catch (error) {
-    console.error('Error toggling favorite supplier:', error);
-    toast.error('Erreur lors de la modification des favoris');
-    return { isFavorite: await isFournisseurFavorite(userId, fournisseurId) };
+    console.error('Error marking messages as read:', error);
+    toast.error('Erreur lors du marquage des messages comme lus');
   }
 };
-
-export const getFavoriteFournisseurs = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select(`
-        *,
-        supplier:suppliers!favorite_suppliers_supplier_id_fkey (*)
-      `)
-      .eq('user_id', userId);
-      
-    if (error) throw error;
-    
-    return data.map(item => item.supplier);
-  } catch (error) {
-    console.error('Error getting favorite suppliers:', error);
-    toast.error('Erreur lors de la récupération des fournisseurs favoris');
-    return [];
-  }
-};
-
-// Add alias for rateFournisseur function from ratingService
-import { rateFournisseur as rateSupplier } from '@/services/ratingService';
-export const rateFournisseur = rateSupplier;

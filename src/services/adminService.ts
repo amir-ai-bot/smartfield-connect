@@ -1,8 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User, Profile, ProjectData } from '@/types/auth';
+import { User, Profile, ProjectData, UserPreferences } from '@/types/auth';
 import { timeAgo } from '@/utils/dateUtils';
+import { Json } from '@/integrations/supabase/types';
 
 // Interface for verification codes
 export interface VerificationCode {
@@ -35,6 +35,7 @@ export interface Analytics {
     completed: number;
     planning: number;
   };
+  registrationsByMonth: { [key: string]: number };
 }
 
 // Get all users
@@ -50,29 +51,76 @@ export const getAllUsers = async (): Promise<User[]> => {
     }
     
     // Map profile data to User type
-    return data.map((profile) => ({
-      id: profile.id || '',
-      email: profile.email || '',
-      name: profile.display_name || '',
-      role: (profile.role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') || 'user',
-      avatar: profile.avatar || '',
-      phone_number: profile.phone_number || '',
-      address: profile.address || '',
-      bio: profile.bio || '',
-      email_verified: true, // Default since we don't have this info
-      created_at: profile.created_at || '',
-      updated_at: profile.updated_at || '',
-      display_name: profile.display_name || '',
-      preferences: profile.preferences || {
-        language: 'fr',
-        notifications: { email: true, app: true },
-        theme: 'light'
-      }
-    }));
+    return data.map((profile) => {
+      // Process preferences
+      const userPreferences = processPreferences(profile.preferences);
+
+      return {
+        id: profile.id || '',
+        email: profile.email || '',
+        name: profile.display_name || '',
+        role: (profile.role as User['role']) || 'user',
+        avatar: profile.avatar || '',
+        phone_number: profile.phone_number || '',
+        address: profile.address || '',
+        bio: profile.bio || '',
+        email_verified: true, // Default since we don't have this info
+        created_at: profile.created_at || '',
+        updated_at: profile.updated_at || '',
+        display_name: profile.display_name || '',
+        preferences: userPreferences
+      };
+    });
   } catch (error) {
     console.error('Error getting all users:', error);
     toast.error('Erreur lors de la récupération des utilisateurs');
     return [];
+  }
+};
+
+// Helper function to process preferences
+const processPreferences = (preferences: any): UserPreferences => {
+  // Default preferences
+  const defaultPreferences: UserPreferences = {
+    language: 'fr',
+    notifications: {
+      email: true,
+      app: true
+    },
+    theme: 'light'
+  };
+  
+  if (!preferences) return defaultPreferences;
+  
+  try {
+    // If it's a string, try to parse it
+    if (typeof preferences === 'string') {
+      try {
+        const parsed = JSON.parse(preferences);
+        return {
+          language: parsed.language || defaultPreferences.language,
+          notifications: {
+            email: parsed.notifications?.email ?? defaultPreferences.notifications.email,
+            app: parsed.notifications?.app ?? defaultPreferences.notifications.app
+          },
+          theme: parsed.theme || defaultPreferences.theme
+        };
+      } catch (e) {
+        return defaultPreferences;
+      }
+    }
+    
+    // If it's already an object
+    return {
+      language: (preferences.language as any) || defaultPreferences.language,
+      notifications: {
+        email: preferences.notifications?.email ?? defaultPreferences.notifications.email,
+        app: preferences.notifications?.app ?? defaultPreferences.notifications.app
+      },
+      theme: (preferences.theme as any) || defaultPreferences.theme
+    };
+  } catch (error) {
+    return defaultPreferences;
   }
 };
 
@@ -122,6 +170,11 @@ export const getAnalyticsData = async (): Promise<Analytics> => {
       active: 4,
       completed: 1,
       planning: 0
+    },
+    registrationsByMonth: {
+      '2023-01': 10,
+      '2023-02': 15,
+      '2023-03': 20
     }
   };
 };
@@ -143,30 +196,30 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
     
     // Safely handle potential null values in related profile data
     return data.map(project => {
-      // Get profile info safely
-      const profileData = project.profiles || {};
+      // Get profile info safely, ensuring it's an object
+      const profileData = project.profiles && typeof project.profiles === 'object' ? project.profiles : {};
       
       // Convert to ProjectData format
       return {
         id: project.id,
         title: project.name || '',
-        name: project.name || '',
         description: project.description || '',
         status: project.status as 'planning' | 'active' | 'completed',
         user_id: project.owner_id || '',
         owner_id: project.owner_id || '',
         created_at: project.created_at,
         updated_at: project.updated_at,
-        // Add default values for missing fields
-        crop: '',
-        location: '',
-        startDate: '',
-        endDate: '',
-        progress: 0,
-        isPublic: false,
-        // Add user information
-        user_name: typeof profileData === 'object' ? (profileData.display_name || '') : '',
-        user_avatar: typeof profileData === 'object' ? (profileData.avatar || '') : '',
+        // Safely add extra fields
+        crop: project.crop_type || '',
+        location: project.location || '',
+        startDate: project.start_date || '',
+        endDate: project.end_date || '',
+        progress: project.progress || 0,
+        isPublic: project.is_public || false,
+        // Add user information safely
+        creator_name: profileData.display_name || '',
+        creator_email: profileData.email || '',
+        creator_avatar: profileData.avatar || '',
         timeAgo: timeAgo(project.created_at || '')
       };
     });

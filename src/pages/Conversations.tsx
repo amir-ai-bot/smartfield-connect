@@ -24,10 +24,10 @@ const Conversations = () => {
     return null;
   }
 
-  // Ensure user has email_verified field for compatibility with auth.User type
+  // Create a compatible user object
   const authUser: AuthUser = {
     ...user,
-    email_verified: user.email_verified ?? false
+    email_verified: user.email_verified !== undefined ? user.email_verified : false
   };
 
   return (

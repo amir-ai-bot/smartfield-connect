@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = 'https://iqilhrbsamcahdmklbnp.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxaWxocmJzYW1jYWhkbWtsYm5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MDY1MDYsImV4cCI6MjA1ODM4MjUwNn0._dV7YSYkASLKnWljmPbtoai1kNG6hMe4GavPNt7no5E';
 
-const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface Message {
   id: string;
@@ -181,4 +180,4 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
     console.error('Error marking messages as read:', error);
     throw error;
   }
-}; 
+};

@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProjectData } from "@/types/auth";
-import { Calendar, MapPin, Sprout } from 'lucide-react';
+import { Calendar, MapPin, Sprout, User } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProjectCardProps {

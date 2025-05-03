@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,8 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Send, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, markMessagesAsRead } from '@/services/conversationService';
-import { sendMessage } from '@/services/conversationService';
+import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, markMessagesAsRead, sendMessage } from '@/services/conversationService';
 import RatingDialog from '@/components/conversation/RatingDialog';
 
 const ConversationDetail = () => {
@@ -51,18 +51,25 @@ const ConversationDetail = () => {
 
       setConversation(conversationData);
 
+      // Check if participant profiles are valid
+      const participant1Profile = conversationData.participant1Profile || {};
+      const participant2Profile = conversationData.participant2Profile || {};
+
       // Determine if the other user is a supplier to check favorites
-      const isSupplier = conversationData.participant1_id === user.id ? 
-        conversationData.participant2Profile?.role === 'fournisseur' :
-        conversationData.participant1Profile?.role === 'fournisseur';
+      const isSupplier = 
+        (participant1Profile && participant1Profile.id === user.id && participant2Profile && participant2Profile.role === 'fournisseur') || 
+        (participant2Profile && participant2Profile.id === user.id && participant1Profile && participant1Profile.role === 'fournisseur');
 
       if (isSupplier) {
-        const supplierId = conversationData.participant1_id === user.id ?
-          conversationData.participant2_id :
-          conversationData.participant1_id;
+        const supplierId = 
+          (participant1Profile && participant1Profile.id === user.id) ? 
+            (participant2Profile && participant2Profile.id) : 
+            (participant1Profile && participant1Profile.id);
           
-        const favoriteStatus = await isFournisseurFavorite(user.id, supplierId);
-        setIsFavorite(favoriteStatus);
+        if (supplierId) {
+          const favoriteStatus = await isFournisseurFavorite(user.id, supplierId);
+          setIsFavorite(favoriteStatus);
+        }
       }
 
       const messagesData = await getConversationMessages(id);
@@ -122,17 +129,23 @@ const ConversationDetail = () => {
     if (!user || !conversation) return;
     
     try {
-      const otherUserId = conversation.participant1_id === user.id ? 
+      const otherParticipantId = conversation.participant1_id === user.id ? 
         conversation.participant2_id : 
         conversation.participant1_id;
         
-      const result = await toggleFavoriteFournisseur(user.id, otherUserId);
-      setIsFavorite(result.isFavorite);
-      
-      toast.success(result.isFavorite ? 
-        'Ajouté aux favoris' : 
-        'Retiré des favoris'
-      );
+      const result = await toggleFavoriteFournisseur(user.id, otherParticipantId);
+      if (typeof result === 'object' && 'isFavorite' in result) {
+        setIsFavorite(result.isFavorite);
+        
+        toast.success(result.isFavorite ? 
+          'Ajouté aux favoris' : 
+          'Retiré des favoris'
+        );
+      } else {
+        // Handle case when result is just a boolean
+        setIsFavorite(!!result);
+        toast.success(result ? 'Ajouté aux favoris' : 'Retiré des favoris');
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Erreur lors de la modification des favoris');

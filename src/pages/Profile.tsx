@@ -108,18 +108,23 @@ const Profile = () => {
 
   const handleUpdatePreferences = async () => {
     if (!user) return;
-    
+
     try {
-      setUpdating(true);
-      await updateProfile({
-        preferences
-      });
-      toast.success('Préférences mises à jour');
+      // Ensure all required fields are present in preferences
+      const updatedPreferences = {
+        language: selectedLanguage as "fr" | "en" | "ar",
+        notifications: {
+          email: emailNotifications,
+          app: appNotifications
+        },
+        theme: selectedTheme as "light" | "dark" | "system"
+      };
+
+      await updateProfile({ preferences: updatedPreferences });
+      toast.success('Préférences mises à jour avec succès');
     } catch (error) {
       console.error('Error updating preferences:', error);
       toast.error('Erreur lors de la mise à jour des préférences');
-    } finally {
-      setUpdating(false);
     }
   };
 

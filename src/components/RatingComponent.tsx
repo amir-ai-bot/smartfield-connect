@@ -70,11 +70,12 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
       const authRating: AuthRating = {
         id: newRating.id,
         user_id: newRating.user_id,
-        supplier_id: newRating.supplier_id || newRating.fournisseur_id || '',
+        supplier_id: newRating.fournisseur_id || '',
+        fournisseur_id: newRating.fournisseur_id || '',
         rating: newRating.rating,
         comment: newRating.comment,
         created_at: newRating.created_at || new Date().toISOString(),
-        profiles: newRating.profiles
+        profiles: newRating.profiles || undefined
       };
       
       onRatingAdded(authRating);
@@ -88,7 +89,8 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     }
   };
 
-  const StarRating = () => {
+  // Star rating component
+  const renderStarRating = () => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -114,7 +116,7 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
     <form onSubmit={handleSubmit} className="space-y-4 mb-4">
       <div>
         <label className="block text-sm font-medium mb-1">Votre note</label>
-        <StarRating />
+        {renderStarRating()}
       </div>
       <div>
         <label htmlFor="comment" className="block text-sm font-medium mb-1">
@@ -133,24 +135,6 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
       </Button>
     </form>
   );
-  
-  function StarRating() {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`cursor-pointer ${
-            i <= (hoveredStar || rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-          }`}
-          onMouseEnter={() => setHoveredStar(i)}
-          onMouseLeave={() => setHoveredStar(0)}
-          onClick={() => handleRatingChange(i)}
-        />
-      );
-    }
-    return <div className="flex gap-1">{stars}</div>;
-  }
 };
 
 export default RatingComponent;
