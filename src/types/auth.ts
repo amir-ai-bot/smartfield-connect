@@ -111,6 +111,10 @@ export interface ProjectData {
   user_name?: string;
   user_avatar?: string;
   name?: string; // Added for compatibility
+  creator_name?: string; // For admin view
+  creator_avatar?: string; // For admin view
+  creator_email?: string; // For admin view
+  crop_type?: string; // Added for compatibility
 }
 
 export interface ProjectFormProps {

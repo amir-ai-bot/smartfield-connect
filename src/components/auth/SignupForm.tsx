@@ -8,6 +8,7 @@ import { SignupFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, User, Mail, Lock, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 type SignupFormProps = {
   onSuccess?: () => void;
@@ -25,13 +26,19 @@ const SignupForm: React.FC<SignupFormProps> = ({
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SignupFormData>();
 
   const onSubmit = async (data: SignupFormData) => {
+    if (data.password !== data.confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas');
+      return;
+    }
+    
     try {
       await signup(data.name, data.email, data.password, data.phone_number);
+      toast.success('Inscription réussie! Veuillez vérifier votre email.');
       if (onSuccess) onSuccess();
       navigate('/dashboard');
     } catch (error) {
-      // Error is handled in the auth context
       console.error('Signup form error:', error);
+      // Error is handled in the auth context
     }
   };
 

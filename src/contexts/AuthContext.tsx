@@ -3,12 +3,12 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { Profile, User } from '@/types/supabase';
+import { User } from '@/types/auth';
 
 interface AuthContextProps {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
+  profile: any | null;
   signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load user from session
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const safePreferences = processPreferences(data?.preferences);
 
       // Create the profile object with safe types
-      const profileData: Profile = {
+      const profileData = {
         ...data,
         id: supabaseUser.id,
         role: safeRole,
@@ -177,22 +177,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (name: string, email: string, password: string, phone_number?: string) => {
     setLoading(true);
     try {
-      // First check if email already exists
-      const { data: existingUsers, error: emailCheckError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', email.toLowerCase())
-        .maybeSingle();
-      
-      if (emailCheckError) {
-        console.error('Error checking existing email:', emailCheckError);
-      }
-      
-      if (existingUsers) {
-        toast.error('Cette adresse email est déjà utilisée');
-        return;
-      }
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -215,6 +199,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // If signUp is successful, show a toast
       toast.success('Compte créé avec succès!');
+      
+      // Return early if no user was created (email confirmation required)
+      if (!data.user) {
+        return;
+      }
+      
+      // If immediate access is granted (no email confirmation required)
+      if (data.session) {
+        await loadUserAndProfile(data.user);
+      }
     } catch (error: any) {
       console.error('Sign up error:', error);
     } finally {
