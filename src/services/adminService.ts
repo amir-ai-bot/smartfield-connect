@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { User, Profile, ProjectWithUser, Conversation, Analytics } from '@/types/supabase';
+import { User, Profile, ProjectData } from '@/types/auth';
 import { timeAgo } from '@/utils/dateUtils';
 
 // Interface for verification codes
@@ -14,6 +14,27 @@ export interface VerificationCode {
   created_at: string;
   expires_at: string;
   used: boolean;
+}
+
+// Analytics interface
+export interface Analytics {
+  userCount: number;
+  projectCount: number;
+  supplierCount: number;
+  activeProjects: number;
+  newUsersThisMonth: number;
+  messagesSentToday: number;
+  usersByRole: {
+    user: number;
+    admin: number;
+    fournisseur: number;
+    pending_fournisseur: number;
+  };
+  projectsByStatus: {
+    active: number;
+    completed: number;
+    planning: number;
+  };
 }
 
 // Get all users
@@ -30,17 +51,18 @@ export const getAllUsers = async (): Promise<User[]> => {
     
     // Map profile data to User type
     return data.map((profile) => ({
-      id: profile.id,
+      id: profile.id || '',
       email: profile.email || '',
       name: profile.display_name || '',
-      role: profile.role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
+      role: (profile.role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') || 'user',
       avatar: profile.avatar || '',
       phone_number: profile.phone_number || '',
       address: profile.address || '',
       bio: profile.bio || '',
       email_verified: true, // Default since we don't have this info
-      created_at: profile.created_at,
-      updated_at: profile.updated_at,
+      created_at: profile.created_at || '',
+      updated_at: profile.updated_at || '',
+      display_name: profile.display_name || '',
       preferences: profile.preferences || {
         language: 'fr',
         notifications: { email: true, app: true },
@@ -105,7 +127,7 @@ export const getAnalyticsData = async (): Promise<Analytics> => {
 };
 
 // Get all projects with user data
-export const getAllProjects = async (): Promise<ProjectWithUser[]> => {
+export const getAllProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
@@ -119,20 +141,35 @@ export const getAllProjects = async (): Promise<ProjectWithUser[]> => {
       throw error;
     }
     
-    return data.map(project => ({
-      id: project.id,
-      name: project.name,
-      title: project.name, // Add title for compatibility
-      description: project.description || '',
-      status: project.status,
-      created_at: project.created_at,
-      updated_at: project.updated_at,
-      owner_id: project.owner_id,
-      creator_name: project.profiles?.display_name || 'Unknown',
-      creator_email: project.profiles?.email || 'no-email',
-      creator_avatar: project.profiles?.avatar || null,
-      timeAgo: timeAgo(project.created_at || '')
-    }));
+    // Safely handle potential null values in related profile data
+    return data.map(project => {
+      // Get profile info safely
+      const profileData = project.profiles || {};
+      
+      // Convert to ProjectData format
+      return {
+        id: project.id,
+        title: project.name || '',
+        name: project.name || '',
+        description: project.description || '',
+        status: project.status as 'planning' | 'active' | 'completed',
+        user_id: project.owner_id || '',
+        owner_id: project.owner_id || '',
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        // Add default values for missing fields
+        crop: '',
+        location: '',
+        startDate: '',
+        endDate: '',
+        progress: 0,
+        isPublic: false,
+        // Add user information
+        user_name: typeof profileData === 'object' ? (profileData.display_name || '') : '',
+        user_avatar: typeof profileData === 'object' ? (profileData.avatar || '') : '',
+        timeAgo: timeAgo(project.created_at || '')
+      };
+    });
   } catch (error) {
     console.error('Error getting all projects:', error);
     toast.error('Erreur lors de la récupération des projets');
@@ -153,12 +190,12 @@ export const getPendingFournisseurRequests = async (): Promise<User[]> => {
       throw error;
     }
     
-    // Map profile data to User type
+    // Map profile data to User type with default values
     return data.map((profile) => ({
       id: profile.id,
       email: profile.email || '',
       name: profile.display_name || '',
-      role: profile.role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
+      role: (profile.role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') || 'user',
       avatar: profile.avatar || '',
       phone_number: profile.phone_number || '',
       address: profile.address || '',
@@ -166,6 +203,7 @@ export const getPendingFournisseurRequests = async (): Promise<User[]> => {
       email_verified: true, // Default since we don't have this info
       created_at: profile.created_at,
       updated_at: profile.updated_at,
+      display_name: profile.display_name || '',
       preferences: profile.preferences || {
         language: 'fr',
         notifications: { email: true, app: true },
@@ -176,6 +214,26 @@ export const getPendingFournisseurRequests = async (): Promise<User[]> => {
     console.error('Error getting pending fournisseur requests:', error);
     toast.error('Erreur lors de la récupération des demandes de fournisseurs');
     return [];
+  }
+};
+
+// Add a new supplier (fournisseur)
+export const addFournisseur = async (supplierData: any): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('suppliers')
+      .insert(supplierData);
+    
+    if (error) {
+      throw error;
+    }
+    
+    toast.success('Fournisseur ajouté avec succès');
+    return true;
+  } catch (error) {
+    console.error('Error adding supplier:', error);
+    toast.error('Erreur lors de l\'ajout du fournisseur');
+    return false;
   }
 };
 
@@ -317,26 +375,6 @@ export const createAdminAccount = async (
   } catch (error) {
     console.error('Error creating admin account:', error);
     toast.error('Erreur lors de la création du compte administrateur');
-    return false;
-  }
-};
-
-// Add a new supplier (fournisseur)
-export const addFournisseur = async (supplierData: any): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('suppliers')
-      .insert(supplierData);
-    
-    if (error) {
-      throw error;
-    }
-    
-    toast.success('Fournisseur ajouté avec succès');
-    return true;
-  } catch (error) {
-    console.error('Error adding supplier:', error);
-    toast.error('Erreur lors de l\'ajout du fournisseur');
     return false;
   }
 };

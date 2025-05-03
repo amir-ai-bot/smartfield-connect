@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { User } from '@/types/auth';
 import { Input } from '@/components/ui/input';
@@ -26,7 +25,7 @@ interface ProfileInfoProps {
 
 const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
   const { updateProfile } = useAuth();
-  const [name, setName] = React.useState(user.name || '');
+  const [name, setName] = React.useState(user.name || user.display_name || '');
   const [email, setEmail] = React.useState(user.email || '');
   const [phone, setPhone] = React.useState(user.phone_number || '');
   const [address, setAddress] = React.useState(user.address || '');
@@ -38,7 +37,7 @@ const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
   // Track changes
   React.useEffect(() => {
     const changes = 
-      name !== user.name || 
+      name !== (user.name || user.display_name || '') || 
       email !== user.email || 
       phone !== (user.phone_number || '') || 
       address !== (user.address || '') || 
@@ -50,7 +49,7 @@ const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
 
   // Reset form when user changes
   React.useEffect(() => {
-    setName(user.name || '');
+    setName(user.name || user.display_name || '');
     setEmail(user.email || '');
     setPhone(user.phone_number || '');
     setAddress(user.address || '');
@@ -79,6 +78,12 @@ const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
   const handleSave = async () => {
     try {
       setIsLoading(true);
+      // Convert user to auth User type with email_verified field
+      const authUser = {
+        ...user,
+        email_verified: user.email_verified || false
+      };
+      
       const updatedUser = await updateProfile({
         name,
         email,
@@ -110,7 +115,7 @@ const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
 
   const handleCancel = () => {
     // Reset to original values
-    setName(user.name || '');
+    setName(user.name || user.display_name || '');
     setEmail(user.email || '');
     setPhone(user.phone_number || '');
     setAddress(user.address || '');

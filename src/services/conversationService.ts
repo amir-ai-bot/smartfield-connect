@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Conversation, Message, Profile } from '@/types/supabase';
+import { Rating } from '@/types/auth';
 
 // Get conversations for the current user
 export const getConversations = async (userId: string) => {
@@ -18,24 +18,28 @@ export const getConversations = async (userId: string) => {
 
     if (error) throw error;
 
-    // Map the conversations to include user information
+    // Map the conversations to include user information, handling potential nulls safely
     return data.map(conversation => {
       // Determine if the current user is participant1 or participant2
       const isParticipant1 = conversation.participant1_id === userId;
       
-      // Map the profile data
+      // Handle potential null relations with default values
+      const participant1 = conversation.participant1 || {};
+      const participant2 = conversation.participant2 || {};
+      
+      // Map the profile data with safe access
       const participant1Profile = {
-        id: conversation.participant1?.id || '',
-        name: conversation.participant1?.display_name || 'Unknown',
-        avatar: conversation.participant1?.avatar || null,
-        email: conversation.participant1?.email || ''
+        id: typeof participant1 === 'object' ? (participant1.id || '') : '',
+        name: typeof participant1 === 'object' ? (participant1.display_name || 'Unknown') : 'Unknown',
+        avatar: typeof participant1 === 'object' ? (participant1.avatar || null) : null,
+        email: typeof participant1 === 'object' ? (participant1.email || '') : ''
       };
 
       const participant2Profile = {
-        id: conversation.participant2?.id || '',
-        name: conversation.participant2?.display_name || 'Unknown',
-        avatar: conversation.participant2?.avatar || null,
-        email: conversation.participant2?.email || ''
+        id: typeof participant2 === 'object' ? (participant2.id || '') : '',
+        name: typeof participant2 === 'object' ? (participant2.display_name || 'Unknown') : 'Unknown',
+        avatar: typeof participant2 === 'object' ? (participant2.avatar || null) : null,
+        email: typeof participant2 === 'object' ? (participant2.email || '') : ''
       };
 
       return {
@@ -71,22 +75,26 @@ export const getConversation = async (conversationId: string, userId?: string) =
 
     if (error) throw error;
 
+    // Handle potential null relations with default values
+    const participant1 = data.participant1 || {};
+    const participant2 = data.participant2 || {};
+
     // Determine if the current user is participant1 or participant2
     const isParticipant1 = userId ? data.participant1_id === userId : false;
     
-    // Map the profile data
+    // Map the profile data with safe access
     const participant1Profile = {
-      id: data.participant1?.id || '',
-      name: data.participant1?.display_name || 'Unknown',
-      avatar: data.participant1?.avatar || null,
-      email: data.participant1?.email || ''
+      id: typeof participant1 === 'object' ? (participant1.id || '') : '',
+      name: typeof participant1 === 'object' ? (participant1.display_name || 'Unknown') : 'Unknown',
+      avatar: typeof participant1 === 'object' ? (participant1.avatar || null) : null,
+      email: typeof participant1 === 'object' ? (participant1.email || '') : ''
     };
 
     const participant2Profile = {
-      id: data.participant2?.id || '',
-      name: data.participant2?.display_name || 'Unknown',
-      avatar: data.participant2?.avatar || null,
-      email: data.participant2?.email || ''
+      id: typeof participant2 === 'object' ? (participant2.id || '') : '',
+      name: typeof participant2 === 'object' ? (participant2.display_name || 'Unknown') : 'Unknown',
+      avatar: typeof participant2 === 'object' ? (participant2.avatar || null) : null,
+      email: typeof participant2 === 'object' ? (participant2.email || '') : ''
     };
 
     return {
@@ -121,24 +129,30 @@ export const getConversationMessages = async (conversationId: string) => {
 
     if (error) throw error;
 
-    return data.map(message => ({
-      id: message.id,
-      content: message.content,
-      created_at: message.created_at,
-      sender_id: message.sender_id,
-      receiver_id: message.receiver_id,
-      sender: {
-        id: message.sender?.id || '',
-        name: message.sender?.display_name || 'Unknown',
-        avatar: message.sender?.avatar || null
-      },
-      receiver: {
-        id: message.receiver?.id || '',
-        name: message.receiver?.display_name || 'Unknown',
-        avatar: message.receiver?.avatar || null
-      },
-      read: message.read || false
-    }));
+    return data.map(message => {
+      // Handle potential null relations with default values
+      const sender = message.sender || {};
+      const receiver = message.receiver || {};
+
+      return {
+        id: message.id,
+        content: message.content,
+        created_at: message.created_at,
+        sender_id: message.sender_id,
+        receiver_id: message.receiver_id,
+        sender: {
+          id: typeof sender === 'object' ? (sender.id || '') : '',
+          name: typeof sender === 'object' ? (sender.display_name || 'Unknown') : 'Unknown',
+          avatar: typeof sender === 'object' ? (sender.avatar || null) : null
+        },
+        receiver: {
+          id: typeof receiver === 'object' ? (receiver.id || '') : '',
+          name: typeof receiver === 'object' ? (receiver.display_name || 'Unknown') : 'Unknown',
+          avatar: typeof receiver === 'object' ? (receiver.avatar || null) : null
+        },
+        read: message.read || false
+      };
+    });
   } catch (error) {
     console.error('Error getting conversation messages:', error);
     toast.error('Erreur lors de la récupération des messages');
@@ -297,3 +311,7 @@ export const getFavoriteFournisseurs = async (userId: string) => {
     return [];
   }
 };
+
+// Add alias for rateFournisseur function from ratingService
+import { rateFournisseur as rateSupplier } from '@/services/ratingService';
+export const rateFournisseur = rateSupplier;

@@ -21,6 +21,7 @@ export interface User {
   created_at?: string;
   updated_at?: string;
   preferences?: UserPreferences;
+  display_name?: string; // Added for compatibility
 }
 
 export interface Profile {
@@ -35,6 +36,7 @@ export interface Profile {
   created_at?: string;
   updated_at?: string;
   preferences?: UserPreferences;
+  name?: string; // Added for compatibility
 }
 
 export type UserRole = 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
@@ -76,6 +78,7 @@ export interface Rating {
   id: string;
   user_id: string;
   supplier_id: string;
+  fournisseur_id?: string; // Added for compatibility
   rating: number;
   comment?: string;
   created_at: string;
@@ -92,6 +95,7 @@ export interface ProjectData {
   description: string;
   status: 'planning' | 'active' | 'completed';
   user_id: string;
+  owner_id?: string; // Added for compatibility
   created_at?: string;
   updated_at?: string;
   image?: string;
@@ -99,10 +103,14 @@ export interface ProjectData {
   location: string;
   startDate: string;
   endDate: string;
+  start_date?: string; // Added for compatibility
+  end_date?: string; // Added for compatibility
   progress: number;
   isPublic: boolean;
+  is_public?: boolean; // Added for compatibility
   user_name?: string;
   user_avatar?: string;
+  name?: string; // Added for compatibility
 }
 
 export interface ProjectFormProps {

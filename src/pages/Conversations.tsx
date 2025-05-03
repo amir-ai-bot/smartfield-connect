@@ -4,11 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getUserConversations } from '@/services/conversationService';
+import { getConversations } from '@/services/conversationService';
 import { Link, useNavigate } from 'react-router-dom';
 import ConversationList from '@/components/conversation/ConversationList';
 import { MessageSquare, Users } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { User as AuthUser } from '@/types/auth';
 
 const Conversations = () => {
   const { user } = useAuth();
@@ -22,6 +23,12 @@ const Conversations = () => {
   if (!user) {
     return null;
   }
+
+  // Ensure user has email_verified field for compatibility with auth.User type
+  const authUser: AuthUser = {
+    ...user,
+    email_verified: user.email_verified ?? false
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 pb-20 md:pb-8 mt-16">
@@ -52,7 +59,7 @@ const Conversations = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ConversationList currentUser={user} />
+                <ConversationList currentUser={authUser} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -66,7 +73,7 @@ const Conversations = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ConversationList currentUser={user} filterUnread={true} />
+                <ConversationList currentUser={authUser} filterUnread={true} />
               </CardContent>
             </Card>
           </TabsContent>

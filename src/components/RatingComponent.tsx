@@ -5,13 +5,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Rating } from '@/types/auth';
+import { Rating as AuthRating } from '@/types/auth';
 import { Star } from 'lucide-react';
 import { addRating } from '@/services/ratingService';
 
 interface RatingComponentProps {
   fournisseurId?: string;
-  onRatingAdded: (rating: Rating) => void;
+  onRatingAdded: (rating: AuthRating) => void;
 }
 
 const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRatingAdded }) => {
@@ -66,7 +66,18 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
       }
 
       toast.success('Avis ajouté avec succès!');
-      onRatingAdded(newRating as Rating);
+      // Convert to AuthRating type
+      const authRating: AuthRating = {
+        id: newRating.id,
+        user_id: newRating.user_id,
+        supplier_id: newRating.supplier_id || newRating.fournisseur_id || '',
+        rating: newRating.rating,
+        comment: newRating.comment,
+        created_at: newRating.created_at || new Date().toISOString(),
+        profiles: newRating.profiles
+      };
+      
+      onRatingAdded(authRating);
       
       // Reset form
       setRating(0);
@@ -122,6 +133,24 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRati
       </Button>
     </form>
   );
+  
+  function StarRating() {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Star
+          key={i}
+          className={`cursor-pointer ${
+            i <= (hoveredStar || rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+          }`}
+          onMouseEnter={() => setHoveredStar(i)}
+          onMouseLeave={() => setHoveredStar(0)}
+          onClick={() => handleRatingChange(i)}
+        />
+      );
+    }
+    return <div className="flex gap-1">{stars}</div>;
+  }
 };
 
 export default RatingComponent;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllSuppliers, searchSuppliers } from '@/services/supplierService';
@@ -147,7 +148,7 @@ const SuppliersPage = () => {
         </Button>
       </div>
 
-      {/* Category ComboBox */}
+      {/* Category ComboBox with correct props */}
       <ComboBox
         options={categoryOptions}
         placeholder="Select Category"

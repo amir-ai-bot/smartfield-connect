@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { rateFournisseur } from '@/services/ratingService';
 import { toast } from 'sonner';
 import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { rateFournisseur } from '@/services/ratingService';
 
 interface RatingDialogProps {
   open: boolean;

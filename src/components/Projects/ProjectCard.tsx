@@ -1,53 +1,94 @@
-
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, User, Tractor } from 'lucide-react';
-import { ProjectData } from '@/types/auth';
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ProjectData } from "@/types/auth";
+import { Calendar, MapPin, Sprout } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProjectCardProps {
   project: ProjectData;
+  onClick?: () => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
-  // Helper function to get status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return 'bg-blue-500 hover:bg-blue-600';
-      case 'active':
-        return 'bg-green-500 hover:bg-green-600';
-      case 'completed':
-        return 'bg-gray-500 hover:bg-gray-600';
-      default:
-        return 'bg-gray-500 hover:bg-gray-600';
-    }
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
+  const { language, t } = useLanguage();
+  const { 
+    title, 
+    crop, 
+    location, 
+    startDate, 
+    endDate, 
+    progress, 
+    status,
+    image,
+    user_name,
+    user_avatar 
+  } = project;
+  
+  // Crop default images - keep existing mapping
+  const cropDefaultImages: Record<string, string> = {
+    'Oliviers': 'https://cdn.pixabay.com/photo/2021/07/14/11/31/olive-tree-6465723_1280.jpg',
+    'Palmiers': 'https://cdn.pixabay.com/photo/2019/03/11/23/51/palm-trees-4050731_1280.jpg',
+    // ... keep existing crop images
   };
-
-  // Helper function to get status text
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return 'En planification';
-      case 'active':
-        return 'Actif';
-      case 'completed':
-        return 'Terminé';
-      default:
-        return 'Inconnu';
-    }
+  
+  // Fallback image
+  const defaultFallbackImage = 'https://cdn.pixabay.com/photo/2019/09/28/04/02/agriculture-4509751_1280.jpg';
+  
+  const [imageError, setImageError] = React.useState(false);
+  const [fallbackImage, setFallbackImage] = React.useState('');
+  
+  // Set fallback image on component mount
+  React.useEffect(() => {
+    // Get the appropriate image for the crop, or default if not found
+    const defaultImage = crop && cropDefaultImages[crop] 
+      ? cropDefaultImages[crop] 
+      : defaultFallbackImage;
+    
+    setFallbackImage(defaultImage);
+  }, [crop]);
+  
+  // Status badge color
+  const statusColor = {
+    active: "bg-green-500 hover:bg-green-600",
+    planning: "bg-blue-500 hover:bg-blue-600",
+    completed: "bg-gray-500 hover:bg-gray-600"
   };
-
+  
+  // Status label translation
+  const getStatusLabel = (projectStatus: string) => {
+    const statusMapping: Record<string, Record<string, string>> = {
+      en: {
+        active: "Active",
+        planning: "Planning",
+        completed: "Completed"
+      },
+      fr: {
+        active: "Actif",
+        planning: "Planification",
+        completed: "Complété"
+      },
+      ar: {
+        active: "نشط",
+        planning: "تخطيط",
+        completed: "مكتمل"
+      }
+    };
+    
+    return (statusMapping[language] && statusMapping[language][projectStatus]) || projectStatus;
+  };
+  
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-md">
+    <Card className="overflow-hidden transition-all hover:shadow-lg cursor-pointer" onClick={onClick}>
       <div className="relative h-32 overflow-hidden">
         <img
-          src={project.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=500&q=60'}
-          alt={project.title}
+          src={image || fallbackImage}
+          alt={title}
           className="w-full h-full object-cover"
         />
-        <Badge className={`absolute top-2 right-2 ${getStatusColor(project.status)}`}>
-          {getStatusText(project.status)}
+        <Badge className={`absolute top-2 right-2 ${statusColor[status]}`}>
+          {getStatusLabel(status)}
         </Badge>
         {project.isPublic && (
           <Badge className="absolute top-2 left-2 bg-purple-500 hover:bg-purple-600">
@@ -56,7 +97,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         )}
       </div>
       <CardHeader className="p-4 pb-0">
-        <CardTitle className="text-lg font-semibold">{project.title}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-2">
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
@@ -72,7 +113,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
           )}
           {project.crop && (
             <div className="flex items-center">
-              <Tractor className="h-3.5 w-3.5 mr-1" />
+              <Sprout className="h-3.5 w-3.5 mr-1" />
               <span>{project.crop}</span>
             </div>
           )}
