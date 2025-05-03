@@ -1,144 +1,246 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Star, StarHalf } from 'lucide-react';
+import { getRatingsForSupplier, getUserRatingForSupplier, addRating } from '@/services/ratingService';
+import { Rating } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { Rating as AuthRating } from '@/types/auth';
-import { Star } from 'lucide-react';
-import { addRating } from '@/services/ratingService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RatingComponentProps {
-  fournisseurId?: string;
-  onRatingAdded: (rating: AuthRating) => void;
+  supplierId: string;
+  userRating?: number;
 }
 
-const RatingComponent: React.FC<RatingComponentProps> = ({ fournisseurId, onRatingAdded }) => {
-  const [rating, setRating] = useState<number>(0);
-  const [comment, setComment] = useState<string>('');
-  const [hoveredStar, setHoveredStar] = useState<number>(0);
+const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, userRating = 0 }) => {
   const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [userCurrentRating, setUserCurrentRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [averageRating, setAverageRating] = useState(userRating || 0);
 
-  const handleRatingChange = (value: number) => {
-    setRating(value);
+  useEffect(() => {
+    if (open) {
+      loadRatings();
+    }
+  }, [open]);
+
+  const loadRatings = async () => {
+    try {
+      setLoading(true);
+      const ratingsData = await getRatingsForSupplier(supplierId);
+      setRatings(ratingsData);
+
+      // Calculate average rating
+      if (ratingsData.length > 0) {
+        const totalRating = ratingsData.reduce((sum, rating) => sum + rating.rating, 0);
+        setAverageRating(totalRating / ratingsData.length);
+      }
+
+      // Get user's current rating if available
+      if (user) {
+        const userRating = await getUserRatingForSupplier(user.id, supplierId);
+        if (userRating) {
+          setUserCurrentRating(userRating.rating);
+          setComment(userRating.comment || '');
+        } else {
+          setUserCurrentRating(0);
+          setComment('');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading ratings:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setComment(e.target.value);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleRateClick = async () => {
     if (!user) {
-      toast.error('Vous devez être connecté pour laisser un avis.');
+      toast.error('Vous devez être connecté pour laisser un avis');
       return;
     }
 
-    if (!fournisseurId) {
-      toast.error('ID du fournisseur manquant.');
-      return;
-    }
-
-    if (rating === 0) {
-      toast.error('Veuillez sélectionner une note.');
+    if (userCurrentRating === 0) {
+      toast.error('Veuillez sélectionner une note');
       return;
     }
 
     try {
-      // Check if the supplier exists
-      const { data: supplier, error: supplierError } = await supabase
-        .from('suppliers')
-        .select('id')
-        .eq('id', fournisseurId)
-        .single();
-        
-      if (supplierError) {
-        throw new Error('Supplier not found');
-      }
-      
-      // Add the rating
-      const newRating = await addRating(user.id, fournisseurId, rating, comment);
-      
-      if (!newRating) {
-        throw new Error("Failed to add rating");
-      }
-
-      toast.success('Avis ajouté avec succès!');
-      // Convert to AuthRating type
-      const authRating: AuthRating = {
-        id: newRating.id,
-        user_id: newRating.user_id,
-        supplier_id: newRating.fournisseur_id || '',
-        fournisseur_id: newRating.fournisseur_id || '',
-        rating: newRating.rating,
-        comment: newRating.comment,
-        created_at: newRating.created_at || new Date().toISOString(),
-        // Fix the type error by providing a proper profiles object
-        profiles: {
-          id: user.id,
-          name: user.name || '',
-          avatar: user.avatar || null
-        }
-      };
-      
-      onRatingAdded(authRating);
-      
-      // Reset form
-      setRating(0);
-      setComment('');
+      setSubmitting(true);
+      await addRating(user.id, supplierId, userCurrentRating, comment);
+      toast.success('Votre évaluation a été enregistrée');
+      await loadRatings();
+      setOpen(false);
     } catch (error) {
-      console.error('Error adding rating:', error);
-      toast.error('Erreur lors de l\'ajout de l\'avis.');
+      console.error('Error submitting rating:', error);
+      toast.error('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Create StarRating component outside the main component to avoid duplicate identifier error
-  const renderStarRating = () => {
+  const renderStar = (index: number, filled: boolean, half: boolean = false) => {
+    return (
+      <div
+        key={index}
+        className="cursor-pointer"
+        onClick={() => user && setUserCurrentRating(index + 1)}
+        onMouseEnter={() => user && setHoverRating(index + 1)}
+        onMouseLeave={() => user && setHoverRating(0)}
+      >
+        {half ? (
+          <StarHalf className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+        ) : (
+          <Star
+            className={`h-5 w-5 ${
+              filled ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+            }`}
+          />
+        )}
+      </div>
+    );
+  };
+
+  const renderStarRating = (rating: number) => {
     const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`cursor-pointer ${
-            i <= (hoveredStar || rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-          }`}
-          onMouseEnter={() => setHoveredStar(i)}
-          onMouseLeave={() => setHoveredStar(0)}
-          onClick={() => handleRatingChange(i)}
-        />
-      );
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(renderStar(i, true));
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(renderStar(i, false, true));
+      } else {
+        stars.push(renderStar(i, false));
+      }
     }
-    return <div className="flex gap-1">{stars}</div>;
+
+    return <div className="flex space-x-1">{stars}</div>;
   };
 
-  if (!user) {
-    return <p className="text-sm text-gray-500">Connectez-vous pour laisser un avis.</p>;
-  }
+  const renderUserEditableRating = () => {
+    const displayRating = hoverRating || userCurrentRating;
+    return (
+      <div className="flex space-x-1">
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="cursor-pointer"
+            onClick={() => setUserCurrentRating(i + 1)}
+            onMouseEnter={() => setHoverRating(i + 1)}
+            onMouseLeave={() => setHoverRating(0)}
+          >
+            <Star
+              className={`h-5 w-5 ${
+                i < displayRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 mb-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Votre note</label>
-        {renderStarRating()}
+    <div>
+      <div className="flex items-center gap-2">
+        {renderStarRating(averageRating)}
+        <span className="text-sm text-gray-500">
+          {averageRating.toFixed(1)} ({ratings.length} avis)
+        </span>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-sm">
+              Voir les avis
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Avis et évaluations</DialogTitle>
+            </DialogHeader>
+            {user && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Votre évaluation</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-sm">Note</p>
+                      {renderUserEditableRating()}
+                    </div>
+                    <div>
+                      <p className="mb-2 text-sm">Commentaire</p>
+                      <Textarea
+                        placeholder="Partagez votre expérience avec ce fournisseur..."
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <Button onClick={handleRateClick} disabled={submitting}>
+                      {submitting ? 'Envoi...' : 'Envoyer'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="mt-4 max-h-[300px] overflow-y-auto">
+              <h3 className="text-lg font-medium mb-4">Tous les avis</h3>
+              {loading ? (
+                <p>Chargement...</p>
+              ) : ratings.length > 0 ? (
+                <div className="space-y-4">
+                  {ratings.map((rating) => (
+                    <div key={rating.id} className="border-b pb-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center">
+                          {rating.profiles && (
+                            <Avatar className="h-8 w-8 mr-2">
+                              <AvatarImage
+                                src={rating.profiles.avatar || ''}
+                                alt={rating.profiles.name}
+                              />
+                              <AvatarFallback>
+                                {(rating.profiles.name || '?').charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div>
+                            <p className="font-medium">
+                              {rating.profiles ? rating.profiles.name : 'Utilisateur'}
+                            </p>
+                            <div className="flex items-center">
+                              {renderStarRating(rating.rating)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {rating.comment && <p className="mt-2">{rating.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-4">
+                  Aucun avis pour ce fournisseur.
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-      <div>
-        <label htmlFor="comment" className="block text-sm font-medium mb-1">
-          Commentaire (optionnel)
-        </label>
-        <Textarea
-          id="comment"
-          value={comment}
-          onChange={handleCommentChange}
-          placeholder="Partagez votre expérience..."
-          rows={3}
-        />
-      </div>
-      <Button type="submit" disabled={rating === 0}>
-        Soumettre
-      </Button>
-    </form>
+    </div>
   );
 };
 

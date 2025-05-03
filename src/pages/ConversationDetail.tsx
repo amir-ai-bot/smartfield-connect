@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Send, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getConversationMessages, markMessagesAsRead, sendMessage } from '@/services/conversationService';
+import { isFournisseurFavorite, toggleFavoriteFournisseur, getConversation, getMessages, markMessagesAsRead, sendMessage } from '@/services/conversationService';
 import RatingDialog from '@/components/conversation/RatingDialog';
 
 interface ParticipantProfile {
@@ -19,6 +19,7 @@ interface ParticipantProfile {
   avatar?: string;
   email?: string;
   role?: string;
+  display_name?: string;
 }
 
 interface ConversationData {
@@ -27,6 +28,8 @@ interface ConversationData {
   participant2_id: string;
   last_message_at?: string;
   created_at?: string;
+  participant1?: ParticipantProfile;
+  participant2?: ParticipantProfile;
   participant1Profile?: ParticipantProfile;
   participant2Profile?: ParticipantProfile;
 }
@@ -70,19 +73,22 @@ const ConversationDetail = () => {
       setConversation(conversationData);
 
       // Ensure participant profiles are properly typed
-      const participant1Profile = conversationData.participant1Profile || {} as ParticipantProfile;
-      const participant2Profile = conversationData.participant2Profile || {} as ParticipantProfile;
+      const participant1Profile = conversationData.participant1 || {} as ParticipantProfile;
+      const participant2Profile = conversationData.participant2 || {} as ParticipantProfile;
 
       // Determine if the other user is a supplier to check favorites
-      const isSupplier = 
-        (participant1Profile && participant1Profile.id === user.id && participant2Profile && participant2Profile.role === 'fournisseur') || 
-        (participant2Profile && participant2Profile.id === user.id && participant1Profile && participant1Profile.role === 'fournisseur');
+      const otherParticipantRole = 
+        (participant1Profile.id === user.id) ? 
+          participant2Profile.role : 
+          participant1Profile.role;
+          
+      const isSupplier = otherParticipantRole === 'fournisseur';
 
       if (isSupplier) {
         const supplierId = 
-          (participant1Profile && participant1Profile.id === user.id) ? 
-            (participant2Profile && participant2Profile.id) : 
-            (participant1Profile && participant1Profile.id);
+          (participant1Profile.id === user.id) ? 
+            participant2Profile.id : 
+            participant1Profile.id;
           
         if (supplierId) {
           const favoriteStatus = await isFournisseurFavorite(user.id, supplierId);
@@ -90,7 +96,7 @@ const ConversationDetail = () => {
         }
       }
 
-      const messagesData = await getConversationMessages(id);
+      const messagesData = await getMessages(id);
       setMessages(messagesData);
 
       // Mark messages as read
@@ -124,14 +130,7 @@ const ConversationDetail = () => {
       setSending(true);
       const newMessage = await sendMessage(id, messageText, user.id);
       if (newMessage) {
-        setMessages([...messages, {
-          ...newMessage,
-          sender: {
-            id: user.id,
-            name: user.name || 'You',
-            avatar: user.avatar
-          }
-        }]);
+        setMessages([...messages, newMessage]);
         setMessageText('');
         scrollToBottom();
       }
@@ -152,17 +151,14 @@ const ConversationDetail = () => {
         conversation.participant1_id;
         
       const result = await toggleFavoriteFournisseur(user.id, otherParticipantId);
-      if (typeof result === 'object' && 'isFavorite' in result) {
+      
+      if (result && typeof result === 'object' && 'isFavorite' in result) {
         setIsFavorite(result.isFavorite);
-        
-        toast.success(result.isFavorite ? 
-          'Ajouté aux favoris' : 
-          'Retiré des favoris'
-        );
+        toast.success(result.isFavorite ? 'Ajouté aux favoris' : 'Retiré des favoris');
       } else {
         // Handle case when result is just a boolean
         setIsFavorite(!!result);
-        toast.success(result ? 'Ajouté aux favoris' : 'Retiré des favoris');
+        toast.success(!!result ? 'Ajouté aux favoris' : 'Retiré des favoris');
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -184,12 +180,14 @@ const ConversationDetail = () => {
     }
   };
 
-  const getOtherUser = () => {
+  const getOtherUser = (): ParticipantProfile | null => {
     if (!conversation || !user) return null;
     
-    return conversation.participant1_id === user.id ?
-      conversation.participant2Profile :
-      conversation.participant1Profile;
+    if (conversation.participant1_id === user.id) {
+      return conversation.participant2 || null;
+    } else {
+      return conversation.participant1 || null;
+    }
   };
 
   const otherUser = getOtherUser();
@@ -220,11 +218,11 @@ const ConversationDetail = () => {
             {otherUser && (
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={otherUser.avatar || ''} alt={otherUser.name} />
-                  <AvatarFallback>{otherUser.name?.charAt(0) || '?'}</AvatarFallback>
+                  <AvatarImage src={otherUser.avatar || ''} alt={otherUser.name || otherUser.display_name || ''} />
+                  <AvatarFallback>{(otherUser.name || otherUser.display_name || '?').charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-medium">{otherUser.name}</h2>
+                  <h2 className="font-medium">{otherUser.name || otherUser.display_name}</h2>
                   <p className="text-sm text-gray-500">{otherUser.email}</p>
                 </div>
               </div>
@@ -318,13 +316,13 @@ const ConversationDetail = () => {
         </Button>
       </div>
       
-      {isSupplier && otherUser && (
+      {isSupplier && otherUser && conversation && (
         <RatingDialog
           open={showRatingDialog}
           onOpenChange={setShowRatingDialog}
           userId={user.id}
           fournisseurId={conversation.participant1_id === user.id ? conversation.participant2_id : conversation.participant1_id}
-          fournisseurName={otherUser.name || 'Fournisseur'}
+          fournisseurName={otherUser.name || otherUser.display_name || 'Fournisseur'}
           onRatingSubmitted={loadConversation}
         />
       )}

@@ -30,48 +30,32 @@ export const getConversations = async (userId: string) => {
       let isParticipant1 = conversation.participant1_id === userId;
 
       if (isParticipant1) {
-        if (!conversation.participant2) {
-          // Handle case where participant2 might not exist
-          return {
-            id: conversation.id,
-            otherUser: {
-              id: conversation.participant2_id || '',
-              name: 'Utilisateur inconnu',
-              avatar: null,
-              email: '',
-              role: 'user'
-            },
-            lastMessageAt: conversation.last_message_at
-          };
-        }
-        otherUser = {
-          id: conversation.participant2.id || '',
+        otherUser = conversation.participant2 && typeof conversation.participant2 === 'object' ? {
+          id: conversation.participant2.id || conversation.participant2_id || '',
           name: conversation.participant2.display_name || 'Utilisateur inconnu',
           avatar: conversation.participant2.avatar || null,
           email: conversation.participant2.email || '',
           role: conversation.participant2.role || 'user'
+        } : {
+          id: conversation.participant2_id || '',
+          name: 'Utilisateur inconnu',
+          avatar: null,
+          email: '',
+          role: 'user'
         };
       } else {
-        if (!conversation.participant1) {
-          // Handle case where participant1 might not exist
-          return {
-            id: conversation.id,
-            otherUser: {
-              id: conversation.participant1_id || '',
-              name: 'Utilisateur inconnu',
-              avatar: null,
-              email: '',
-              role: 'user'
-            },
-            lastMessageAt: conversation.last_message_at
-          };
-        }
-        otherUser = {
-          id: conversation.participant1.id || '',
+        otherUser = conversation.participant1 && typeof conversation.participant1 === 'object' ? {
+          id: conversation.participant1.id || conversation.participant1_id || '',
           name: conversation.participant1.display_name || 'Utilisateur inconnu',
           avatar: conversation.participant1.avatar || null,
           email: conversation.participant1.email || '',
           role: conversation.participant1.role || 'user'
+        } : {
+          id: conversation.participant1_id || '',
+          name: 'Utilisateur inconnu',
+          avatar: null,
+          email: '',
+          role: 'user'
         };
       }
 
@@ -112,92 +96,7 @@ export const getConversation = async (conversationId: string, userId: string) =>
       return null;
     }
 
-    // Determine which participant is the other user
-    let otherUser;
-    let currentUser;
-    let isParticipant1 = data.participant1_id === userId;
-
-    if (isParticipant1) {
-      if (!data.participant2 || typeof data.participant2 !== 'object') {
-        // Handle case where participant2 might not exist or is an error
-        otherUser = {
-          id: data.participant2_id || '',
-          name: 'Utilisateur inconnu',
-          avatar: null,
-          email: '',
-          role: 'user'
-        };
-      } else {
-        otherUser = {
-          id: data.participant2.id || '',
-          name: data.participant2.display_name || 'Utilisateur inconnu',
-          avatar: data.participant2.avatar || null,
-          email: data.participant2.email || '',
-          role: data.participant2.role || 'user'
-        };
-      }
-      
-      if (data.participant1 && typeof data.participant1 === 'object') {
-        currentUser = {
-          id: data.participant1.id || userId,
-          name: data.participant1.display_name || 'Vous',
-          avatar: data.participant1.avatar || null,
-          email: data.participant1.email || '',
-          role: data.participant1.role || 'user'
-        };
-      } else {
-        currentUser = {
-          id: userId,
-          name: 'Vous',
-          avatar: null,
-          email: '',
-          role: 'user'
-        };
-      }
-    } else {
-      if (!data.participant1 || typeof data.participant1 !== 'object') {
-        // Handle case where participant1 might not exist or is an error
-        otherUser = {
-          id: data.participant1_id || '',
-          name: 'Utilisateur inconnu',
-          avatar: null,
-          email: '',
-          role: 'user'
-        };
-      } else {
-        otherUser = {
-          id: data.participant1.id || '',
-          name: data.participant1.display_name || 'Utilisateur inconnu',
-          avatar: data.participant1.avatar || null,
-          email: data.participant1.email || '',
-          role: data.participant1.role || 'user'
-        };
-      }
-      
-      if (data.participant2 && typeof data.participant2 === 'object') {
-        currentUser = {
-          id: data.participant2.id || userId,
-          name: data.participant2.display_name || 'Vous',
-          avatar: data.participant2.avatar || null,
-          email: data.participant2.email || '',
-          role: data.participant2.role || 'user'
-        };
-      } else {
-        currentUser = {
-          id: userId,
-          name: 'Vous',
-          avatar: null,
-          email: '',
-          role: 'user'
-        };
-      }
-    }
-
-    return {
-      id: data.id,
-      otherUser,
-      currentUser
-    };
+    return data; // Return the full conversation data with profiles
   } catch (error) {
     console.error('Error getting conversation:', error);
     toast.error('Erreur lors de la récupération de la conversation');
@@ -222,40 +121,7 @@ export const getMessages = async (conversationId: string) => {
       throw error;
     }
 
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Map the data to a more usable format
-    return data.map(message => {
-      const sender = message.sender && typeof message.sender === 'object' ? {
-        id: message.sender.id || message.sender_id || '',
-        name: message.sender.display_name || 'Utilisateur inconnu',
-        avatar: message.sender.avatar || null
-      } : {
-        id: message.sender_id || '',
-        name: 'Utilisateur inconnu',
-        avatar: null
-      };
-
-      const receiver = message.receiver && typeof message.receiver === 'object' ? {
-        id: message.receiver.id || message.receiver_id || '',
-        name: message.receiver.display_name || 'Utilisateur inconnu',
-        avatar: message.receiver.avatar || null
-      } : {
-        id: message.receiver_id || '',
-        name: 'Utilisateur inconnu',
-        avatar: null
-      };
-
-      return {
-        id: message.id,
-        sender,
-        receiver,
-        content: message.content,
-        createdAt: message.created_at
-      };
-    });
+    return data || [];
   } catch (error) {
     console.error('Error getting messages:', error);
     toast.error('Erreur lors de la récupération des messages');
@@ -263,18 +129,36 @@ export const getMessages = async (conversationId: string) => {
   }
 };
 
-// Send a message
-export const sendMessage = async (
-  conversationId: string, 
-  senderId: string, 
-  receiverId: string, 
-  content: string
-) => {
+// Alias for getMessages to match the import in ConversationDetail.tsx
+export const getConversationMessages = getMessages;
+
+// Mark messages as read
+export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   try {
-    // Check if the conversation exists
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', userId);
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    return false;
+  }
+};
+
+// Send a message
+export const sendMessage = async (conversationId: string, content: string, senderId: string) => {
+  try {
+    // Get the conversation to determine the receiver
     const { data: conversationData, error: conversationError } = await supabase
       .from('conversations')
-      .select('id')
+      .select('participant1_id, participant2_id')
       .eq('id', conversationId)
       .single();
 
@@ -282,6 +166,10 @@ export const sendMessage = async (
       throw conversationError;
     }
 
+    const receiverId = conversationData.participant1_id === senderId 
+      ? conversationData.participant2_id 
+      : conversationData.participant1_id;
+    
     // Insert the message
     const { data, error } = await supabase
       .from('messages')
@@ -289,7 +177,8 @@ export const sendMessage = async (
         conversation_id: conversationId,
         sender_id: senderId,
         receiver_id: receiverId,
-        content
+        content,
+        read: false
       })
       .select()
       .single();
@@ -335,17 +224,13 @@ export const checkUserSupplierConversation = async (userId: string, supplierId: 
       .from('conversations')
       .select('id')
       .or(`and(participant1_id.eq.${userId},participant2_id.eq.${supplierUserId}),and(participant1_id.eq.${supplierUserId},participant2_id.eq.${userId})`)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No conversation found
-        return null;
-      }
+    if (error && error.code !== 'PGRST116') {
       throw error;
     }
 
-    return data;
+    return data || null;
   } catch (error) {
     console.error('Error checking user supplier conversation:', error);
     return null;
@@ -449,3 +334,4 @@ export const getFavoriteFournisseurs = async (userId: string) => {
     return [];
   }
 };
+

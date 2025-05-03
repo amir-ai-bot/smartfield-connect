@@ -1,241 +1,231 @@
 
-import React from 'react';
-import { User } from '@/types/auth';
+import React, { useState, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
-import AvatarSelector from './AvatarSelector';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { Pencil, Save, X, Upload } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { User } from '@/types/auth';
 import { uploadAvatar } from '@/services/storageService';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileInfoProps {
   user: User;
-  onUpdate?: (updatedUser: User) => void;
-  onBack?: () => void;
 }
 
-const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
+const ProfileInfo: React.FC<ProfileInfoProps> = ({ user }) => {
   const { updateProfile } = useAuth();
-  const [name, setName] = React.useState(user.name || user.display_name || '');
-  const [email, setEmail] = React.useState(user.email || '');
-  const [phone, setPhone] = React.useState(user.phone_number || '');
-  const [address, setAddress] = React.useState(user.address || '');
-  const [bio, setBio] = React.useState(user.bio || '');
-  const [avatar, setAvatar] = React.useState(user.avatar || '');
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [hasChanges, setHasChanges] = React.useState(false);
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: user.name || user.display_name || '',
+    bio: user.bio || '',
+    phone_number: user.phone_number || '',
+    address: user.address || ''
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
 
-  // Track changes
-  React.useEffect(() => {
-    const changes = 
-      name !== (user.name || user.display_name || '') || 
-      email !== user.email || 
-      phone !== (user.phone_number || '') || 
-      address !== (user.address || '') || 
-      bio !== (user.bio || '') || 
-      avatar !== (user.avatar || '');
-    
-    setHasChanges(changes);
-  }, [name, email, phone, address, bio, avatar, user]);
-
-  // Reset form when user changes
-  React.useEffect(() => {
-    setName(user.name || user.display_name || '');
-    setEmail(user.email || '');
-    setPhone(user.phone_number || '');
-    setAddress(user.address || '');
-    setBio(user.bio || '');
-    setAvatar(user.avatar || '');
-  }, [user]);
-
-  const handleSelectAvatar = (newAvatar: string) => {
-    setAvatar(newAvatar);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAvatarUpload = async (file: File) => {
-    try {
-      setIsLoading(true);
-      const avatarUrl = await uploadAvatar(file, user.id);
-      setAvatar(avatarUrl);
-      toast.success('Photo de profil téléchargée avec succès');
-    } catch (error) {
-      toast.error('Erreur lors du téléchargement de la photo');
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      
+      // Create a preview URL
+      const fileUrl = URL.createObjectURL(file);
+      setPreviewAvatar(fileUrl);
     }
   };
 
   const handleSave = async () => {
     try {
-      setIsLoading(true);
-      // Convert user to auth User type with email_verified field
-      const authUser = {
-        ...user,
-        email_verified: user.email_verified || false
-      };
+      setLoading(true);
       
-      const updatedUserData = {
-        name,
-        email,
-        phone_number: phone,
-        address,
-        bio,
-        avatar
-      };
+      // Prepare update data
+      const updateData: any = { ...profileData };
       
-      await updateProfile(updatedUserData);
+      // Handle avatar upload if selected
+      if (avatarFile) {
+        const avatarUrl = await uploadAvatar(avatarFile, user.id);
+        updateData.avatar = avatarUrl;
+      }
+      
+      // Update profile in database
+      await updateProfile(updateData);
+      
+      // Reset state
+      setEditing(false);
+      setAvatarFile(null);
+      setPreviewAvatar(null);
       toast.success('Profil mis à jour avec succès');
-      
-      // Call onUpdate if provided with the updated user object
-      if (onUpdate) {
-        const updatedUser: User = {
-          ...user,
-          name,
-          email,
-          phone_number: phone,
-          address,
-          bio,
-          avatar
-        };
-        onUpdate(updatedUser);
-      }
-      
-      setHasChanges(false);
     } catch (error) {
-      let errorMessage = 'Erreur lors de la mise à jour du profil';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      toast.error(errorMessage);
-      console.error(error);
+      console.error('Error updating profile:', error);
+      toast.error('Erreur lors de la mise à jour du profil');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // Reset to original values
-    setName(user.name || user.display_name || '');
-    setEmail(user.email || '');
-    setPhone(user.phone_number || '');
-    setAddress(user.address || '');
-    setBio(user.bio || '');
-    setAvatar(user.avatar || '');
-    setHasChanges(false);
+    // Reset form data
+    setProfileData({
+      name: user.name || user.display_name || '',
+      bio: user.bio || '',
+      phone_number: user.phone_number || '',
+      address: user.address || ''
+    });
+    setAvatarFile(null);
+    setPreviewAvatar(null);
+    setEditing(false);
   };
 
+  const avatarUrl = previewAvatar || user.avatar;
+  const displayName = user.name || user.display_name || user.email;
+
   return (
-    <Card className="shadow-card mb-6">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
-          <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <div className="relative">
+          <Avatar className="h-24 w-24">
+            <AvatarImage src={avatarUrl || ''} alt={displayName} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          
+          {editing && (
+            <>
+              <Button
+                size="icon"
+                variant="outline"
+                className="absolute bottom-0 right-0 rounded-full bg-background shadow-sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </>
+          )}
         </div>
-        {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Retour
-          </Button>
+        
+        <div className="flex flex-col items-center sm:items-start">
+          <h2 className="text-2xl font-bold">{displayName}</h2>
+          <p className="text-gray-500">{user.email}</p>
+          <p className="text-gray-500 capitalize">{user.role}</p>
+          
+          {!editing && (
+            <Button 
+              onClick={() => setEditing(true)} 
+              variant="outline" 
+              className="mt-2"
+              size="sm"
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Modifier le profil
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card className="p-4">
+        {editing ? (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Nom</Label>
+              <Input
+                id="name"
+                name="name"
+                value={profileData.name}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                value={profileData.bio}
+                onChange={handleInputChange}
+                rows={3}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="phone_number">Téléphone</Label>
+              <Input
+                id="phone_number"
+                name="phone_number"
+                value={profileData.phone_number}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="address">Adresse</Label>
+              <Input
+                id="address"
+                name="address"
+                value={profileData.address}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                onClick={handleCancel}
+                disabled={loading}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={loading}
+              >
+                {loading ? 'Enregistrement...' : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Enregistrer
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Bio</h3>
+              <p>{user.bio || 'Aucune biographie'}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Téléphone</h3>
+              <p>{user.phone_number || 'Non renseigné'}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Adresse</h3>
+              <p>{user.address || 'Non renseignée'}</p>
+            </div>
+          </div>
         )}
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          <AvatarSelector 
-            currentAvatar={avatar} 
-            onSelect={handleSelectAvatar} 
-            onUpload={handleAvatarUpload} 
-          />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="name">
-                Nom complet
-              </label>
-              <Input 
-                id="name" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="email">
-                Adresse e-mail
-              </label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="phone">
-              Téléphone
-            </label>
-            <Input 
-              id="phone" 
-              value={phone} 
-              onChange={(e) => setPhone(e.target.value)} 
-              placeholder="+216 XX XXX XXX"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="address">
-              Adresse
-            </label>
-            <Input 
-              id="address" 
-              value={address} 
-              onChange={(e) => setAddress(e.target.value)} 
-              placeholder="Votre adresse"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="bio">
-              Bio
-            </label>
-            <Textarea 
-              id="bio" 
-              rows={4}
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Parlez-nous de vous..."
-            />
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-end space-x-2">
-        <Button 
-          variant="outline" 
-          onClick={handleCancel}
-          disabled={isLoading || !hasChanges}
-        >
-          Annuler
-        </Button>
-        <Button 
-          className="bg-agri-green-500 hover:bg-agri-green-600"
-          onClick={handleSave}
-          disabled={isLoading || !hasChanges}
-        >
-          {isLoading ? 'Enregistrement...' : 'Enregistrer'}
-        </Button>
-      </CardFooter>
-    </Card>
+      </Card>
+    </div>
   );
 };
 
