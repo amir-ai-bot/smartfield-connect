@@ -1,149 +1,129 @@
 
-import React, { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { resetPassword } from '@/services/authService';
 import { ResetPasswordFormData } from '@/types/auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-type ResetPasswordFormProps = {
+// Create schema for form validation
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Password confirmation is required')
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+export interface ResetPasswordFormProps {
+  token?: string;
+  email?: string;
   onSuccess?: () => void;
-  onBackToLogin?: () => void;
-};
+}
 
-const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ 
-  onSuccess,
-  onBackToLogin
-}) => {
-  const { resetPassword } = useAuth();
-  const [searchParams] = useSearchParams();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const ResetPasswordForm = ({ token = '', email = '', onSuccess }: ResetPasswordFormProps) => {
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<ResetPasswordFormData>({
+  const form = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      token: searchParams.get('token') || '',
-      email: searchParams.get('email') || '',
-    }
+      token,
+      email,
+      password: '',
+      confirmPassword: ''
+    },
   });
 
   const onSubmit = async (data: ResetPasswordFormData) => {
-    if (data.password !== data.confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
-      return;
-    }
-    
-    setIsSubmitting(true);
+    setLoading(true);
     try {
-      await resetPassword(data.token, data.password);
-      toast.success('Mot de passe réinitialisé avec succès');
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      console.error('Reset password error:', error);
-      toast.error(error?.message || 'Erreur lors de la réinitialisation du mot de passe');
+      const result = await resetPassword(data);
+      if (result.error) {
+        toast.error(result.error.message);
+      } else {
+        toast.success('Password reset successfully. You can now login with your new password.');
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate('/');
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast.error('Failed to reset password. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="token">Code de réinitialisation</Label>
-        <Input
-          id="token"
-          type="text"
-          placeholder="Entrez le code reçu par email"
-          {...register('token', { required: 'Le code est requis' })}
-        />
-        {errors.token && (
-          <p className="text-destructive text-sm">{errors.token.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="votre@email.com"
-          {...register('email', { 
-            required: 'L\'email est requis',
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: 'Format d\'email invalide'
-            }
-          })}
-        />
-        {errors.email && (
-          <p className="text-destructive text-sm">{errors.email.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Nouveau mot de passe</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Nouveau mot de passe"
-          {...register('password', { 
-            required: 'Le mot de passe est requis',
-            minLength: { value: 6, message: '6 caractères minimum' }
-          })}
-        />
-        {errors.password && (
-          <p className="text-destructive text-sm">{errors.password.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-        <Input
-          id="confirmPassword"
-          type="password"
-          placeholder="Confirmer le mot de passe"
-          {...register('confirmPassword', { 
-            required: 'Veuillez confirmer le mot de passe',
-            validate: value => value === watch('password') || 'Les mots de passe ne correspondent pas'
-          })}
-        />
-        {errors.confirmPassword && (
-          <p className="text-destructive text-sm">{errors.confirmPassword.message}</p>
-        )}
-      </div>
-
-      <div className="pt-4 flex flex-col space-y-4">
-        <Button 
-          type="submit" 
-          disabled={isSubmitting} 
-          className="w-full"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Réinitialisation...
-            </>
-          ) : (
-            'Réinitialiser le mot de passe'
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="token"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Reset Token</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter your reset token" {...field} disabled={!!token} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
+        />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="Enter your email address" {...field} disabled={!!email} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>New Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Enter your new password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirm New Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Confirm your new password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Resetting Password...' : 'Reset Password'}
         </Button>
-        
-        <div className="text-center text-sm">
-          <span className="text-gray-500">Vous vous souvenez de votre mot de passe? </span>
-          <Button
-            type="button"
-            variant="link"
-            onClick={onBackToLogin}
-            className="p-0 h-auto font-normal"
-          >
-            Se connecter
-          </Button>
-        </div>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 };
 

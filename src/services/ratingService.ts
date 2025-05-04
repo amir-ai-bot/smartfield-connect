@@ -40,19 +40,44 @@ export const getSupplierById = async (id: string) => {
   }
 };
 
-// Get ratings by fournisseur ID using raw SQL since the table might not be in the types yet
+// Get ratings by fournisseur ID
 export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<Rating[]> => {
   try {
-    // Use raw SQL query instead of relying on the generated types
     const { data, error } = await supabase
-      .rpc('get_supplier_ratings', { supplier_id: fournisseurId });
+      .from('ratings')
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          display_name,
+          avatar
+        )
+      `)
+      .eq('fournisseur_id', fournisseurId)
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching ratings:', error);
       return [];
     }
 
-    return (data || []) as Rating[];
+    // Transform the data to match our Rating type
+    const formattedRatings: Rating[] = (data || []).map((item: any) => ({
+      id: item.id,
+      user_id: item.user_id,
+      fournisseur_id: item.fournisseur_id, 
+      rating: item.rating,
+      comment: item.comment,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      profiles: {
+        id: item.profiles?.id || item.user_id,
+        name: item.profiles?.display_name || 'Anonymous',
+        avatar: item.profiles?.avatar
+      }
+    }));
+
+    return formattedRatings;
   } catch (error) {
     console.error('Error fetching ratings:', error);
     toast.error('Error fetching ratings');
@@ -60,29 +85,34 @@ export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<
   }
 };
 
-// Get supplier ratings for the current user using raw SQL
+// Get supplier ratings for the current user
 export const getUserRatingForSupplier = async (userId: string, supplierId: string): Promise<Rating | null> => {
   try {
-    // Use raw SQL query instead of relying on the generated types
     const { data, error } = await supabase
-      .rpc('get_user_rating_for_supplier', { 
-        p_user_id: userId,
-        p_supplier_id: supplierId
-      });
+      .from('ratings')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('fournisseur_id', supplierId)
+      .limit(1)
+      .single();
 
     if (error) {
+      if (error.code === 'PGRST116') {
+        // No rating found
+        return null;
+      }
       console.error('Error fetching user rating:', error);
       return null;
     }
     
-    return data ? (data as Rating) : null;
+    return data as unknown as Rating;
   } catch (error) {
     console.error('Error fetching user rating:', error);
     return null;
   }
 };
 
-// Add rating for a supplier using raw SQL
+// Add rating for a supplier
 export const addRating = async (
   userId: string,
   supplierId: string,
@@ -90,14 +120,22 @@ export const addRating = async (
   comment?: string
 ): Promise<Rating | null> => {
   try {
-    // Use raw SQL function to handle both insert and update
+    // Insert or update rating
     const { data, error } = await supabase
-      .rpc('add_or_update_rating', { 
-        p_user_id: userId,
-        p_supplier_id: supplierId,
-        p_rating: rating,
-        p_comment: comment || ''
-      });
+      .from('ratings')
+      .upsert(
+        {
+          user_id: userId,
+          fournisseur_id: supplierId,
+          rating: rating,
+          comment: comment || null,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: 'user_id,fournisseur_id',
+          returning: 'representation'
+        }
+      );
         
     if (error) {
       console.error('Error adding/updating rating:', error);
@@ -107,17 +145,7 @@ export const addRating = async (
     toast.success('Rating submitted successfully');
     
     // Return the rating data
-    const newRatingData = {
-      id: data.id || '',
-      user_id: userId,
-      fournisseur_id: supplierId,
-      rating: rating,
-      comment: comment,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    return newRatingData as Rating;
+    return data?.[0] as unknown as Rating;
   } catch (error) {
     console.error('Error adding rating:', error);
     toast.error('Error adding rating');

@@ -88,7 +88,12 @@ const Admin = () => {
 
   const fetchProjects = async () => {
     const projectsData = await getAllProjects();
-    setProjects(projectsData);
+    // Ensure all required fields are present
+    const completeProjects = projectsData.map(project => ({
+      ...project,
+      owner_id: project.owner_id || project.user_id || '',
+    }));
+    setProjects(completeProjects);
   };
 
   const fetchPendingRequests = async () => {
@@ -103,17 +108,26 @@ const Admin = () => {
 
   const fetchAnalyticsData = async () => {
     const data = await getAnalyticsData();
-    // Convert to expected analytics format
+    // Convert to expected analytics format with defaults
     const adminAnalytics: AdminAnalytics = {
       userCount: data.userCount || 0,
       projectCount: data.projectCount || 0,
-      registrationsByMonth: {},
-      supplierCount: data.supplierCount,
-      activeProjects: data.activeProjects,
-      newUsersThisMonth: data.newUsersThisMonth,
-      messagesSentToday: data.messagesSentToday,
-      usersByRole: data.usersByRole,
-      projectsByStatus: data.projectsByStatus
+      registrationsByMonth: data.registrationsByMonth || {},
+      supplierCount: data.supplierCount || 0,
+      activeProjects: data.activeProjects || 0,
+      newUsersThisMonth: data.newUsersThisMonth || 0,
+      messagesSentToday: data.messagesSentToday || 0,
+      usersByRole: data.usersByRole || {
+        user: 0,
+        admin: 0,
+        fournisseur: 0,
+        pending_fournisseur: 0
+      },
+      projectsByStatus: data.projectsByStatus || {
+        active: 0,
+        completed: 0,
+        planning: 0
+      }
     };
     setAnalytics(adminAnalytics);
   };
@@ -135,21 +149,21 @@ const Admin = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const success = await deleteUser();
+    const success = await deleteUser(userId);
     if (success) {
       await fetchUsers();
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    const success = await deleteProject();
+    const success = await deleteProject(projectId);
     if (success) {
       await fetchProjects();
     }
   };
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
-    const success = await updateUserRole();
+    const success = await updateUserRole(userId, newRole);
     if (success) {
       await fetchUsers();
     }

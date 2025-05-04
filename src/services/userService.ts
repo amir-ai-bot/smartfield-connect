@@ -1,9 +1,41 @@
 
 import { User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { deleteAvatar } from './storageService';
 import { toast } from 'sonner';
 import { isImageUrlValid, getAvatarUrl } from '@/utils/imageUtils';
+
+// Delete avatar implementation
+export const deleteAvatar = async (url: string): Promise<boolean> => {
+  try {
+    if (!url || !url.includes('storage')) {
+      // Not a storage URL, probably a default avatar
+      return true;
+    }
+    
+    // Extract the path from the URL
+    const path = url.split('/').slice(-2).join('/');
+    const bucket = url.split('/').slice(-3, -2)[0];
+    
+    if (!path || !bucket) {
+      console.error('Invalid file URL format');
+      return false;
+    }
+    
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([path]);
+    
+    if (error) {
+      console.error('Error deleting avatar:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in deleteAvatar:', error);
+    return false;
+  }
+};
 
 // Function to fetch a user's profile
 export const fetchUserProfile = async (userId: string): Promise<User> => {
@@ -15,7 +47,7 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
       .single();
 
     if (error) {
-      console.error('Error fetching profile:', error.message);
+      console.error('Error fetching profile:', error);
       throw new Error(error.message);
     }
 
@@ -27,7 +59,7 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
     // Convert to our User type - we'll add email_verified later
     const user: User = {
       id: data.id,
-      name: data.name,
+      name: data.name || data.display_name,
       email: data.email,
       avatar: data.avatar,
       role: data.role as 'admin' | 'user' | 'fournisseur',
@@ -35,6 +67,16 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
       address: data.address,
       bio: data.bio,
       email_verified: false, // Default to false
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      preferences: data.preferences || {
+        language: 'fr',
+        notifications: {
+          email: true,
+          app: true
+        },
+        theme: 'light'
+      }
     };
 
     // Verify if the avatar URL is valid
