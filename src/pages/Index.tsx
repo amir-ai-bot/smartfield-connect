@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Hero from '@/components/landing/Hero';
 import Footer from '@/components/Footer';
-import AuthDialog from '@/components/auth/AuthDialog';
+import AuthDialog, { AuthView } from '@/components/auth/AuthDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -15,7 +15,7 @@ const Index: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [authDialogView, setAuthDialogView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email'>('login');
+  const [authDialogView, setAuthDialogView] = useState<AuthView>('login');
 
   const handleCreateProjectClick = () => {
     if (isAuthenticated) {
@@ -55,7 +55,7 @@ const Index: React.FC = () => {
       <AuthDialog 
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
-        initialView={authDialogView}
+        defaultTab={authDialogView}
       />
     </div>
   );

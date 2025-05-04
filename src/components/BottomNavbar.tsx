@@ -84,7 +84,7 @@ const BottomNavbar = () => {
       <AuthDialog 
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
-        initialView="login"
+        defaultTab="login"
       />
     </>
   );

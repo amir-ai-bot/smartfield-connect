@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Dialog, 
@@ -12,22 +13,22 @@ import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import VerifyEmailForm from '@/components/auth/VerifyEmailForm';
 import { useAuth } from '@/contexts/AuthContext';
-import Alert from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-type AuthDialogProps = {
+export type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
+
+export type AuthDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultTab?: "login" | "signup" | "forgot-password" | "reset-password" | "verify-email";
+  defaultTab?: AuthView;
 };
-
-type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
 
 export function AuthDialog({
   open,
   onOpenChange,
   defaultTab = "login",
 }: AuthDialogProps) {
-  const [tab, setTab] = useState<"login" | "signup" | "forgot-password" | "reset-password" | "verify-email">(defaultTab);
+  const [tab, setTab] = useState<AuthView>(defaultTab);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [email, setEmail] = useState("");
@@ -96,8 +97,8 @@ export function AuthDialog({
             </DialogHeader>
             <LoginForm
               onSuccess={handleSuccess}
-              onSignup={handleSignup}
-              onForgotPassword={handleForgotPassword}
+              onSwitchToSignup={handleSignup}
+              onSwitchToForgotPassword={handleForgotPassword}
             />
           </div>
         )}

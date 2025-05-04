@@ -1,18 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import { Card, CardContent } from '@/components/ui/card';
 import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
-import { Rating } from '@/types/auth';
-import RatingComponent from '@/components/RatingComponent';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Link } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSupplierConversation } from '@/services/conversationService';
-import { toast } from 'sonner';
+import { createConversation } from '@/services/conversationService';
 
 interface ExtendedRating extends Rating {
   profiles: {
@@ -85,7 +78,7 @@ const SupplierProfilePage = () => {
     }
 
     try {
-      const conversationId = await createSupplierConversation(user.id, id);
+      const conversationId = await createConversation(user.id, id);
       if (conversationId) {
         // Redirect to the conversation page
         window.location.href = `/messages/${conversationId}`;
@@ -100,6 +93,7 @@ const SupplierProfilePage = () => {
 
   return (
     <div className="container mx-auto mt-8 p-4">
+      <Navbar />
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <Avatar className="w-16 h-16 mr-4">
@@ -161,6 +155,7 @@ const SupplierProfilePage = () => {
           ))}
         </ScrollArea>
       </div>
+      <Footer />
     </div>
   );
 };

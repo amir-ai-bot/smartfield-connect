@@ -30,7 +30,7 @@ const ProtectedRoute = () => {
           <AuthDialog
             open={true}
             onOpenChange={setShowAuthDialog}
-            initialView="login"
+            defaultTab="login"
           />
         </>
       );

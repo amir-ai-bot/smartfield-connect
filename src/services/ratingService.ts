@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Rating } from '@/types/auth';
 
@@ -19,6 +20,60 @@ export const getSupplierRatings = async (supplierId: string): Promise<Rating[]> 
   } catch (error) {
     console.error('Error in getSupplierRatings:', error);
     return [];
+  }
+};
+
+/**
+ * Get supplier by ID
+ */
+export const getSupplierById = async (supplierId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('id', supplierId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching supplier:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getSupplierById:', error);
+    return null;
+  }
+};
+
+/**
+ * Get ratings for a supplier by ID
+ */
+export const getRatingsByFournisseurId = async (supplierId: string): Promise<Rating[]> => {
+  return getSupplierRatings(supplierId);
+};
+
+/**
+ * Rate a supplier
+ */
+export const rateFournisseur = async (
+  userId: string, 
+  supplierId: string, 
+  rating: number, 
+  comment?: string
+): Promise<boolean> => {
+  try {
+    const { data, error } = await addRating(userId, supplierId, rating, comment);
+    
+    if (error) {
+      console.error('Error rating supplier:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in rateFournisseur:', error);
+    return false;
   }
 };
 

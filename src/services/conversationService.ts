@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Types for conversation data
@@ -25,7 +26,9 @@ export interface ParticipantProfile {
   avatar?: string;
 }
 
-// Get all conversations for a user
+/**
+ * Get all conversations for a user
+ */
 export const getUserConversations = async (userId: string) => {
   try {
     // First get all conversations where user is participant1 or participant2
@@ -57,7 +60,8 @@ export const getUserConversations = async (userId: string) => {
             avatar: undefined
           },
           lastMessageAt: conv.last_message_at || conv.created_at,
-          createdAt: conv.created_at
+          createdAt: conv.created_at,
+          userId
         };
       }
       
@@ -69,7 +73,8 @@ export const getUserConversations = async (userId: string) => {
           avatar: profileData.avatar
         },
         lastMessageAt: conv.last_message_at || conv.created_at,
-        createdAt: conv.created_at
+        createdAt: conv.created_at,
+        userId
       };
     }));
     
@@ -83,7 +88,9 @@ export const getUserConversations = async (userId: string) => {
   }
 };
 
-// Get a single conversation by ID
+/**
+ * Get a single conversation by ID
+ */
 export const getConversation = async (conversationId: string, userId: string) => {
   try {
     // Get conversation details
@@ -124,7 +131,7 @@ export const getConversation = async (conversationId: string, userId: string) =>
       },
       lastMessageAt: conversationData.last_message_at,
       createdAt: conversationData.created_at,
-      userId // Include the current user ID for reference
+      userId
     };
   } catch (error) {
     console.error('Error fetching conversation:', error);
@@ -132,7 +139,9 @@ export const getConversation = async (conversationId: string, userId: string) =>
   }
 };
 
-// Create a new conversation or return existing one between two users
+/**
+ * Create a new conversation or return existing one between two users
+ */
 export const createConversation = async (userId: string, otherUserId: string) => {
   try {
     // Check if conversation already exists
@@ -167,7 +176,12 @@ export const createConversation = async (userId: string, otherUserId: string) =>
   }
 };
 
-// Get messages for a conversation
+// Alias for compatibility
+export const createSupplierConversation = createConversation;
+
+/**
+ * Get messages for a conversation
+ */
 export const getConversationMessages = async (conversationId: string) => {
   try {
     const { data, error } = await supabase
@@ -178,14 +192,22 @@ export const getConversationMessages = async (conversationId: string) => {
     
     if (error) throw error;
     
-    return data || [];
+    // Massage the data to ensure all messages have conversation_id
+    const messagesWithConversationId = (data || []).map(msg => ({
+      ...msg,
+      conversation_id: conversationId
+    }));
+    
+    return messagesWithConversationId;
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
   }
 };
 
-// Send a message
+/**
+ * Send a message
+ */
 export const sendMessage = async (conversationId: string, senderId: string, receiverId: string, content: string) => {
   try {
     // Insert the message
@@ -217,13 +239,18 @@ export const sendMessage = async (conversationId: string, senderId: string, rece
   }
 };
 
-// Mark all messages in a conversation as read for a specific user
+/**
+ * Mark all messages in a conversation as read for a specific user
+ */
 export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase.rpc('mark_messages_as_read', {
-      p_conversation_id: conversationId,
-      p_user_id: userId
-    });
+    // Update messages directly since RPC isn't available or defined
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .eq('receiver_id', userId)
+      .is('read', null);
     
     if (error) {
       console.error('Error marking messages as read:', error);
@@ -237,15 +264,31 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
   }
 };
 
-// Get favorite suppliers for a user
+/**
+ * Get favorite suppliers for a user
+ */
 export const getFavoriteSuppliers = async (userId: string) => {
   try {
+    // Direct query to favorite_suppliers table
     const { data, error } = await supabase
-      .rpc('get_favorite_suppliers', { p_user_id: userId });
+      .from('favorite_suppliers')
+      .select('supplier_id')
+      .eq('user_id', userId);
     
     if (error) throw error;
     
-    return data || [];
+    // Get supplier details for each favorite
+    const supplierIds = data.map(item => item.supplier_id);
+    if (supplierIds.length === 0) return [];
+    
+    const { data: suppliersData, error: suppliersError } = await supabase
+      .from('suppliers')
+      .select('*')
+      .in('id', supplierIds);
+    
+    if (suppliersError) throw suppliersError;
+    
+    return suppliersData || [];
   } catch (error) {
     console.error('Error fetching favorite suppliers:', error);
     return [];
@@ -299,16 +342,14 @@ export const isFournisseurFavorite = async (userId: string, supplierId: string):
       .from('favorite_suppliers')
       .select()
       .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
-      .single();
+      .eq('supplier_id', supplierId);
     
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 is the error code for "no rows returned"
+    if (error) {
       console.error('Error checking if supplier is favorite:', error);
-      throw error;
+      return false;
     }
     
-    return !!data;
+    return data && data.length > 0;
   } catch (error) {
     console.error('Error checking if supplier is favorite:', error);
     return false;

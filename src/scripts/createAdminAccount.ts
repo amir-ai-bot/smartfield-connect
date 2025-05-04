@@ -40,4 +40,5 @@ async function createAdminAccount() {
   }
 }
 
+// Execute the function
 createAdminAccount();

@@ -58,151 +58,167 @@ const SupplierCardEnhanced: React.FC<SupplierCardProps> = ({ supplier, onFavorit
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkFavoriteStatus();
-  }, [user, supplier]);
-
-  const checkFavoriteStatus = async () => {
-    if (user && supplier.user_id) {
-      try {
-        const isFavorite = await isFournisseurFavorite(user.id, supplier.user_id);
-        setFavorite(isFavorite);
-      } catch (error) {
-        console.error('Error checking favorite status:', error);
-      }
-    }
-  };
-
-  const handleToggleFavorite = async () => {
-    if (!user) {
-      toast.error('Veuillez vous connecter pour ajouter aux favoris');
-      return;
-    }
-
-    if (!supplier.user_id) {
-      toast.error('Information fournisseur incomplète');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const result = await toggleFavoriteFournisseur(user.id, supplier.user_id);
-      
-      // Handle different result types safely
-      if (result === false) {
-        toast.error('Erreur lors de la mise à jour des favoris');
-      } else {
-        // Check if result is an object with isFavorite property
-        if (typeof result === 'object' && result !== null && 'isFavorite' in result) {
-          setFavorite(result.isFavorite);
-          toast.success(result.isFavorite ? 'Ajouté aux favoris' : 'Retiré des favoris');
-        } else {
-          // Handle boolean result (legacy support)
-          const boolResult = Boolean(result);
-          setFavorite(boolResult);
-          toast.success(boolResult ? 'Ajouté aux favoris' : 'Retiré des favoris');
+    const checkIfFavorite = async () => {
+      if (isAuthenticated && user && supplier.id) {
+        try {
+          const isFavorite = await isFournisseurFavorite(user.id, supplier.id);
+          setFavorite(isFavorite);
+        } catch (error) {
+          console.error('Error checking favorite status:', error);
         }
       }
+    };
+    
+    checkIfFavorite();
+  }, [user, supplier.id, isAuthenticated]);
+
+  const handleFavoriteToggle = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vous devez être connecté pour ajouter aux favoris');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const result = await toggleFavoriteFournisseur(user!.id, supplier.id);
+      setFavorite(result.isFavorite);
       
       if (onFavoriteToggle) {
         onFavoriteToggle();
       }
+      
+      toast.success(
+        result.isFavorite
+          ? 'Ajouté aux favoris'
+          : 'Retiré des favoris'
+      );
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      toast.error('Erreur lors de la modification des favoris');
+      toast.error('Une erreur s\'est produite');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleContact = () => {
-    if (!user) {
-      toast.error('Veuillez vous connecter pour contacter le fournisseur');
+  const handleContactClick = () => {
+    if (!isAuthenticated) {
+      toast.error('Vous devez être connecté pour contacter un fournisseur');
       return;
     }
-    navigate(`/supplier/${supplier.id}`);
+    
+    if (!supplier.user_id) {
+      toast.error('Ce fournisseur n\'est pas disponible pour la messagerie');
+      return;
+    }
+    
+    // Navigate to create conversation page
+    navigate(`/conversations/create/${supplier.user_id}`);
   };
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <CardHeader className="pb-0">
+    <Card className="h-full flex flex-col transition-shadow hover:shadow-md">
+      <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={supplier.avatar || ''} alt={supplier.name} />
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={supplier.avatar} alt={supplier.name} />
               <AvatarFallback>{supplier.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
               <h3 className="font-semibold text-lg">{supplier.name}</h3>
-              {supplier.category && (
-                <Badge variant="outline" className="bg-gray-100">
-                  {supplier.category}
-                </Badge>
-              )}
+              <StarRating rating={supplier.rating} />
             </div>
           </div>
-          {isAuthenticated && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleFavorite}
-              disabled={loading}
-              className={favorite ? "text-red-500" : ""}
-            >
-              <Heart className={`h-5 w-5 ${favorite ? "fill-red-500" : ""}`} />
-            </Button>
-          )}
+          
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleFavoriteToggle}
+            disabled={loading}
+            className={
+              favorite
+                ? "text-red-500 hover:text-red-600 hover:bg-red-50"
+                : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+            }
+          >
+            <Heart
+              className={
+                favorite ? "fill-current" : "fill-none"
+              }
+            />
+          </Button>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
-          <StarRating rating={supplier.rating} />
+      
+      <CardContent className="flex-grow">
+        <div className="space-y-2">
+          {supplier.category && (
+            <Badge variant="outline" className="bg-agri-green-50">
+              {supplier.category}
+            </Badge>
+          )}
           
           {supplier.location && (
-            <div className="flex items-center text-sm text-gray-500">
-              <MapPin className="h-4 w-4 mr-2" />
-              <span>{supplier.location}</span>
+            <div className="flex items-center mt-2 text-sm text-gray-500">
+              <MapPin className="w-4 h-4 mr-1" />
+              {supplier.location}
             </div>
           )}
           
           {supplier.phone && (
             <div className="flex items-center text-sm text-gray-500">
-              <Phone className="h-4 w-4 mr-2" />
-              <span>{supplier.phone}</span>
+              <Phone className="w-4 h-4 mr-1" />
+              {supplier.phone}
             </div>
           )}
           
           {supplier.email && (
             <div className="flex items-center text-sm text-gray-500">
-              <Mail className="h-4 w-4 mr-2" />
+              <Mail className="w-4 h-4 mr-1" />
               <span className="truncate">{supplier.email}</span>
             </div>
           )}
           
           {supplier.products && supplier.products.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-sm text-gray-500">Produits:</p>
+            <div className="mt-3">
+              <p className="text-xs text-gray-500 mb-1">Produits:</p>
               <div className="flex flex-wrap gap-1">
-                {supplier.products.map((product, index) => (
-                  <Badge key={index} variant="secondary">
+                {supplier.products.slice(0, 3).map((product, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">
                     {product}
                   </Badge>
                 ))}
+                {supplier.products.length > 3 && (
+                  <Badge variant="secondary" className="text-xs">
+                    +{supplier.products.length - 3}
+                  </Badge>
+                )}
               </div>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex gap-2">
-        <Button 
-          className="w-full" 
-          onClick={handleContact}
-          variant="default"
+      
+      <CardFooter className="flex gap-2 pt-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={handleContactClick}
         >
           Contacter
         </Button>
-        <Link to={`/supplier/${supplier.id}`} className="w-full">
-          <Button variant="outline" className="w-full">
-            Voir le profil
+        
+        <Link 
+          to={`/suppliers/${supplier.id}`}
+          className="flex-1"
+        >
+          <Button
+            variant="default"
+            size="sm"
+            className="w-full bg-agri-green-500 hover:bg-agri-green-600"
+          >
+            Voir profil
           </Button>
         </Link>
       </CardFooter>

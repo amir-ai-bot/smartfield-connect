@@ -5,7 +5,7 @@ export interface User {
   email: string;
   email_verified?: boolean;
   display_name?: string;
-  name?: string; // Add name property
+  name?: string;
   avatar?: string;
   role?: string;
   created_at?: string;
@@ -45,7 +45,7 @@ export interface SignupFormData {
   password: string;
   confirm_password: string;
   name?: string;
-  phone_number?: string; // Add phone_number
+  phone_number?: string;
 }
 
 export interface ResetPasswordFormData {
@@ -62,31 +62,30 @@ export interface ForgotPasswordFormData {
 export interface VerifyEmailFormData {
   email: string;
   token: string;
-  code?: string; // Add code property
 }
 
 // Project types
 export interface ProjectData {
   id: string;
   title: string;
-  name?: string; // Add name property for compatibility
+  name?: string;
   description?: string;
   image?: string;
   crop?: string;
-  crop_type?: string; // Add for compatibility
+  crop_type?: string;
   location?: string;
   startDate?: string;
-  start_date?: string; // Add for compatibility
+  start_date?: string;
   endDate?: string;
-  end_date?: string; // Add for compatibility
+  end_date?: string;
   progress?: number;
   status: 'planning' | 'active' | 'completed';
   owner_id?: string;
-  user_id?: string; // For backward compatibility
+  user_id?: string;
   created_at?: string;
   updated_at?: string;
   is_public?: boolean;
-  isPublic?: boolean; // For compatibility
+  isPublic?: boolean;
   // Added extra fields for compatibility with APIs
   creator_name?: string;
   creator_email?: string;

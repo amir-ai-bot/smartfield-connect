@@ -1,140 +1,182 @@
 
-import { useState } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { addFournisseur } from '@/services/adminService';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { createFournisseurRequest } from '@/services/fournisseurService';
 
-const formSchema = z.object({
-  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
-  category: z.string().min(2, 'La catégorie doit contenir au moins 2 caractères'),
-  location: z.string().min(2, 'L\'emplacement doit contenir au moins 2 caractères'),
-  phone: z.string().min(8, 'Le numéro de téléphone doit être valide'),
-});
-
+// Define your form props
 interface AddFournisseurFormProps {
-  userId: string;
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  trigger?: React.ReactNode;
 }
 
-const AddFournisseurForm = ({ userId, onSuccess }: AddFournisseurFormProps) => {
-  const [loading, setLoading] = useState(false);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      category: '',
-      location: '',
-      phone: '',
-    },
+const AddFournisseurForm = ({
+  onSuccess,
+  trigger = <Button>Devenir fournisseur</Button>,
+}: AddFournisseurFormProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    location: '',
+    phone: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!userId) {
-      toast.error('ID utilisateur manquant');
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: 'Erreur',
+        description: 'Vous devez être connecté pour soumettre cette demande',
+        variant: 'destructive',
+      });
       return;
     }
-
-    setLoading(true);
+    
     try {
-      // Include userId in the data sent to the addFournisseur function
-      const success = await addFournisseur({
-        ...values,
-        userId
-      });
-
-      if (success) {
-        toast.success('Fournisseur ajouté avec succès');
-        form.reset();
-        onSuccess();
-      } else {
-        toast.error('Erreur lors de l\'ajout du fournisseur');
+      setIsLoading(true);
+      
+      const requestData = {
+        name: formData.name,
+        category: formData.category,
+        location: formData.location,
+        phone: formData.phone,
+        userId: user.id
+      };
+      
+      const result = await createFournisseurRequest(requestData);
+      
+      if (result) {
+        toast({
+          title: 'Demande envoyée',
+          description: 'Votre demande de devenir fournisseur a été envoyée avec succès',
+        });
+        
+        setOpen(false);
+        setFormData({
+          name: '',
+          category: '',
+          location: '',
+          phone: '',
+        });
+        
+        if (onSuccess) {
+          onSuccess();
+        }
       }
     } catch (error) {
-      console.error('Error in AddFournisseurForm:', error);
-      toast.error('Une erreur est survenue');
+      console.error('Error submitting form:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de l\'envoi de votre demande',
+        variant: 'destructive',
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nom</FormLabel>
-              <FormControl>
-                <Input placeholder="Nom du fournisseur" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Catégorie</FormLabel>
-              <FormControl>
-                <Input placeholder="Catégorie de produits" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Emplacement</FormLabel>
-              <FormControl>
-                <Input placeholder="Ville, Région" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Téléphone</FormLabel>
-              <FormControl>
-                <Input placeholder="+216 XX XXX XXX" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <Button type="submit" disabled={loading}>
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Ajout en cours...
-            </>
-          ) : (
-            'Ajouter le fournisseur'
-          )}
-        </Button>
-      </form>
-    </Form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Devenir fournisseur</DialogTitle>
+          <DialogDescription>
+            Remplissez ce formulaire pour soumettre votre demande de devenir fournisseur.
+            Notre équipe examinera votre demande dans les plus brefs délais.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nom
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">
+                Catégorie
+              </Label>
+              <Input
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="col-span-3"
+                placeholder="ex: Semences, Outils, etc."
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="location" className="text-right">
+                Emplacement
+              </Label>
+              <Input
+                id="location"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                className="col-span-3"
+                placeholder="ex: Tunis, Sfax, etc."
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phone" className="text-right">
+                Téléphone
+              </Label>
+              <Input
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="col-span-3"
+                placeholder="+216 XX XXX XXX"
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Envoi en cours...' : 'Envoyer la demande'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

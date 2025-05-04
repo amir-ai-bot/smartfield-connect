@@ -1,17 +1,15 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ResetPasswordFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 type ForgotPasswordFormProps = {
-  onSuccess?: () => void;
+  onSuccess?: (email: string) => void;
   onBackToLogin?: () => void;
 };
 
@@ -22,15 +20,15 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   const { requestPasswordReset } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<ResetPasswordFormData>();
+  const { register, handleSubmit, formState: { errors } } = useForm<{ email: string }>();
 
-  const onSubmit = async (data: ResetPasswordFormData) => {
+  const onSubmit = async (data: { email: string }) => {
     try {
       setIsLoading(true);
       console.log('Requesting password reset for email:', data.email);
       await requestPasswordReset(data.email);
       toast.success(t('resetCodeSent'));
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(data.email);
     } catch (error) {
       console.error('Password reset request error:', error);
       toast.error(t('resetCodeError'));

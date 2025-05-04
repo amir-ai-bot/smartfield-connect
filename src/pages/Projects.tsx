@@ -1,124 +1,133 @@
-
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { getProjects, getPublicProjects } from '@/services/projectService';
-import ProjectCard from '@/components/Projects/ProjectCard';
+import React, { useEffect, useState } from 'react';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import { ProjectCard } from '@/components/projects/ProjectCard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus } from 'lucide-react';
-import ProjectFormDialog from '@/components/ProjectFormDialog';
+import { useNavigate } from 'react-router-dom';
 import { ProjectData } from '@/types/auth';
+import { getUserProjects } from '@/services/projectService';
+import { useAuth } from '@/contexts/AuthContext';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
-const Projects = () => {
-  const location = useLocation();
-  const { user } = useAuth();
+const Projects: React.FC = () => {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPublicView, setIsPublicView] = useState(location.pathname === '/public-projects');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    setIsPublicView(location.pathname === '/public-projects');
-    loadProjects();
-  }, [location, user]);
+    document.title = 'Projets | AgriSmart';
+    fetchProjects();
+  }, []);
 
-  const loadProjects = async () => {
-    setLoading(true);
+  const fetchProjects = async () => {
     try {
-      let projectsData: ProjectData[] = [];
-
-      if (isPublicView) {
-        projectsData = await getPublicProjects();
-      } else if (user) {
-        projectsData = await getProjects(user.id);
-      }
-
-      setProjects(projectsData);
+      setLoading(true);
+      if (!user) return;
+      
+      const fetchedProjects = await getUserProjects(user.id);
+      
+      // Ensure that all projects have a valid status value
+      const projectsWithValidStatus = fetchedProjects.map(project => ({
+        ...project,
+        status: (project.status as any === 'planning' || 
+                 project.status as any === 'active' || 
+                 project.status as any === 'completed') 
+                ? project.status 
+                : 'planning' as 'planning' | 'active' | 'completed'
+      }));
+      
+      setProjects(projectsWithValidStatus);
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error('Error fetching projects:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProjectCreated = (newProject: ProjectData) => {
-    setProjects([newProject, ...projects]);
-    setIsFormOpen(false);
-  };
-
-  const handleProjectDeleted = (projectId: string) => {
-    setProjects(projects.filter(p => p.id !== projectId));
+  const navigateToCreateProject = () => {
+    navigate('/projects/create');
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6">
-          {isPublicView ? 'Projets Publics' : 'Mes Projets'}
-        </h1>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-        </div>
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          {isPublicView ? 'Projets Publics' : 'Mes Projets'}
-        </h1>
-        
-        {!isPublicView && user && (
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau Projet
-          </Button>
-        )}
-      </div>
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50 pt-24 pb-10">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Vos Projets</h1>
+            <Button onClick={navigateToCreateProject}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nouveau Projet
+            </Button>
+          </div>
 
-      {projects.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-8 text-center shadow-sm">
-          {isPublicView ? (
-            <>
-              <h2 className="text-xl font-semibold mb-2">Aucun projet public disponible</h2>
-              <p className="text-gray-600">
-                Les projets partagés par la communauté seront affichés ici.
-              </p>
-            </>
+          {projects.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">Vous n'avez pas encore de projets. Créez-en un pour commencer!</p>
+            </div>
           ) : (
-            <>
-              <h2 className="text-xl font-semibold mb-2">Vous n'avez pas encore de projets</h2>
-              <p className="text-gray-600 mb-6">
-                Créez votre premier projet pour commencer.
-              </p>
-              <Button onClick={() => setIsFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Créer un projet
-              </Button>
-            </>
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="all">Tous</TabsTrigger>
+                <TabsTrigger value="active">Actifs</TabsTrigger>
+                <TabsTrigger value="completed">Terminés</TabsTrigger>
+                <TabsTrigger value="planning">Planification</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="all">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects.map((project) => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="active">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects
+                    .filter((project) => project.status === 'active')
+                    .map((project) => (
+                      <ProjectCard key={project.id} project={project} />
+                    ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="completed">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects
+                    .filter((project) => project.status === 'completed')
+                    .map((project) => (
+                      <ProjectCard key={project.id} project={project} />
+                    ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="planning">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects
+                    .filter((project) => project.status === 'planning')
+                    .map((project) => (
+                      <ProjectCard key={project.id} project={project} />
+                    ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              isOwner={!isPublicView && user?.id === project.owner_id}
-              onDeleted={handleProjectDeleted}
-            />
-          ))}
-        </div>
-      )}
-
-      <ProjectFormDialog
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onProjectCreated={handleProjectCreated}
-      />
-    </div>
+      </div>
+      <Footer />
+    </>
   );
 };
 

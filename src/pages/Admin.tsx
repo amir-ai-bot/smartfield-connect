@@ -1,224 +1,179 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllUsers, getAllProjects, getPendingFournisseurRequests, getVerificationCodes } from '@/services/adminService';
-import { getAnalyticsData } from '@/services/adminService';
-import { updateUserRole } from '@/services/adminService';
-import { deleteUser } from '@/services/adminService';
-import { deleteProject } from '@/services/adminService';
-import { approveFournisseurRequest } from '@/services/adminService';
-import { rejectFournisseurRequest } from '@/services/adminService';
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { User, ProjectData } from "@/types/auth";
+import { UserList } from "@/components/admin/UserList";
+import { ProjectList } from "@/components/admin/ProjectList";
+import { AdminStats } from "@/components/admin/AdminStats";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
+import { getAllUsers, getAllProjects, getAdminStats } from "@/services/adminService";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { DataTable } from "@/components/ui/data-table";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
-import { User, ProjectData } from '@/types/auth';
+// Mock data for charts
+const userRegistrationData = [
+  { month: 'Jan', count: 4 },
+  { month: 'Feb', count: 7 },
+  { month: 'Mar', count: 5 },
+  { month: 'Apr', count: 10 },
+  { month: 'May', count: 12 },
+  { month: 'Jun', count: 8 },
+];
 
-// Define missing types
-interface VerificationCode {
-  id: string;
-  user_id: string;
-  email: string;
-  code: string;
-  type: string;
-  created_at: string;
-  expires_at: string;
-  used: boolean;
-}
-
-interface AdminAnalytics {
-  userCount: number;
-  projectCount: number;
-  supplierCount?: number;
-  activeProjects?: number;
-  newUsersThisMonth?: number;
-  messagesSentToday?: number;
-  usersByRole?: {
-    user: number;
-    admin: number;
-    fournisseur: number;
-    pending_fournisseur: number;
-  };
-  projectsByStatus?: {
-    active: number;
-    completed: number;
-    planning: number;
-  };
-}
+const projectCreationData = [
+  { month: 'Jan', count: 2 },
+  { month: 'Feb', count: 4 },
+  { month: 'Mar', count: 3 },
+  { month: 'Apr', count: 5 },
+  { month: 'May', count: 8 },
+  { month: 'Jun', count: 6 },
+];
 
 const Admin = () => {
-  const [tab, setTab] = useState("dashboard");
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<User[]>([]);
-  const [verificationCodes, setVerificationCodes] = useState<VerificationCode[]>([]);
-  const [analytics, setAnalytics] = useState<AdminAnalytics>({
-    userCount: 0,
-    projectCount: 0,
-    usersByRole: {
-      user: 0,
-      admin: 0,
-      fournisseur: 0,
-      pending_fournisseur: 0
-    },
-    projectsByStatus: {
-      active: 0,
-      completed: 0,
-      planning: 0
-    }
-  });
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      await fetchUsers();
-      await fetchProjects();
-      await fetchPendingRequests();
-      await fetchVerificationCodes();
-      await fetchAnalyticsData();
-    };
+    document.title = 'Admin Dashboard | AgriSmart';
+    if (!authLoading && isAdmin()) {
+      fetchData();
+    }
+  }, [authLoading, isAdmin]);
 
-    fetchDashboardData();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchData = async () => {
+    setIsLoading(true);
     try {
-      const usersData = await getAllUsers();
-      // Add email_verified property to each user
+      const [usersData, projectsData, statsData] = await Promise.all([
+        getAllUsers(),
+        getAllProjects(),
+        getAdminStats()
+      ]);
+
       const usersWithVerification = usersData.map(user => ({
         ...user,
-        email_verified: true, // Default to true since we can't access auth.users
-        name: user.display_name || '' // Ensure name is set for compatibility
+        email_verified: !!user.email_verified
       }));
+      
       setUsers(usersWithVerification);
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const projectsData = await getAllProjects();
-      // Map received data to ProjectData format
-      const formattedProjects: ProjectData[] = projectsData.map(project => ({
-        id: project.id,
-        title: project.name || '',
-        name: project.name || '',
-        description: project.description || '',
-        status: project.status as 'planning' | 'active' | 'completed',
-        owner_id: project.owner_id || '',
-        user_id: project.owner_id || '', // Map owner_id to user_id for compatibility
-        created_at: project.created_at || '',
-        updated_at: project.updated_at || '',
-        image: project.image || '',
-        crop: project.crop_type || '',
-        location: project.location || '',
-        progress: project.progress || 0
-      }));
-      setProjects(formattedProjects);
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
-    }
-  };
-
-  const fetchPendingRequests = async () => {
-    try {
-      const requests = await getPendingFournisseurRequests();
-      // Add required fields for User type
-      const formattedRequests = requests.map(user => ({
-        ...user,
-        email_verified: true, // Default to true since we can't access auth.users
-        name: user.display_name || '' // Ensure name is set for compatibility
-      }));
-      setPendingRequests(formattedRequests);
-    } catch (error) {
-      console.error('Failed to fetch pending requests:', error);
-    }
-  };
-
-  const fetchVerificationCodes = async () => {
-    try {
-      const codes = await getVerificationCodes();
-      setVerificationCodes(codes as unknown as VerificationCode[]);
-    } catch (error) {
-      console.error('Failed to fetch verification codes:', error);
-    }
-  };
-
-  const fetchAnalyticsData = async () => {
-    try {
-      const data = await getAnalyticsData();
-      // Fill in any missing properties with defaults
-      setAnalytics({
-        userCount: data.userCount || 0,
-        projectCount: data.projectCount || 0,
-        supplierCount: data.supplierCount || 0,
-        activeProjects: data.activeProjects || 0,
-        newUsersThisMonth: data.newUsersThisMonth || 0,
-        messagesSentToday: data.messagesSentToday || 0,
-        usersByRole: data.usersByRole || {
-          user: 0,
-          admin: 0,
-          fournisseur: 0,
-          pending_fournisseur: 0
-        },
-        projectsByStatus: data.projectsByStatus || {
-          active: 0,
-          completed: 0,
-          planning: 0
-        }
+      
+      // Map project names and handle data cleanup
+      const processedProjects = projectsData.map(project => {
+        return {
+          ...project,
+          title: project.title || project.name,
+          name: project.name || project.title,
+          status: (project.status === 'planning' || 
+                  project.status === 'active' || 
+                  project.status === 'completed') 
+                 ? project.status 
+                 : 'planning' as 'planning' | 'active' | 'completed'
+        };
       });
+      
+      setProjects(processedProjects);
+      setStats(statsData);
     } catch (error) {
-      console.error('Failed to fetch analytics data:', error);
+      console.error('Error fetching admin data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleApproveRequest = async (userId: string) => {
-    try {
-      await approveFournisseurRequest(userId);
-      await fetchPendingRequests();
-      await fetchUsers();
-    } catch (error) {
-      console.error('Failed to approve request:', error);
-    }
-  };
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
-  const handleRejectRequest = async (userId: string) => {
-    try {
-      await rejectFournisseurRequest(userId);
-      await fetchPendingRequests();
-      await fetchUsers();
-    } catch (error) {
-      console.error('Failed to reject request:', error);
-    }
-  };
+  if (!isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await deleteUser(userId);
-      await fetchUsers();
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-    }
-  };
-
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      await deleteProject(projectId);
-      await fetchProjects();
-    } catch (error) {
-      console.error('Failed to delete project:', error);
-    }
-  };
-
-  const handleUpdateRole = async (userId: string, newRole: string) => {
-    try {
-      await updateUserRole(userId, newRole);
-      await fetchUsers();
-    } catch (error) {
-      console.error('Failed to update role:', error);
-    }
-  };
+  if (isLoading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex justify-center items-center">
+          <LoadingSpinner />
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
-    <div>Admin Dashboard</div>
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-gray-50 pt-24 pb-10">
+        <div className="container mx-auto px-4">
+          <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+
+          <AdminStats stats={stats} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 mb-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <h2 className="text-lg font-semibold">Nouvelles inscriptions</h2>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={userRegistrationData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="#22c55e" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <h2 className="text-lg font-semibold">Nouveaux projets</h2>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={projectCreationData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Tabs defaultValue="users" className="mt-6">
+            <TabsList className="mb-4">
+              <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+              <TabsTrigger value="projects">Projets</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="users">
+              <UserList users={users} onRefresh={fetchData} />
+            </TabsContent>
+
+            <TabsContent value="projects">
+              <ProjectList projects={projects} onRefresh={fetchData} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+      <Footer />
+    </>
   );
 };
 

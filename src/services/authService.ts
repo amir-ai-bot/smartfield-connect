@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { User, UserRole, AuthResponse, UserPreferences } from '@/types/auth';
+import { User, UserRole, AuthResponse, UserPreferences, ResetPasswordFormData } from '@/types/auth';
 import { toast } from 'sonner';
 
 // Map profile data to User type
@@ -68,14 +68,14 @@ export const signUp = async (
 
     if (data.user) {
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
-      return { user: null, error: null }; // Return null user until email verification
+      return { user: null, session: data.session, error: null }; // Return null user until email verification
     } else {
-      return { user: null, error: new Error('Erreur lors de l\'inscription') };
+      return { user: null, session: null, error: new Error('Erreur lors de l\'inscription') };
     }
   } catch (error) {
     console.error('Signup error:', error);
     toast.error(`Erreur d'inscription: ${error.message}`);
-    return { user: null, error };
+    return { user: null, session: null, error };
   }
 };
 
@@ -103,14 +103,33 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
 
       const userData = mapProfileToUser(profileData || {}, data.user);
       toast.success(`Bienvenue, ${userData.name || email}!`);
-      return { user: userData, error: null };
+      return { user: userData, session: data.session, error: null };
     } else {
-      return { user: null, error: new Error('Erreur lors de la connexion') };
+      return { user: null, session: null, error: new Error('Erreur lors de la connexion') };
     }
   } catch (error) {
     console.error('Sign in error:', error);
     toast.error(`Erreur de connexion: ${error.message}`);
-    return { user: null, error };
+    return { user: null, session: null, error };
+  }
+};
+
+// Reset password
+export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
+  try {
+    const { token, email, password } = data;
+    
+    // Use the token to reset the password
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password?token=${token}`,
+    });
+    
+    if (error) throw error;
+    
+    return { error: null };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return { error };
   }
 };
 
@@ -231,26 +250,5 @@ export const updateUserProfile = async (
     console.error('Update profile error:', error);
     toast.error(`Erreur de mise à jour du profil: ${error.message}`);
     return null;
-  }
-};
-
-/**
- * Reset password
- */
-export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
-  try {
-    const { token, email, password } = data;
-    
-    // Use the token to reset the password
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password?token=${token}`,
-    });
-    
-    if (error) throw error;
-    
-    return { error: null };
-  } catch (error) {
-    console.error('Reset password error:', error);
-    return { error };
   }
 };
