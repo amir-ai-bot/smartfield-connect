@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Pencil, Save, X, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types/auth';
-import { uploadAvatar } from '@/services/storageService';
+import { uploadImage } from '@/services/storageService';
 import { toast } from 'sonner';
 
 interface ProfileInfoProps {
@@ -55,7 +55,7 @@ const ProfileInfo: React.FC<ProfileInfoProps> = ({ user }) => {
       
       // Handle avatar upload if selected
       if (avatarFile) {
-        const avatarUrl = await uploadAvatar(avatarFile, user.id);
+        const avatarUrl = await uploadImage(avatarFile, 'avatars', `user_avatars/${user.id}`);
         updateData.avatar = avatarUrl;
       }
       

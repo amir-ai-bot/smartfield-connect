@@ -36,6 +36,22 @@ export const uploadImage = async (
   }
 };
 
+// Upload project image function
+export const uploadProjectImage = async (
+  file: File,
+  userId: string
+): Promise<string | null> => {
+  return uploadImage(file, 'projects', `project_images/${userId}`);
+};
+
+// Upload avatar function
+export const uploadAvatar = async (
+  file: File,
+  userId: string
+): Promise<string | null> => {
+  return uploadImage(file, 'avatars', `user_avatars/${userId}`);
+};
+
 // Delete image from storage
 export const deleteImage = async (
   url: string,

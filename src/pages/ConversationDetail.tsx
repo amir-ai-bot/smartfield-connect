@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,8 +28,8 @@ interface ConversationData {
   participant2_id: string;
   last_message_at?: string;
   created_at?: string;
-  participant1?: ParticipantProfile;
-  participant2?: ParticipantProfile;
+  participant1?: ParticipantProfile | null;
+  participant2?: ParticipantProfile | null;
   participant1Profile?: ParticipantProfile;
   participant2Profile?: ParticipantProfile;
 }
@@ -77,22 +78,22 @@ const ConversationDetail = () => {
         last_message_at: conversationData.last_message_at,
         created_at: conversationData.created_at,
         // Convert potentially problematic fields to safe ParticipantProfile objects
-        participant1: conversationData.participant1 && typeof conversationData.participant1 === 'object' ? {
-          id: conversationData.participant1.id || '',
-          name: conversationData.participant1.display_name || conversationData.participant1.name || 'Unknown',
-          avatar: conversationData.participant1.avatar || undefined,
-          email: conversationData.participant1.email || undefined,
-          role: conversationData.participant1.role || undefined,
-          display_name: conversationData.participant1.display_name || undefined
-        } : {},
-        participant2: conversationData.participant2 && typeof conversationData.participant2 === 'object' ? {
-          id: conversationData.participant2.id || '',
-          name: conversationData.participant2.display_name || conversationData.participant2.name || 'Unknown',
-          avatar: conversationData.participant2.avatar || undefined,
-          email: conversationData.participant2.email || undefined,
-          role: conversationData.participant2.role || undefined,
-          display_name: conversationData.participant2.display_name || undefined
-        } : {}
+        participant1: conversationData.participant1 ? {
+          id: conversationData.participant1?.id || '',
+          name: conversationData.participant1?.display_name || conversationData.participant1?.name || 'Unknown',
+          avatar: conversationData.participant1?.avatar || undefined,
+          email: conversationData.participant1?.email || undefined,
+          role: conversationData.participant1?.role || undefined,
+          display_name: conversationData.participant1?.display_name || undefined
+        } : null,
+        participant2: conversationData.participant2 ? {
+          id: conversationData.participant2?.id || '',
+          name: conversationData.participant2?.display_name || conversationData.participant2?.name || 'Unknown',
+          avatar: conversationData.participant2?.avatar || undefined,
+          email: conversationData.participant2?.email || undefined,
+          role: conversationData.participant2?.role || undefined,
+          display_name: conversationData.participant2?.display_name || undefined
+        } : null
       };
 
       setConversation(cleanConversation);
@@ -221,7 +222,6 @@ const ConversationDetail = () => {
   }
 
   return (
-    
     <div className="container mx-auto px-4 py-8">
       <Card className="mb-4">
         <CardContent className="p-4">

@@ -65,16 +65,20 @@ const SupplierCardEnhanced: React.FC<SupplierCardProps> = ({ supplier, onFavorit
       setLoading(true);
       const result = await toggleFavoriteFournisseur(user.id, supplier.user_id);
       
-      // Handle different result types
+      // Handle different result types safely
       if (result === false) {
         toast.error('Erreur lors de la mise à jour des favoris');
-      } else if (typeof result === 'object' && 'isFavorite' in result) {
-        setFavorite(result.isFavorite);
-        toast.success(result.isFavorite ? 'Ajouté aux favoris' : 'Retiré des favoris');
       } else {
-        // Handle boolean result (legacy support)
-        setFavorite(!!result);
-        toast.success(result ? 'Ajouté aux favoris' : 'Retiré des favoris');
+        // Check if result is an object with isFavorite property
+        if (typeof result === 'object' && result !== null && 'isFavorite' in result) {
+          setFavorite(result.isFavorite);
+          toast.success(result.isFavorite ? 'Ajouté aux favoris' : 'Retiré des favoris');
+        } else {
+          // Handle boolean result (legacy support)
+          const boolResult = Boolean(result);
+          setFavorite(boolResult);
+          toast.success(boolResult ? 'Ajouté aux favoris' : 'Retiré des favoris');
+        }
       }
       
       if (onFavoriteToggle) {

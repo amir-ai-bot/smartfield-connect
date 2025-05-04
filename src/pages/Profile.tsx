@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ProfileInfo from '@/components/profile/ProfileInfo';
-import { uploadAvatar } from '@/services/storageService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Profile = () => {
@@ -101,7 +100,7 @@ const Profile = () => {
         </TabsContent>
         <TabsContent value="preferences">
           <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle>Préférences</CardTitle>
               <CardDescription>Gérez vos préférences de langue et de notifications</CardDescription>
             </CardHeader>

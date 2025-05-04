@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
 import { Rating } from '@/types/supabase';
 import RatingComponent from '@/components/RatingComponent';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -139,7 +140,7 @@ const SupplierProfilePage = () => {
       <div>
         <h2 className="text-xl font-semibold mb-2">Avis</h2>
         <RatingComponent 
-          supplierId={id || ''}
+          supplierId={id || ''} 
           onRatingAdded={handleRatingAdded} 
         />
         <ScrollArea className="h-[300px] w-full rounded-md border p-4">

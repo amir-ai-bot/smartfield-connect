@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -6,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ProjectData } from '@/types/dashboard';
-import { uploadProjectImage, getDefaultProjectImage } from '@/services/storageService';
+import { uploadImage, getDefaultProjectImage } from '@/services/storageService';
 
 import {
   Dialog,
@@ -117,7 +118,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
       let imageUrl = '';
       if (selectedImage) {
         try {
-          imageUrl = await uploadProjectImage(selectedImage, user.id);
+          imageUrl = await uploadImage(selectedImage, 'projects', `project_images/${user.id}`);
           console.log('Image uploaded successfully:', imageUrl);
         } catch (error) {
           console.error('Error uploading image:', error);
@@ -133,7 +134,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         start_date: format(values.startDate, 'yyyy-MM-dd'),
         end_date: format(values.endDate, 'yyyy-MM-dd'),
         description: values.description,
-        image: imageUrl || getDefaultProjectImage(values.crop),
+        image: imageUrl || getDefaultProjectImage(),
         is_public: values.isPublic,
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0
