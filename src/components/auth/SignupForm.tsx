@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
 }) => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SignupFormData>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupFormData>();
 
   const onSubmit = async (data: SignupFormData) => {
     if (data.password !== data.confirmPassword) {
@@ -31,6 +32,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
       return;
     }
     
+    setIsSubmitting(true);
     try {
       await signUp(data.name, data.email, data.password, data.phone_number);
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
@@ -39,6 +41,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
     } catch (error) {
       console.error('Signup form error:', error);
       // Error is handled in the auth context
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,7 +151,11 @@ const SignupForm: React.FC<SignupFormProps> = ({
       </div>
 
       <div className="pt-4 flex flex-col space-y-4">
-        <Button type="submit" disabled={isSubmitting} className="w-full">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting} 
+          className="w-full"
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

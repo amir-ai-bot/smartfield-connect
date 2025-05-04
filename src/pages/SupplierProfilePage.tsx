@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
-import { Rating } from '@/types/supabase';
+import { Rating } from '@/types/auth';
 import RatingComponent from '@/components/RatingComponent';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +151,7 @@ const SupplierProfilePage = () => {
                   {rating.profiles?.avatar ? (
                     <AvatarImage src={rating.profiles?.avatar} alt={rating.profiles?.name} />
                   ) : (
-                    <AvatarFallback>{rating.profiles?.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{(rating.profiles?.name || 'A').substring(0, 2).toUpperCase()}</AvatarFallback>
                   )}
                 </Avatar>
                 <span className="font-semibold">{rating.profiles?.name}</span>

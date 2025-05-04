@@ -1,259 +1,139 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Star, StarHalf } from 'lucide-react';
-import { getRatingsForSupplier, getUserRatingForSupplier, addRating } from '@/services/ratingService';
-import { Rating } from '@/types/auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { StarFilledIcon } from '@radix-ui/react-icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { addRating, getUserRatingForSupplier, getRatingsForSupplier } from '@/services/ratingService';
+import { Rating } from '@/types/auth';
+import { toast } from 'sonner';
 
-interface RatingComponentProps {
+export interface RatingComponentProps {
   supplierId: string;
-  userRating?: number;
-  fournisseurId?: string; // For backward compatibility
-  onRatingAdded?: (newRating: any) => void;
+  onRatingAdded: (newRating: any) => void;
 }
 
-const RatingComponent: React.FC<RatingComponentProps> = ({ 
-  supplierId, 
-  userRating = 0, 
-  fournisseurId, // This is for backward compatibility
-  onRatingAdded 
-}) => {
-  // Use supplierId if provided, otherwise use fournisseurId
-  const actualSupplierId = supplierId || fournisseurId || '';
+const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingAdded }) => {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [ratings, setRatings] = useState<Rating[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [userCurrentRating, setUserCurrentRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [averageRating, setAverageRating] = useState(userRating || 0);
-
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [userRating, setUserRating] = useState<Rating | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  
+  // Load user's existing rating if available
   useEffect(() => {
-    if (open) {
-      loadRatings();
-    }
-  }, [open, actualSupplierId]);
-
-  const loadRatings = async () => {
-    try {
-      setLoading(true);
-      const ratingsData = await getRatingsForSupplier(actualSupplierId);
-      setRatings(ratingsData);
-
-      // Calculate average rating
-      if (ratingsData.length > 0) {
-        const totalRating = ratingsData.reduce((sum, rating) => sum + rating.rating, 0);
-        setAverageRating(totalRating / ratingsData.length);
-      }
-
-      // Get user's current rating if available
+    const loadUserRating = async () => {
       if (user) {
-        const userRating = await getUserRatingForSupplier(user.id, actualSupplierId);
-        if (userRating) {
-          setUserCurrentRating(userRating.rating);
-          setComment(userRating.comment || '');
-        } else {
-          setUserCurrentRating(0);
-          setComment('');
+        const existingRating = await getUserRatingForSupplier(user.id, supplierId);
+        if (existingRating) {
+          setUserRating(existingRating);
+          setRating(existingRating.rating);
+          setComment(existingRating.comment || '');
         }
       }
-    } catch (error) {
-      console.error('Error loading ratings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRateClick = async () => {
+    };
+    
+    loadUserRating();
+  }, [user, supplierId]);
+  
+  const handleSubmit = async () => {
     if (!user) {
-      toast.error('Vous devez être connecté pour laisser un avis');
+      toast.error('You must be logged in to leave a rating');
       return;
     }
-
-    if (userCurrentRating === 0) {
-      toast.error('Veuillez sélectionner une note');
+    
+    if (rating === 0) {
+      toast.error('Please select a rating');
       return;
     }
-
+    
+    setIsSubmitting(true);
     try {
-      setSubmitting(true);
-      const result = await addRating(user.id, actualSupplierId, userCurrentRating, comment);
-      toast.success('Votre évaluation a été enregistrée');
-      
-      if (result && onRatingAdded) {
-        onRatingAdded(result);
+      const newRating = await addRating(user.id, supplierId, rating, comment);
+      if (newRating) {
+        setUserRating(newRating);
+        // Add the profile information from the current user
+        const ratingWithProfile = {
+          ...newRating,
+          profiles: {
+            id: user.id,
+            name: user.name || user.display_name || 'Anonymous',
+            avatar: user.avatar
+          }
+        };
+        onRatingAdded(ratingWithProfile);
+        toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
       }
-      
-      await loadRatings();
-      setOpen(false);
     } catch (error) {
       console.error('Error submitting rating:', error);
-      toast.error('Une erreur est survenue. Veuillez réessayer.');
+      toast.error('Failed to submit rating');
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
-
-  const renderStar = (index: number, filled: boolean, half: boolean = false) => {
-    return (
-      <div
-        key={index}
-        className="cursor-pointer"
-        onClick={() => user && setUserCurrentRating(index + 1)}
-        onMouseEnter={() => user && setHoverRating(index + 1)}
-        onMouseLeave={() => user && setHoverRating(0)}
-      >
-        {half ? (
-          <StarHalf className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-        ) : (
-          <Star
-            className={`h-5 w-5 ${
-              filled ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        )}
-      </div>
-    );
+  
+  const renderStars = (count: number, filled: boolean = false) => {
+    return Array(count)
+      .fill(0)
+      .map((_, i) => (
+        <StarFilledIcon
+          key={i}
+          className={`w-6 h-6 ${filled ? 'text-yellow-400' : 'text-gray-300'}`}
+        />
+      ));
   };
-
-  const renderStarRating = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < 5; i++) {
-      if (i < fullStars) {
-        stars.push(renderStar(i, true));
-      } else if (i === fullStars && hasHalfStar) {
-        stars.push(renderStar(i, false, true));
-      } else {
-        stars.push(renderStar(i, false));
-      }
-    }
-
-    return <div className="flex space-x-1">{stars}</div>;
-  };
-
-  const renderUserEditableRating = () => {
-    const displayRating = hoverRating || userCurrentRating;
-    return (
-      <div className="flex space-x-1">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="cursor-pointer"
-            onClick={() => setUserCurrentRating(i + 1)}
-            onMouseEnter={() => setHoverRating(i + 1)}
+  
+  return (
+    <div className="bg-white p-4 rounded-lg shadow mb-4">
+      <h3 className="font-medium text-lg mb-2">Write a Review</h3>
+      
+      {!user ? (
+        <p className="text-gray-500 mb-4">Please log in to leave a review.</p>
+      ) : (
+        <>
+          <div 
+            className="flex items-center mb-3" 
             onMouseLeave={() => setHoverRating(0)}
           >
-            <Star
-              className={`h-5 w-5 ${
-                i < displayRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-              }`}
-            />
+            {[1, 2, 3, 4, 5].map((star) => (
+              <div 
+                key={star}
+                className="cursor-pointer"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+              >
+                <StarFilledIcon
+                  className={`w-6 h-6 ${
+                    (hoverRating ? hoverRating >= star : rating >= star)
+                      ? 'text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                />
+              </div>
+            ))}
+            <span className="ml-2 text-sm text-gray-600">
+              {rating > 0 ? `You rated ${rating} star${rating !== 1 ? 's' : ''}` : 'Select a rating'}
+            </span>
           </div>
-        ))}
-      </div>
-    );
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-2">
-        {renderStarRating(averageRating)}
-        <span className="text-sm text-gray-500">
-          {averageRating.toFixed(1)} ({ratings.length} avis)
-        </span>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-sm">
-              Voir les avis
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Avis et évaluations</DialogTitle>
-            </DialogHeader>
-            {user && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Votre évaluation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="mb-2 text-sm">Note</p>
-                      {renderUserEditableRating()}
-                    </div>
-                    <div>
-                      <p className="mb-2 text-sm">Commentaire</p>
-                      <Textarea
-                        placeholder="Partagez votre expérience avec ce fournisseur..."
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <Button onClick={handleRateClick} disabled={submitting}>
-                      {submitting ? 'Envoi...' : 'Envoyer'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="mt-4 max-h-[300px] overflow-y-auto">
-              <h3 className="text-lg font-medium mb-4">Tous les avis</h3>
-              {loading ? (
-                <p>Chargement...</p>
-              ) : ratings.length > 0 ? (
-                <div className="space-y-4">
-                  {ratings.map((rating) => (
-                    <div key={rating.id} className="border-b pb-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center">
-                          {rating.profiles && (
-                            <Avatar className="h-8 w-8 mr-2">
-                              <AvatarImage
-                                src={rating.profiles.avatar || ''}
-                                alt={rating.profiles.name}
-                              />
-                              <AvatarFallback>
-                                {(rating.profiles.name || '?').charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div>
-                            <p className="font-medium">
-                              {rating.profiles ? rating.profiles.name : 'Utilisateur'}
-                            </p>
-                            <div className="flex items-center">
-                              {renderStarRating(rating.rating)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {rating.comment && <p className="mt-2">{rating.comment}</p>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-4">
-                  Aucun avis pour ce fournisseur.
-                </p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          
+          <Textarea
+            placeholder="Write your review here (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="mb-3"
+            rows={3}
+          />
+          
+          <Button 
+            onClick={handleSubmit}
+            disabled={rating === 0 || isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? 'Submitting...' : userRating ? 'Update Review' : 'Submit Review'}
+          </Button>
+        </>
+      )}
     </div>
   );
 };

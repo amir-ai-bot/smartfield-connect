@@ -1,347 +1,314 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
-// Get all conversations for a user
-export const getConversations = async (userId: string) => {
+// Define proper types for conversations
+export interface ParticipantProfile {
+  id: string;
+  display_name: string;
+  avatar: string | null;
+  email: string;
+  role: string;
+  name?: string;
+}
+
+export interface ConversationData {
+  id: string;
+  participant1_id: string;
+  participant2_id: string;
+  last_message_at?: string;
+  created_at?: string;
+  participant1?: ParticipantProfile;
+  participant2?: ParticipantProfile;
+}
+
+export interface MessageData {
+  id: string;
+  content?: string;
+  sender_id: string;
+  receiver_id: string;
+  created_at?: string;
+  updated_at?: string;
+  read?: boolean;
+  sender?: ParticipantProfile;
+  receiver?: ParticipantProfile;
+}
+
+// Fetch conversations for a user
+export const getConversations = async (userId: string): Promise<ConversationData[]> => {
   try {
     const { data, error } = await supabase
       .from('conversations')
       .select(`
         *,
-        participant1:profiles!conversations_participant1_id_fkey(*),
-        participant2:profiles!conversations_participant2_id_fkey(*)
+        participant1:participant1_id(id, display_name, avatar, email, role),
+        participant2:participant2_id(id, display_name, avatar, email, role)
       `)
       .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
       .order('last_message_at', { ascending: false });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Map the data to a more usable format
-    return data.map(conversation => {
-      // Determine which participant is the other user
-      let otherUser;
-      let isParticipant1 = conversation.participant1_id === userId;
-      
-      // Safely handle participant2 data
-      if (isParticipant1) {
-        if (conversation.participant2) {
-          otherUser = {
-            id: conversation.participant2.id || '',
-            name: conversation.participant2.display_name || 'Utilisateur inconnu',
-            avatar: conversation.participant2.avatar || null,
-            email: conversation.participant2.email || '',
-            role: conversation.participant2.role || 'user'
+    const formattedConversations: ConversationData[] = data.map((conversation: any) => {
+      // Determine the other participant profile (not the current user)
+      const otherParticipant = conversation.participant1_id === userId 
+        ? {
+            id: conversation.participant2?.id || '',
+            display_name: conversation.participant2?.display_name || '',
+            avatar: conversation.participant2?.avatar || null,
+            email: conversation.participant2?.email || '',
+            role: conversation.participant2?.role || '',
+            name: conversation.participant2?.display_name || ''
+          }
+        : {
+            id: conversation.participant1?.id || '',
+            display_name: conversation.participant1?.display_name || '',
+            avatar: conversation.participant1?.avatar || null,
+            email: conversation.participant1?.email || '',
+            role: conversation.participant1?.role || '',
+            name: conversation.participant1?.display_name || ''
           };
-        } else {
-          otherUser = {
-            id: conversation.participant2_id || '',
-            name: 'Utilisateur inconnu',
-            avatar: null,
-            email: '',
-            role: 'user'
-          };
-        }
-      } else {
-        // Safely handle participant1 data
-        if (conversation.participant1) {
-          otherUser = {
-            id: conversation.participant1.id || '',
-            name: conversation.participant1.display_name || 'Utilisateur inconnu',
-            avatar: conversation.participant1.avatar || null,
-            email: conversation.participant1.email || '',
-            role: conversation.participant1.role || 'user'
-          };
-        } else {
-          otherUser = {
-            id: conversation.participant1_id || '',
-            name: 'Utilisateur inconnu',
-            avatar: null,
-            email: '',
-            role: 'user'
-          };
-        }
-      }
 
       return {
-        id: conversation.id,
-        otherUser,
-        lastMessageAt: conversation.last_message_at
+        ...conversation,
+        participant1: conversation.participant1 ? {
+          id: conversation.participant1.id || '',
+          display_name: conversation.participant1.display_name || '',
+          avatar: conversation.participant1.avatar || null,
+          email: conversation.participant1.email || '',
+          role: conversation.participant1.role || '',
+          name: conversation.participant1.display_name || ''
+        } : undefined,
+        participant2: conversation.participant2 ? {
+          id: conversation.participant2.id || '',
+          display_name: conversation.participant2.display_name || '',
+          avatar: conversation.participant2.avatar || null,
+          email: conversation.participant2.email || '',
+          role: conversation.participant2.role || '',
+          name: conversation.participant2.display_name || ''
+        } : undefined,
+        otherParticipant
       };
     });
+
+    return formattedConversations;
   } catch (error) {
-    console.error('Error getting conversations:', error);
-    toast.error('Erreur lors de la récupération des conversations');
+    console.error('Error fetching conversations:', error);
+    toast.error('Failed to load conversations');
     return [];
   }
 };
 
-// Get user conversations - alias for getConversations
-export const getUserConversations = getConversations;
-
-// Get a specific conversation
-export const getConversation = async (conversationId: string, userId: string) => {
+// Get a specific conversation by ID
+export const getConversationById = async (conversationId: string): Promise<ConversationData | null> => {
   try {
     const { data, error } = await supabase
       .from('conversations')
       .select(`
         *,
-        participant1:profiles!conversations_participant1_id_fkey(*),
-        participant2:profiles!conversations_participant2_id_fkey(*)
+        participant1:participant1_id(id, display_name, avatar, email, role),
+        participant2:participant2_id(id, display_name, avatar, email, role)
       `)
       .eq('id', conversationId)
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    if (!data) {
-      return null;
-    }
+    if (!data) return null;
 
-    return data; // Return the full conversation data with profiles
+    return {
+      ...data,
+      participant1: data.participant1 ? {
+        id: data.participant1.id || '',
+        display_name: data.participant1.display_name || '',
+        avatar: data.participant1.avatar || null,
+        email: data.participant1.email || '',
+        role: data.participant1.role || '',
+        name: data.participant1.display_name || ''
+      } : undefined,
+      participant2: data.participant2 ? {
+        id: data.participant2.id || '',
+        display_name: data.participant2.display_name || '',
+        avatar: data.participant2.avatar || null,
+        email: data.participant2.email || '',
+        role: data.participant2.role || '',
+        name: data.participant2.display_name || ''
+      } : undefined
+    };
   } catch (error) {
-    console.error('Error getting conversation:', error);
-    toast.error('Erreur lors de la récupération de la conversation');
+    console.error('Error fetching conversation:', error);
+    toast.error('Failed to load conversation');
     return null;
   }
 };
 
 // Get messages for a conversation
-export const getMessages = async (conversationId: string) => {
+export const getConversationMessages = async (conversationId: string): Promise<MessageData[]> => {
   try {
-    const { data, error } = await supabase
+    const { data: messagesData, error: messagesError } = await supabase
       .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .select(`
+        *,
+        sender:sender_id(id, display_name, avatar, email, role),
+        receiver:receiver_id(id, display_name, avatar, email, role)
+      `)
+      .or(`
+        and(sender_id.eq.${conversationId}),
+        and(receiver_id.eq.${conversationId})
+      `)
+      .order('created_at');
 
-    if (error) {
-      throw error;
-    }
+    if (messagesError) throw messagesError;
 
-    // If data is null or not an array, return an empty array
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-
-    return data;
+    // Format messages with sender and receiver information
+    return messagesData.map((message: any) => ({
+      ...message,
+      sender: message.sender ? {
+        id: message.sender.id || '',
+        display_name: message.sender.display_name || '',
+        avatar: message.sender.avatar || null,
+        email: message.sender.email || '',
+        role: message.sender.role || '',
+        name: message.sender.display_name || ''
+      } : undefined,
+      receiver: message.receiver ? {
+        id: message.receiver.id || '',
+        display_name: message.receiver.display_name || '',
+        avatar: message.receiver.avatar || null,
+        email: message.receiver.email || '',
+        role: message.receiver.role || '',
+        name: message.receiver.display_name || ''
+      } : undefined
+    }));
   } catch (error) {
-    console.error('Error getting messages:', error);
-    toast.error('Erreur lors de la récupération des messages');
+    console.error('Error fetching messages:', error);
+    toast.error('Failed to load messages');
     return [];
   }
 };
 
-// Alias for getMessages to match the import in ConversationDetail.tsx
-export const getConversationMessages = getMessages;
-
 // Mark messages as read
-export const markMessagesAsRead = async (conversationId: string, userId: string) => {
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
   try {
+    // Update messages where the current user is the recipient
     const { error } = await supabase
       .from('messages')
-      .update({ updated_at: new Date().toISOString() }) // Since 'read' is not a valid field, we'll just update the timestamp
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', userId);
+      .update({ read: true })
+      .eq('receiver_id', userId)
+      .eq('conversation_id', conversationId);
 
-    if (error) {
-      console.error('Error marking messages as read:', error);
-      // Don't throw, just log the error
-    }
-
-    return true;
+    if (error) throw error;
   } catch (error) {
     console.error('Error marking messages as read:', error);
-    return false;
   }
 };
 
-// Send a message
-export const sendMessage = async (conversationId: string, content: string, senderId: string) => {
+// Send a message in a conversation
+export const sendMessage = async (
+  senderId: string,
+  receiverId: string,
+  conversationId: string,
+  content: string
+): Promise<MessageData | null> => {
   try {
-    // Get the conversation to determine the receiver
-    const { data: conversationData, error: conversationError } = await supabase
-      .from('conversations')
-      .select('participant1_id, participant2_id')
-      .eq('id', conversationId)
-      .single();
-
-    if (conversationError) {
-      throw conversationError;
-    }
-
-    const receiverId = conversationData.participant1_id === senderId 
-      ? conversationData.participant2_id 
-      : conversationData.participant1_id;
+    // Create unique ID for the message
+    const messageId = uuidv4();
     
     // Insert the message
-    const { data, error } = await supabase
+    const { data: messageData, error: messageError } = await supabase
       .from('messages')
       .insert({
-        conversation_id: conversationId,
+        id: messageId,
         sender_id: senderId,
         receiver_id: receiverId,
         content,
+        conversation_id: conversationId,
       })
       .select()
       .single();
-
-    if (error) {
-      throw error;
-    }
-
+    
+    if (messageError) throw messageError;
+    
     // Update the conversation's last_message_at
-    await supabase
+    const { error: conversationError } = await supabase
       .from('conversations')
-      .update({
-        last_message_at: new Date().toISOString()
-      })
+      .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
-
-    return data;
+    
+    if (conversationError) throw conversationError;
+    
+    return messageData as MessageData;
   } catch (error) {
     console.error('Error sending message:', error);
-    toast.error('Erreur lors de l\'envoi du message');
-    throw error;
-  }
-};
-
-// Check if a user has a conversation with a supplier
-export const checkUserSupplierConversation = async (userId: string, supplierId: string) => {
-  try {
-    // Get the supplier's user_id
-    const { data: supplierData, error: supplierError } = await supabase
-      .from('suppliers')
-      .select('user_id')
-      .eq('id', supplierId)
-      .single();
-
-    if (supplierError) {
-      throw supplierError;
-    }
-
-    const supplierUserId = supplierData.user_id;
-
-    // Check if a conversation already exists
-    const { data, error } = await supabase
-      .from('conversations')
-      .select('id')
-      .or(`and(participant1_id.eq.${userId},participant2_id.eq.${supplierUserId}),and(participant1_id.eq.${supplierUserId},participant2_id.eq.${userId})`)
-      .maybeSingle();
-
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
-    return data || null;
-  } catch (error) {
-    console.error('Error checking user supplier conversation:', error);
+    toast.error('Failed to send message');
     return null;
   }
 };
 
-// Toggle supplier as favorite
-export const toggleFavoriteFournisseur = async (userId: string, supplierId: string) => {
+// Create a new conversation between two users
+export const createConversation = async (
+  participant1Id: string,
+  participant2Id: string
+): Promise<string | null> => {
   try {
-    // Check if supplier is already a favorite
-    const { data: existingFavorite, error: checkError } = await supabase
-      .from('favorite_suppliers')
+    // Check if conversation already exists
+    const { data: existingConvo, error: checkError } = await supabase
+      .from('conversations')
       .select('id')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
+      .or(`and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`)
       .maybeSingle();
-
-    if (checkError) {
-      throw checkError;
+    
+    if (checkError) throw checkError;
+    
+    // Return existing conversation if found
+    if (existingConvo) {
+      return existingConvo.id;
     }
-
-    if (existingFavorite) {
-      // Remove from favorites
-      const { error: removeError } = await supabase
-        .from('favorite_suppliers')
-        .delete()
-        .eq('id', existingFavorite.id);
-
-      if (removeError) {
-        throw removeError;
-      }
-
-      return { isFavorite: false };
-    } else {
-      // Add to favorites
-      const { error: addError } = await supabase
-        .from('favorite_suppliers')
-        .insert({
-          user_id: userId,
-          supplier_id: supplierId
-        });
-
-      if (addError) {
-        throw addError;
-      }
-
-      return { isFavorite: true };
-    }
+    
+    // Create a new conversation
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        participant1_id: participant1Id,
+        participant2_id: participant2Id
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    
+    return data.id;
   } catch (error) {
-    console.error('Error toggling favorite supplier:', error);
-    toast.error('Erreur lors de la mise à jour des favoris');
-    return false;
+    console.error('Error creating conversation:', error);
+    toast.error('Failed to create conversation');
+    return null;
   }
 };
 
-// Check if a supplier is in the user's favorites
-export const isFournisseurFavorite = async (userId: string, supplierId: string) => {
+// Create a supplier conversation (from user to fournisseur)
+export const createSupplierConversation = async (
+  userId: string,
+  supplierId: string
+): Promise<string | null> => {
   try {
-    const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
+    // Get supplier user_id
+    const { data: supplierData, error: supplierError } = await supabase
+      .from('suppliers')
+      .select('user_id')
+      .eq('id', supplierId)
       .maybeSingle();
-
-    if (error) {
-      throw error;
+    
+    if (supplierError) throw supplierError;
+    if (!supplierData || !supplierData.user_id) {
+      throw new Error('Supplier user ID not found');
     }
-
-    return !!data;
+    
+    // Create conversation
+    return createConversation(userId, supplierData.user_id);
   } catch (error) {
-    console.error('Error checking favorite status:', error);
-    return false;
-  }
-};
-
-// Get all favorite suppliers for a user
-export const getFavoriteFournisseurs = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('favorite_suppliers')
-      .select(`
-        *,
-        suppliers:supplier_id(*)
-      `)
-      .eq('user_id', userId);
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Extract the suppliers from the response
-    return data.map(item => item.suppliers).filter(Boolean);
-  } catch (error) {
-    console.error('Error getting favorite suppliers:', error);
-    toast.error('Erreur lors de la récupération des favoris');
-    return [];
+    console.error('Error creating supplier conversation:', error);
+    toast.error('Failed to create conversation with supplier');
+    return null;
   }
 };
