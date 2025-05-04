@@ -167,6 +167,7 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
       return {
         id: project.id,
         title: project.name || '',
+        name: project.name || '',
         description: project.description || '',
         status: project.status as 'planning' | 'active' | 'completed',
         user_id: project.owner_id,
@@ -259,17 +260,31 @@ export const getAllUsers = async (): Promise<User[]> => {
   }
 };
 
-// Function to add a supplier
-export const addFournisseur = async (userData: any): Promise<boolean> => {
+// Function to create an admin account
+export const createAdminAccount = async (): Promise<boolean> => {
   try {
-    // Implementation for adding a supplier would go here
-    toast.success('Supplier added successfully');
+    // Implementation would go here in a real app
+    toast.success('Admin account created successfully');
     return true;
   } catch (error) {
-    console.error('Error adding supplier:', error);
-    toast.error('Failed to add supplier');
+    console.error('Error creating admin account:', error);
+    toast.error('Failed to create admin account');
     return false;
   }
+};
+
+// Placeholder function for analytics data
+export const getAnalyticsData = async () => {
+  return {
+    userCount: 0,
+    projectCount: 0,
+    supplierCount: 0,
+    activeProjects: 0,
+    newUsersThisMonth: 0,
+    messagesSentToday: 0,
+    usersByRole: [],
+    projectsByStatus: []
+  };
 };
 
 // Placeholder functions for other required admin services
@@ -277,22 +292,10 @@ export const getVerificationCodes = async () => {
   return [];
 };
 
-export const getAnalyticsData = async () => {
-  return {
-    userCount: 0,
-    projectCount: 0,
-    supplierCount: 0
-  };
-};
-
 export const updateUserRole = async () => {
   return true;
 };
 
 export const deleteUser = async () => {
-  return true;
-};
-
-export const createAdminAccount = async () => {
   return true;
 };

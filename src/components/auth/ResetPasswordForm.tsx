@@ -1,18 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NewPasswordFormData } from '@/types/auth';
+import { ResetPasswordFormData } from '@/types/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Loader2, Lock, ArrowLeft } from 'lucide-react';
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 
@@ -25,182 +19,127 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   onSuccess,
   onBackToLogin
 }) => {
-  const { confirmPasswordReset } = useAuth();
-  const { t } = useLanguage();
+  const { resetPassword } = useAuth();
   const [searchParams] = useSearchParams();
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
-  const [code, setCode] = useState('');
-  const [useDirectInput, setUseDirectInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Auto-fill code from URL parameter
-  useEffect(() => {
-    const codeFromUrl = searchParams.get('code');
-    if (codeFromUrl) {
-      console.log("Code found in URL:", codeFromUrl);
-      setCode(codeFromUrl);
-      setValue('code', codeFromUrl);
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<ResetPasswordFormData>({
+    defaultValues: {
+      token: searchParams.get('token') || '',
+      email: searchParams.get('email') || '',
     }
-  }, [searchParams, setValue]);
+  });
 
-  const onSubmit = async (data: NewPasswordFormData) => {
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    if (data.password !== data.confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas');
+      return;
+    }
+    
+    setIsSubmitting(true);
     try {
-      if (!data.code || data.code.length !== 6) {
-        toast.error(t('codeMustBe6Digits'));
-        return;
-      }
-      
-      console.log("Submitting reset with code:", data.code);
-      await confirmPasswordReset(data.code, data.password);
+      await resetPassword(data.token, data.password);
+      toast.success('Mot de passe réinitialisé avec succès');
       if (onSuccess) onSuccess();
-    } catch (error) {
-      // Error is handled in the auth context
-      console.error('Password reset error:', error);
-      toast.error(t('resetPasswordFailed'));
-    }
-  };
-
-  const handleOTPChange = (value: string) => {
-    try {
-      setCode(value);
-      setValue('code', value);
-    } catch (error) {
-      console.error('OTP change error:', error);
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      toast.error(error?.message || 'Erreur lors de la réinitialisation du mot de passe');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-4">
-        <div className="text-center mb-4">
-          <h3 className="text-lg font-medium">{t('createNewPassword')}</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            {t('enterCodeAndNewPassword')}
-          </p>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="code" className="block text-center">{t('resetCode')}</Label>
-          
-          {!useDirectInput ? (
+      <div className="space-y-2">
+        <Label htmlFor="token">Code de réinitialisation</Label>
+        <Input
+          id="token"
+          type="text"
+          placeholder="Entrez le code reçu par email"
+          {...register('token', { required: 'Le code est requis' })}
+        />
+        {errors.token && (
+          <p className="text-destructive text-sm">{errors.token.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="votre@email.com"
+          {...register('email', { 
+            required: 'L\'email est requis',
+            pattern: {
+              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+              message: 'Format d\'email invalide'
+            }
+          })}
+        />
+        {errors.email && (
+          <p className="text-destructive text-sm">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Nouveau mot de passe</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Nouveau mot de passe"
+          {...register('password', { 
+            required: 'Le mot de passe est requis',
+            minLength: { value: 6, message: '6 caractères minimum' }
+          })}
+        />
+        {errors.password && (
+          <p className="text-destructive text-sm">{errors.password.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          placeholder="Confirmer le mot de passe"
+          {...register('confirmPassword', { 
+            required: 'Veuillez confirmer le mot de passe',
+            validate: value => value === watch('password') || 'Les mots de passe ne correspondent pas'
+          })}
+        />
+        {errors.confirmPassword && (
+          <p className="text-destructive text-sm">{errors.confirmPassword.message}</p>
+        )}
+      </div>
+
+      <div className="pt-4 flex flex-col space-y-4">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting} 
+          className="w-full"
+        >
+          {isSubmitting ? (
             <>
-              <div className="flex justify-center">
-                <InputOTP
-                  maxLength={6}
-                  value={code}
-                  onChange={handleOTPChange}
-                  render={({ slots }) => (
-                    <InputOTPGroup className="gap-2">
-                      {slots.map((slot, index) => (
-                        <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
-                      ))}
-                    </InputOTPGroup>
-                  )}
-                />
-              </div>
-              
-              <div className="text-center mt-2">
-                <Button
-                  type="button"
-                  variant="link"
-                  className="text-xs p-0"
-                  onClick={() => setUseDirectInput(true)}
-                >
-                  Problèmes avec le champ? Cliquez ici pour saisir manuellement
-                </Button>
-              </div>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Réinitialisation...
             </>
           ) : (
-            <div className="flex justify-center">
-              <Input
-                className="text-center w-full max-w-[250px]"
-                placeholder="Entrez le code à 6 chiffres"
-                maxLength={6}
-                value={code}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCode(value);
-                  setValue('code', value);
-                }}
-              />
-            </div>
+            'Réinitialiser le mot de passe'
           )}
-          
-          <input 
-            type="hidden" 
-            {...register('code', { 
-              required: t('codeRequired'),
-              pattern: {
-                value: /^\d{6}$/,
-                message: t('codeMustBe6Digits')
-              }
-            })} 
-          />
-          
-          {errors.code && (
-            <p className="text-destructive text-sm text-center mt-2">{errors.code.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">{t('newPassword')}</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              id="password"
-              type="password"
-              className="pl-10"
-              placeholder={t('newPassword')}
-              {...register('password', { 
-                required: t('passwordRequired'),
-                minLength: { value: 6, message: t('passwordMinLength') }
-              })}
-            />
-          </div>
-          {errors.password && (
-            <p className="text-destructive text-sm">{errors.password.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              id="confirmPassword"
-              type="password"
-              className="pl-10"
-              placeholder={t('confirmPassword')}
-              {...register('confirmPassword', { 
-                required: t('confirmPasswordRequired'),
-                validate: value => value === watch('password') || t('passwordsDoNotMatch')
-              })}
-            />
-          </div>
-          {errors.confirmPassword && (
-            <p className="text-destructive text-sm">{errors.confirmPassword.message}</p>
-          )}
-        </div>
-
-        <div className="pt-4 flex flex-col space-y-4">
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('resetting')}
-              </>
-            ) : (
-              t('resetPassword')
-            )}
-          </Button>
-          
+        </Button>
+        
+        <div className="text-center text-sm">
+          <span className="text-gray-500">Vous vous souvenez de votre mot de passe? </span>
           <Button
             type="button"
-            variant="outline"
+            variant="link"
             onClick={onBackToLogin}
-            className="w-full"
+            className="p-0 h-auto font-normal"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('backToLogin')}
+            Se connecter
           </Button>
         </div>
       </div>

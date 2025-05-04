@@ -29,11 +29,13 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
   const { verifyEmail } = useAuth();
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<VerifyEmailFormData>({
     defaultValues: {
+      email,
+      token: '',
       code: ''
     }
   });
   const [searchParams] = useSearchParams();
-  const code = watch('code');
+  const codeValue = watch('code');
   const [useDirectInput, setUseDirectInput] = useState(false);
   const [resendingCode, setResendingCode] = useState(false);
 
@@ -49,7 +51,7 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
   const onSubmit = async (data: VerifyEmailFormData) => {
     try {
       console.log('Submitting verification code:', data.code);
-      await verifyEmail(email, data.code);
+      await verifyEmail(email, data.code || '');
       toast.success('Email vérifié avec succès');
       if (onSuccess) onSuccess();
     } catch (error) {
@@ -96,7 +98,7 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
               <div className="flex justify-center">
                 <InputOTP 
                   maxLength={6}
-                  value={code}
+                  value={codeValue || ''}
                   onChange={handleOTPChange}
                   render={({ slots }) => (
                     <InputOTPGroup className="gap-2">
@@ -125,7 +127,7 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
                 className="text-center w-full max-w-[250px]"
                 placeholder="Entrez le code à 6 chiffres"
                 maxLength={6}
-                value={code}
+                value={codeValue || ''}
                 onChange={(e) => setValue('code', e.target.value)}
               />
             </div>
@@ -133,22 +135,18 @@ const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({
           
           <input 
             type="hidden" 
-            {...register('code', { 
-              required: 'Le code est requis',
-              pattern: {
-                value: /^\d{6}$/,
-                message: 'Le code doit contenir 6 chiffres'
-              }
+            {...register('token', { 
+              required: 'Le code est requis'
             })} 
           />
           
-          {errors.code && (
-            <p className="text-destructive text-sm text-center mt-2">{errors.code.message}</p>
+          {errors.token && (
+            <p className="text-destructive text-sm text-center mt-2">{errors.token.message}</p>
           )}
         </div>
 
         <div className="pt-6 flex flex-col space-y-4">
-          <Button type="submit" disabled={isSubmitting || code.length !== 6} className="w-full">
+          <Button type="submit" disabled={isSubmitting || !codeValue || codeValue.length !== 6} className="w-full">
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

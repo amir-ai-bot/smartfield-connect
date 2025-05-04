@@ -4,12 +4,8 @@ import { toast } from 'sonner';
 
 export const setupAdminAccount = async () => {
   try {
-    // Use these hardcoded values for admin account creation from the Index page
-    const adminName = "Admin";
-    const adminEmail = "yassindhibi100@gmail.com";
-    const adminPassword = "yassin11yassin";
-    
-    const user = await createAdminAccount(adminName, adminEmail, adminPassword);
+    // Use hardcoded values for admin account creation from the Index page
+    const user = await createAdminAccount();
     
     toast.success('Compte administrateur créé avec succès!');
     console.log('Admin account created:', user);

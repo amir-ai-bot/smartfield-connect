@@ -37,6 +37,15 @@ export const uploadFile = async (file: File, bucket: string, folder: string = ''
   }
 };
 
+// Alias for uploadFile focused on images
+export const uploadImage = async (file: File, bucket: string, folder: string = ''): Promise<string> => {
+  const result = await uploadFile(file, bucket, folder);
+  if (!result) {
+    throw new Error('Failed to upload image');
+  }
+  return result;
+};
+
 // Delete a file from Supabase storage
 export const deleteFile = async (filePath: string, bucket: string): Promise<boolean> => {
   try {

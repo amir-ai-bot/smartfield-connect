@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProjects, getPublicProjects } from '@/services/projectService';
-import ProjectCard from '@/components/ProjectCard';
+import ProjectCard from '@/components/Projects/ProjectCard';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import ProjectFormDialog from '@/components/ProjectFormDialog';

@@ -43,6 +43,13 @@ export interface ProjectData {
   creator_avatar?: string | null;
 }
 
+export interface ProjectFormProps {
+  onSubmit: (data: Partial<ProjectData>) => void;
+  onCancel: () => void;
+  project?: ProjectData;
+  onProjectCreated?: (project: ProjectData) => void;
+}
+
 export interface Rating {
   id: string;
   user_id: string;
@@ -96,4 +103,10 @@ export interface ResetPasswordFormData {
 export interface VerifyEmailFormData {
   email?: string;
   token: string;
+  code?: string;
+}
+
+export interface AuthResponse {
+  user: User | null;
+  error: Error | null;
 }
