@@ -1,272 +1,254 @@
 
-// Fix for the function that was causing the error
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
-// Function to get user's conversations
+// Types for conversation data
+export interface ConversationData {
+  id: string;
+  participant1_id: string;
+  participant2_id: string;
+  lastMessageAt?: string;
+  createdAt: string;
+}
+
+export interface MessageData {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read?: boolean;
+}
+
+export interface ParticipantProfile {
+  id: string;
+  display_name?: string;
+  avatar?: string;
+  email?: string;
+}
+
+// Get all conversations for a user
 export const getUserConversations = async (userId: string) => {
   try {
-    const { data, error } = await supabase
+    // First get all conversations where user is participant1 or participant2
+    const { data: conversationsData, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:participant1_id (id, name:display_name, avatar),
-        participant2:participant2_id (id, name:display_name, avatar)
-      `)
-      .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
-      .order('last_message_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching conversations:', error);
-      return [];
-    }
-
-    // Format the conversations to show the other participant's info
-    const formattedConversations = data.map(conversation => {
-      const isParticipant1 = conversation.participant1_id === userId;
-      const otherParticipant = isParticipant1 ? conversation.participant2 : conversation.participant1;
+      .select('*')
+      .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`);
+    
+    if (error) throw error;
+    
+    // Now for each conversation, get the other participant's details
+    const conversations = await Promise.all(conversationsData.map(async (conv) => {
+      const otherParticipantId = conv.participant1_id === userId ? conv.participant2_id : conv.participant1_id;
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar, email')
+        .eq('id', otherParticipantId)
+        .single();
+      
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        // Return a default participant object if profile can't be fetched
+        return {
+          id: conv.id,
+          participant: { 
+            id: otherParticipantId,
+            name: 'Unknown User',
+            avatar: undefined
+          },
+          lastMessageAt: conv.last_message_at || conv.created_at,
+          createdAt: conv.created_at
+        };
+      }
       
       return {
-        id: conversation.id,
-        participant: otherParticipant,
-        lastMessageAt: conversation.last_message_at,
-        createdAt: conversation.created_at
+        id: conv.id,
+        participant: {
+          id: profileData.id,
+          name: profileData.display_name || profileData.email || 'Unknown User',
+          avatar: profileData.avatar
+        },
+        lastMessageAt: conv.last_message_at || conv.created_at,
+        createdAt: conv.created_at
       };
+    }));
+    
+    // Sort conversations by lastMessageAt (most recent first)
+    return conversations.sort((a, b) => {
+      return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
     });
-
-    return formattedConversations;
   } catch (error) {
-    console.error('Error in getUserConversations:', error);
+    console.error('Error fetching conversations:', error);
     return [];
   }
 };
 
-// Get conversation by ID
-export const getConversationById = async (conversationId: string) => {
+// Get a single conversation by ID
+export const getConversation = async (conversationId: string, userId: string) => {
   try {
-    const { data, error } = await supabase
+    // Get conversation details
+    const { data: conversationData, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        participant1:participant1_id (id, name:display_name, avatar),
-        participant2:participant2_id (id, name:display_name, avatar)
-      `)
+      .select('*')
       .eq('id', conversationId)
       .single();
-
-    if (error) {
-      console.error('Error fetching conversation:', error);
-      return null;
+    
+    if (error) throw error;
+    
+    // Verify user is participant
+    if (conversationData.participant1_id !== userId && conversationData.participant2_id !== userId) {
+      throw new Error('User not authorized to view this conversation');
     }
-
-    return data;
+    
+    // Get the other participant details
+    const otherParticipantId = conversationData.participant1_id === userId 
+      ? conversationData.participant2_id 
+      : conversationData.participant1_id;
+    
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar, email')
+      .eq('id', otherParticipantId)
+      .single();
+    
+    if (profileError) {
+      throw profileError;
+    }
+    
+    return {
+      id: conversationData.id,
+      participant: {
+        id: profileData.id,
+        name: profileData.display_name || profileData.email || 'Unknown User',
+        avatar: profileData.avatar
+      },
+      lastMessageAt: conversationData.last_message_at,
+      createdAt: conversationData.created_at,
+      userId // Include the current user ID for reference
+    };
   } catch (error) {
-    console.error('Error in getConversationById:', error);
-    return null;
+    console.error('Error fetching conversation:', error);
+    throw error;
   }
 };
 
-// Get conversation messages
+// Create a new conversation or return existing one between two users
+export const createConversation = async (userId: string, otherUserId: string) => {
+  try {
+    // Check if conversation already exists
+    const { data: existingConversations, error: fetchError } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(participant1_id.eq.${userId},participant2_id.eq.${otherUserId}),and(participant1_id.eq.${otherUserId},participant2_id.eq.${userId})`);
+    
+    if (fetchError) throw fetchError;
+    
+    // If conversation exists, return its ID
+    if (existingConversations && existingConversations.length > 0) {
+      return existingConversations[0].id;
+    }
+    
+    // Create a new conversation
+    const { data: newConversation, error: insertError } = await supabase
+      .from('conversations')
+      .insert({
+        participant1_id: userId,
+        participant2_id: otherUserId,
+      })
+      .select('id')
+      .single();
+    
+    if (insertError) throw insertError;
+    
+    return newConversation.id;
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    throw error;
+  }
+};
+
+// Get messages for a conversation
 export const getConversationMessages = async (conversationId: string) => {
   try {
-    const { data: messages, error } = await supabase
+    const { data, error } = await supabase
       .from('messages')
-      .select(`
-        id,
-        content,
-        sender_id,
-        created_at,
-        sender:sender_id (id, name:display_name, avatar)
-      `)
+      .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at');
-
-    if (error) {
-      console.error('Error fetching messages:', error);
-      return [];
-    }
-
-    return messages || [];
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
+    
+    return data || [];
   } catch (error) {
-    console.error('Error in getConversationMessages:', error);
+    console.error('Error fetching messages:', error);
     return [];
   }
 };
 
-// Send message in conversation
-export const sendMessage = async (conversationId: string, senderId: string, content: string) => {
+// Send a message
+export const sendMessage = async (conversationId: string, senderId: string, receiverId: string, content: string) => {
   try {
-    // Add message
-    const { data: message, error: messageError } = await supabase
+    // Insert the message
+    const { data: messageData, error: messageError } = await supabase
       .from('messages')
       .insert({
         conversation_id: conversationId,
         sender_id: senderId,
+        receiver_id: receiverId,
         content,
       })
       .select()
       .single();
-
+    
     if (messageError) throw messageError;
-
-    // Update last_message_at in conversation
-    const { error: updateError } = await supabase
+    
+    // Update the conversation's last_message_at timestamp
+    const { error: conversationError } = await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
-
-    if (updateError) throw updateError;
-
-    return message;
+    
+    if (conversationError) throw conversationError;
+    
+    return messageData;
   } catch (error) {
     console.error('Error sending message:', error);
-    toast.error('Failed to send message');
-    return null;
+    throw error;
   }
 };
 
-// Create a new conversation between two users
-export const createConversation = async (userId1: string, userId2: string) => {
+// Mark messages as read
+export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   try {
-    // Check if conversation already exists
-    const { data: existingConv, error: checkError } = await supabase
-      .from('conversations')
-      .select('id')
-      .or(`and(participant1_id.eq.${userId1},participant2_id.eq.${userId2}),and(participant1_id.eq.${userId2},participant2_id.eq.${userId1})`)
-      .limit(1)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('Error checking existing conversation:', checkError);
-      throw checkError;
-    }
-
-    // If conversation exists, return its ID
-    if (existingConv) {
-      return existingConv.id;
-    }
-
-    // Create new conversation
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({
-        participant1_id: userId1,
-        participant2_id: userId2
-      })
-      .select('id')
-      .single();
-
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .eq('receiver_id', userId)
+      .is('read', null);
+    
     if (error) throw error;
-
-    return data.id;
-  } catch (error) {
-    console.error('Error creating conversation:', error);
-    toast.error('Failed to create conversation');
-    return null;
-  }
-};
-
-// Create a conversation with a supplier
-export const createSupplierConversation = async (userId: string, supplierId: string) => {
-  try {
-    // Get the supplier's user_id
-    const { data: supplier, error: supplierError } = await supabase
-      .from('suppliers')
-      .select('user_id')
-      .eq('id', supplierId)
-      .single();
-
-    if (supplierError || !supplier || !supplier.user_id) {
-      console.error('Error fetching supplier:', supplierError);
-      toast.error('This supplier does not have an associated user account');
-      return null;
-    }
-
-    // Create conversation with the supplier's user
-    return createConversation(userId, supplier.user_id);
-  } catch (error) {
-    console.error('Error in createSupplierConversation:', error);
-    toast.error('Failed to start conversation with supplier');
-    return null;
-  }
-};
-
-// Toggle a fournisseur as favorite
-export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: string) => {
-  try {
-    // Check if already a favorite
-    const { data: checkData, error: checkError } = await supabase
-      .rpc('check_favorite_supplier', {
-        p_user_id: userId,
-        p_supplier_id: fournisseurId
-      });
     
-    if (checkError) throw checkError;
-    
-    const isFavorite = checkData;
-    
-    if (isFavorite) {
-      // Remove from favorites
-      const { error: removeError } = await supabase
-        .rpc('remove_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: fournisseurId
-        });
-        
-      if (removeError) throw removeError;
-      
-      return { isFavorite: false };
-    } else {
-      // Add to favorites
-      const { error: addError } = await supabase
-        .rpc('add_favorite_supplier', {
-          p_user_id: userId,
-          p_supplier_id: fournisseurId
-        });
-        
-      if (addError) throw addError;
-      
-      return { isFavorite: true };
-    }
+    return true;
   } catch (error) {
-    console.error('Error toggling favorite:', error);
-    toast.error('Error updating favorites');
+    console.error('Error marking messages as read:', error);
     return false;
   }
 };
 
-// Check if a fournisseur is in user's favorites
-export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .rpc('check_favorite_supplier', {
-        p_user_id: userId,
-        p_supplier_id: fournisseurId
-      });
-    
-    if (error) throw error;
-    
-    return !!data;
-  } catch (error) {
-    console.error('Error checking if fournisseur is favorite:', error);
-    return false;
-  }
-};
-
-// Get user's favorite fournisseurs
+// Get favorite suppliers for a user
 export const getFavoriteSuppliers = async (userId: string) => {
   try {
     const { data, error } = await supabase
       .rpc('get_favorite_suppliers', { p_user_id: userId });
     
-    if (error) {
-      console.error('Error fetching favorite suppliers:', error);
-      return [];
-    }
+    if (error) throw error;
     
     return data || [];
   } catch (error) {
-    console.error('Error in getFavoriteSuppliers:', error);
+    console.error('Error fetching favorite suppliers:', error);
     return [];
   }
 };

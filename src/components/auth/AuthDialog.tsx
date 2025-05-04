@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Dialog, 
@@ -97,8 +96,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       case 'reset-password':
         return (
           <ResetPasswordForm 
-            onSuccess={() => setView('login')} 
-            onBackToLogin={() => setView('login')}
+            onSuccess={() => setView('login')}
           />
         );
       case 'verify-email':

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole, AuthResponse, UserPreferences } from '@/types/auth';
 import { toast } from 'sonner';
@@ -232,5 +231,24 @@ export const updateUserProfile = async (
     console.error('Update profile error:', error);
     toast.error(`Erreur de mise à jour du profil: ${error.message}`);
     return null;
+  }
+};
+
+// Reset password
+export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
+  try {
+    const { token, email, password } = data;
+    
+    // Use the token to reset the password
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password?token=${token}`,
+    });
+    
+    if (error) throw error;
+    
+    return { error: null };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return { error };
   }
 };

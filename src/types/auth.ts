@@ -1,80 +1,21 @@
 
+// User type definition
 export interface User {
   id: string;
   email: string;
-  name?: string;
-  role: UserRole;
-  avatar?: string | null;
-  phone_number?: string;
-  address?: string;
-  bio?: string;
-  email_verified: boolean;
-  created_at: string;
-  updated_at: string;
+  email_verified?: boolean;
   display_name?: string;
-  preferences: UserPreferences;
-}
-
-export interface ProjectData {
-  id: string;
-  title: string;
-  name?: string;
-  description?: string;
-  status: 'planning' | 'active' | 'completed';
-  user_id: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-  image?: string;
-  crop?: string;
-  crop_type?: string;
-  location?: string;
-  startDate?: string;
-  start_date?: string;
-  endDate?: string;
-  end_date?: string;
-  progress?: number;
-  isPublic?: boolean;
-  is_public?: boolean;
-  user_name?: string;
-  user_avatar?: string | null;
-  creator_name?: string;
-  creator_email?: string;
-  creator_avatar?: string | null;
-}
-
-export interface ProjectFormProps {
-  onSubmit: (data: Partial<ProjectData>) => void;
-  onCancel: () => void;
-  project?: ProjectData;
-  onProjectCreated?: (project: ProjectData) => void;
-}
-
-export interface Rating {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
+  avatar?: string;
+  role?: string;
   created_at?: string;
-  updated_at?: string;
-  profiles?: {
-    id: string;
-    name: string;
-    avatar?: string | null;
-  };
 }
 
-export interface UserPreferences {
-  language: string;
-  notifications: {
-    email: boolean;
-    app: boolean;
-  };
-  theme: string;
+// Authentication related types
+export interface AuthResponse {
+  session: any;
+  user: User | null;
+  error?: any;
 }
-
-export type UserRole = 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
 
 export interface LoginFormData {
   email: string;
@@ -82,15 +23,10 @@ export interface LoginFormData {
 }
 
 export interface SignupFormData {
-  name: string;
   email: string;
   password: string;
-  confirmPassword: string;
-  phone_number?: string;
-}
-
-export interface ForgotPasswordFormData {
-  email: string;
+  confirm_password: string;
+  name?: string;
 }
 
 export interface ResetPasswordFormData {
@@ -100,13 +36,46 @@ export interface ResetPasswordFormData {
   confirmPassword: string;
 }
 
-export interface VerifyEmailFormData {
-  email?: string;
-  token: string;
-  code?: string;
+export interface ForgotPasswordFormData {
+  email: string;
 }
 
-export interface AuthResponse {
-  user: User | null;
-  error: Error | null;
+export interface VerifyEmailFormData {
+  email: string;
+  token: string;
+}
+
+// Project types
+export interface ProjectData {
+  id: string;
+  title: string;
+  description?: string;
+  image?: string;
+  crop?: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  progress?: number;
+  status: 'planning' | 'active' | 'completed';
+  owner_id?: string;
+  user_id?: string; // For backward compatibility
+  created_at?: string;
+  updated_at?: string;
+  is_public?: boolean;
+}
+
+export interface ProjectFormProps {
+  project?: ProjectData;
+  onSubmit: (data: ProjectData) => void;
+  onCancel?: () => void;
+}
+
+// Rating types
+export interface Rating {
+  id?: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number; // 1-5
+  comment?: string;
+  created_at?: string;
 }

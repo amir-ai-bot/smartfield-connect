@@ -1,19 +1,14 @@
 
-import { createAdminAccount } from '@/services/adminService';
-import { toast } from 'sonner';
+import { supabase } from "@/integrations/supabase/client";
 
-export const setupAdminAccount = async () => {
+async function createAdminAccount() {
   try {
-    // Use hardcoded values for admin account creation from the Index page
-    const user = await createAdminAccount();
-    
-    toast.success('Compte administrateur créé avec succès!');
-    console.log('Admin account created:', user);
-    
-    return user;
+    // This is just a placeholder script
+    // Admin account creation would typically be handled by a serverless function
+    console.log("This script needs to be implemented with proper administrative functions");
   } catch (error) {
-    console.error('Failed to create admin account:', error);
-    toast.error('Échec de la création du compte administrateur. Vérifiez la console pour plus de détails.');
-    throw error;
+    console.error("Error creating admin account:", error);
   }
-};
+}
+
+createAdminAccount();

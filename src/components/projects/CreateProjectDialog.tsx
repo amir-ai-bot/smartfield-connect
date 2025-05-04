@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -6,8 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { ProjectData } from '@/types/dashboard';
-import { uploadImage, getDefaultProjectImage } from '@/services/storageService';
+import { ProjectData } from '@/types/auth';
+import { uploadImage } from '@/services/storageService';
 
 import {
   Dialog,
@@ -118,7 +117,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
       let imageUrl = '';
       if (selectedImage) {
         try {
-          imageUrl = await uploadImage(selectedImage, 'projects', `project_images/${user.id}`);
+          imageUrl = await uploadImage(selectedImage, 'projects');
           console.log('Image uploaded successfully:', imageUrl);
         } catch (error) {
           console.error('Error uploading image:', error);
@@ -134,7 +133,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         start_date: format(values.startDate, 'yyyy-MM-dd'),
         end_date: format(values.endDate, 'yyyy-MM-dd'),
         description: values.description,
-        image: imageUrl || getDefaultProjectImage(),
+        image: imageUrl || 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
         is_public: values.isPublic,
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0

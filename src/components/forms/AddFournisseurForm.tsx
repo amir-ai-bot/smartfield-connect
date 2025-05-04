@@ -1,78 +1,66 @@
 
-import React from 'react';
+import { useState } from 'react';
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { toast } from 'sonner';
-import { addFournisseur } from '@/services/adminService';
-
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { addFournisseur } from '@/services/adminService';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  email: z.string().email({ message: 'Invalid email address' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
-  phone: z.string().min(8, { message: 'Phone number must be at least 8 characters' }),
-  location: z.string().min(2, { message: 'Location must be at least 2 characters' }),
-  category: z.string().min(2, { message: 'Category must be at least 2 characters' }),
-  products: z.string().min(2, { message: 'Products must be at least 2 characters' }),
+  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
+  category: z.string().min(2, 'La catégorie doit contenir au moins 2 caractères'),
+  location: z.string().min(2, 'L\'emplacement doit contenir au moins 2 caractères'),
+  phone: z.string().min(8, 'Le numéro de téléphone doit être valide'),
 });
 
 interface AddFournisseurFormProps {
-  onSuccess?: () => void;
-  onCancel?: () => void;
+  userId: string;
+  onSuccess: () => void;
 }
 
-const AddFournisseurForm: React.FC<AddFournisseurFormProps> = ({ onSuccess, onCancel }) => {
-  const { t } = useLanguage();
+const AddFournisseurForm = ({ userId, onSuccess }: AddFournisseurFormProps) => {
+  const [loading, setLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
-      email: '',
-      password: '',
-      phone: '',
-      location: '',
       category: '',
-      products: '',
+      location: '',
+      phone: '',
     },
   });
 
-  const isSubmitting = form.formState.isSubmitting;
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!userId) {
+      toast.error('ID utilisateur manquant');
+      return;
+    }
+
+    setLoading(true);
     try {
-      // Convert products string to array
-      const productsArray = values.products.split(',').map(p => p.trim());
-      
-      await addFournisseur({
-        name: values.name,
-        email: values.email,
-        password: values.password,
-        phone: values.phone,
-        location: values.location,
-        category: values.category,
-        products: productsArray,
+      // Include userId in the data sent to the addFournisseur function
+      const success = await addFournisseur({
+        ...values,
+        userId
       });
-      
-      toast.success('Fournisseur ajouté avec succès');
-      form.reset();
-      if (onSuccess) onSuccess();
+
+      if (success) {
+        toast.success('Fournisseur ajouté avec succès');
+        form.reset();
+        onSuccess();
+      } else {
+        toast.error('Erreur lors de l\'ajout du fournisseur');
+      }
     } catch (error) {
-      console.error('Error adding supplier:', error);
-      toast.error('Erreur lors de l\'ajout du fournisseur');
+      console.error('Error in AddFournisseurForm:', error);
+      toast.error('Une erreur est survenue');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,43 +83,12 @@ const AddFournisseurForm: React.FC<AddFournisseurFormProps> = ({ onSuccess, onCa
         
         <FormField
           control={form.control}
-          name="email"
+          name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Catégorie</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="email@exemple.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mot de passe</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormDescription>
-                Au moins 8 caractères
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Téléphone</FormLabel>
-              <FormControl>
-                <Input placeholder="+216 12 345 678" {...field} />
+                <Input placeholder="Catégorie de produits" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -145,7 +102,7 @@ const AddFournisseurForm: React.FC<AddFournisseurFormProps> = ({ onSuccess, onCa
             <FormItem>
               <FormLabel>Emplacement</FormLabel>
               <FormControl>
-                <Input placeholder="Tunis, Sfax, etc." {...field} />
+                <Input placeholder="Ville, Région" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -154,45 +111,28 @@ const AddFournisseurForm: React.FC<AddFournisseurFormProps> = ({ onSuccess, onCa
         
         <FormField
           control={form.control}
-          name="category"
+          name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Catégorie</FormLabel>
+              <FormLabel>Téléphone</FormLabel>
               <FormControl>
-                <Input placeholder="Semences, Équipement, etc." {...field} />
+                <Input placeholder="+216 XX XXX XXX" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        <FormField
-          control={form.control}
-          name="products"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Produits</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Séparer par des virgules: Engrais, Semences, etc." 
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+        <Button type="submit" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Ajout en cours...
+            </>
+          ) : (
+            'Ajouter le fournisseur'
           )}
-        />
-        
-        <div className="flex justify-end gap-2">
-          {onCancel && (
-            <Button variant="outline" type="button" onClick={onCancel}>
-              Annuler
-            </Button>
-          )}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Ajout en cours...' : 'Ajouter le fournisseur'}
-          </Button>
-        </div>
+        </Button>
       </form>
     </Form>
   );

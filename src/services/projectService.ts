@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProjectData } from '@/types/auth';
@@ -30,22 +29,36 @@ const mapProjectData = (project: any): ProjectData => ({
   user_avatar: project.profiles?.avatar || null
 });
 
-// Get all user's projects
-export const getProjects = async (userId: string): Promise<ProjectData[]> => {
+// Get all projects for the specified user
+export const getProjects = async (userId: string) => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('owner_id', userId)
-      .order('created_at', { ascending: false });
-
+      .eq('owner_id', userId);
+      
     if (error) throw error;
-
-    return data.map(mapProjectData);
+    
+    // Transform the projects to match our ProjectData type
+    return data.map((project) => ({
+      id: project.id,
+      title: project.name || '',
+      description: project.description || '',
+      status: project.status,
+      owner_id: project.owner_id,
+      // Use owner_id for backward compatibility
+      user_id: project.owner_id,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      // Add any default values needed for ProjectData
+      image: project.image || '',
+      crop: '',
+      location: '',
+      progress: 0
+    }));
   } catch (error) {
     console.error('Error fetching projects:', error);
-    toast.error('Failed to load projects');
-    return [];
+    throw error;
   }
 };
 

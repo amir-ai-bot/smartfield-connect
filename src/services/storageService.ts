@@ -76,6 +76,11 @@ export const deleteAvatar = async (url: string): Promise<boolean> => {
 };
 
 // Upload an image (generic function for components)
-export const uploadImage = async (file: File, bucket: string = 'avatars'): Promise<string | null> => {
-  return uploadFile(file, bucket);
+export const uploadImage = async (file: File, bucket: string = 'avatars', folder: string = ''): Promise<string | null> => {
+  return uploadFile(file, bucket, folder);
+};
+
+// Get default project image when none is provided
+export const getDefaultProjectImage = (): string => {
+  return 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80';
 };

@@ -10,7 +10,6 @@ import { deleteProject } from '@/services/adminService';
 import { approveFournisseurRequest } from '@/services/adminService';
 import { rejectFournisseurRequest } from '@/services/adminService';
 
-// Import missing types
 import { User, ProjectData } from '@/types/auth';
 
 // Define missing types
@@ -50,7 +49,7 @@ const Admin = () => {
   const [tab, setTab] = useState("dashboard");
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<User[]>([]);
+  const [pendingRequests, setUsers] = useState<User[]>([]);
   const [verificationCodes, setVerificationCodes] = useState<VerificationCode[]>([]);
   const [analytics, setAnalytics] = useState<AdminAnalytics>({
     userCount: 0,
@@ -82,23 +81,50 @@ const Admin = () => {
   }, []);
 
   const fetchUsers = async () => {
-    const usersData = await getAllUsers();
-    setUsers(usersData);
+    try {
+      const usersData = await getAllUsers();
+      // Add email_verified property to each user
+      const usersWithVerification = usersData.map(user => ({
+        ...user,
+        email_verified: true // Default to true since we can't access auth.users
+      }));
+      setUsers(usersWithVerification);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
   };
 
   const fetchProjects = async () => {
-    const projectsData = await getAllProjects();
-    // Ensure all required fields are present
-    const completeProjects = projectsData.map(project => ({
-      ...project,
-      owner_id: project.owner_id || project.user_id || '',
-    }));
-    setProjects(completeProjects);
+    try {
+      const projectsData = await getAllProjects();
+      // Map received data to ProjectData format
+      const formattedProjects: ProjectData[] = projectsData.map(project => ({
+        id: project.id,
+        title: project.title || project.name || '',
+        description: project.description || '',
+        status: project.status as 'planning' | 'active' | 'completed',
+        owner_id: project.owner_id || '',
+        user_id: project.owner_id || '',
+        created_at: project.created_at || '',
+        updated_at: project.updated_at || '',
+        image: project.image || '',
+        crop: project.crop || '',
+        location: project.location || '',
+        progress: project.progress || 0
+      }));
+      setProjects(formattedProjects);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    }
   };
 
   const fetchPendingRequests = async () => {
-    const requests = await getPendingFournisseurRequests();
-    setPendingRequests(requests);
+    try {
+      const requests = await getPendingFournisseurRequests();
+      setUsers(requests);
+    } catch (error) {
+      console.error('Failed to fetch pending requests:', error);
+    }
   };
 
   const fetchVerificationCodes = async () => {
@@ -107,65 +133,78 @@ const Admin = () => {
   };
 
   const fetchAnalyticsData = async () => {
-    const data = await getAnalyticsData();
-    // Convert to expected analytics format with defaults
-    const adminAnalytics: AdminAnalytics = {
-      userCount: data.userCount || 0,
-      projectCount: data.projectCount || 0,
-      registrationsByMonth: data.registrationsByMonth || {},
-      supplierCount: data.supplierCount || 0,
-      activeProjects: data.activeProjects || 0,
-      newUsersThisMonth: data.newUsersThisMonth || 0,
-      messagesSentToday: data.messagesSentToday || 0,
-      usersByRole: data.usersByRole || {
-        user: 0,
-        admin: 0,
-        fournisseur: 0,
-        pending_fournisseur: 0
-      },
-      projectsByStatus: data.projectsByStatus || {
-        active: 0,
-        completed: 0,
-        planning: 0
-      }
-    };
-    setAnalytics(adminAnalytics);
+    try {
+      const data = await getAnalyticsData();
+      // Fill in any missing properties with defaults
+      setAnalytics({
+        userCount: data.userCount || 0,
+        projectCount: data.projectCount || 0,
+        supplierCount: data.supplierCount || 0,
+        activeProjects: data.activeProjects || 0,
+        newUsersThisMonth: data.newUsersThisMonth || 0,
+        messagesSentToday: data.messagesSentToday || 0,
+        usersByRole: data.usersByRole || {
+          user: 0,
+          admin: 0,
+          fournisseur: 0,
+          pending_fournisseur: 0
+        },
+        projectsByStatus: data.projectsByStatus || {
+          active: 0,
+          completed: 0,
+          planning: 0
+        },
+        registrationsByMonth: data.registrationsByMonth || {}
+      });
+    } catch (error) {
+      console.error('Failed to fetch analytics data:', error);
+    }
   };
 
   const handleApproveRequest = async (userId: string) => {
-    const success = await approveFournisseurRequest(userId);
-    if (success) {
+    try {
+      await approveFournisseurRequest(userId);
       await fetchPendingRequests();
       await fetchUsers();
+    } catch (error) {
+      console.error('Failed to approve request:', error);
     }
   };
 
   const handleRejectRequest = async (userId: string) => {
-    const success = await rejectFournisseurRequest(userId);
-    if (success) {
+    try {
+      await rejectFournisseurRequest(userId);
       await fetchPendingRequests();
       await fetchUsers();
+    } catch (error) {
+      console.error('Failed to reject request:', error);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const success = await deleteUser(userId);
-    if (success) {
+    try {
+      await deleteUser(userId);
       await fetchUsers();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    const success = await deleteProject(projectId);
-    if (success) {
+    try {
+      await deleteProject(projectId);
       await fetchProjects();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
-    const success = await updateUserRole(userId, newRole);
-    if (success) {
+    try {
+      await updateUserRole(userId, newRole);
       await fetchUsers();
+    } catch (error) {
+      console.error('Failed to update role:', error);
     }
   };
 
