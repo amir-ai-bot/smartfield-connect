@@ -2,7 +2,7 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Project } from '@/contexts/DashboardContext';
+import { Project } from '@/types/dashboard';
 
 type ProjectSelectorProps = {
   projects: Project[] | null;
@@ -38,7 +38,7 @@ const ProjectSelector = ({ projects, activeProject, setActiveProject, isLoading 
               }`}
             >
               <h3 className={`font-medium ${activeProject === index ? 'text-agri-green-700' : 'text-gray-700'}`}>
-                {project.name}
+                {project.name || project.title}
               </h3>
               <div className="flex items-center mt-1">
                 <div className="relative h-1.5 w-24 bg-gray-200 rounded-full mr-2">

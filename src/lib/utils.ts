@@ -3,7 +3,7 @@ import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Function to generate a random code of specified length
@@ -85,6 +85,8 @@ export function formatRelativeDate(dateString: string): string {
   try {
     const date = new Date(dateString);
     const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     // Check if the date is valid
     if (isNaN(date.getTime())) {
@@ -123,8 +125,23 @@ export function formatRelativeDate(dateString: string): string {
       return 'Dans ' + Math.floor(seconds) + ' seconde' + (Math.floor(seconds) > 1 ? 's' : '');
     }
 
-    // For past dates, use the existing timeAgo function
-    return timeAgo(dateString);
+    // For past dates in English (from the other implementation)
+    if (diffDays === 0) {
+      return "Aujourd'hui";
+    } else if (diffDays === 1) {
+      return 'Hier';
+    } else if (diffDays < 7) {
+      return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `Il y a ${weeks} semaine${weeks > 1 ? 's' : ''}`;
+    } else if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30);
+      return `Il y a ${months} mois`;
+    } else {
+      const years = Math.floor(diffDays / 365);
+      return `Il y a ${years} an${years > 1 ? 's' : ''}`;
+    }
   } catch (error) {
     console.error('Error formatting relative date:', error);
     return 'Date invalide';

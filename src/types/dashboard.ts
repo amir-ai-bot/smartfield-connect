@@ -1,69 +1,72 @@
-// Type definitions for the dashboard data
 
 export interface Project {
-  id: number;
+  id: string;
   name: string;
+  title?: string; // For backward compatibility
+  description?: string;
+  status: 'planning' | 'active' | 'completed';
   progress: number;
-  status: string;
-  irrigation: string;
-  nextTask: string;
-  taskDate: string;
+  crop: string;
+  location: string;
+  startDate?: string;
+  endDate?: string;
+  image?: string;
+  irrigation?: string;
+  nextTask?: string;
+  taskDate?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  task?: string; // For backward compatibility
+  description?: string;
+  dueDate: string;
+  date?: string; // For backward compatibility
+  priority?: 'low' | 'medium' | 'high';
+  completed: boolean;
+  projectId: string;
+  project?: string; // For backward compatibility
 }
 
 export interface WeatherData {
-  temperature: number;
-  feelsLike: number;
-  humidity: number;
-  windSpeed: number;
-  condition: string;
-  location: string;
-  forecast: {
+  date?: string;
+  day?: string;
+  temp?: number;
+  temperature?: number; // For backward compatibility
+  humidity?: number;
+  windSpeed?: number;
+  condition?: string;
+  isToday?: boolean;
+  location?: string; // Location name
+  feelsLike?: number;
+  forecast?: {
     day: string;
     temperature: number;
     condition: string;
   }[];
 }
 
-export interface Task {
-  task: string;
-  project: string;
-  date: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
 export interface DashboardData {
   projects: Project[];
-  weatherData: WeatherData;
+  weather: WeatherData[];
+  weatherData?: WeatherData; // Current weather
   tasks: Task[];
-  moistureData: { day: string; value: number }[];
-  yieldData: { year: string; value: number }[];
-  lastUpdated: Date;
-}
-
-// Modified ProjectData interface to match database schema
-export interface ProjectData {
-  id: string;
-  title: string;
-  crop: string;
-  location: string;
-  // Map directly to database field names
-  start_date?: string;
-  end_date?: string; 
-  // Keep the camelCase versions for backward compatibility
-  startDate?: string;
-  endDate?: string;
-  progress: number;
-  status: string;
-  image?: string;
-  description?: string;
-  user_id: string;
-  is_public?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  last_modified?: string;
-  // UI-specific fields
-  user_name?: string;
-  user_avatar?: string;
+  stats?: {
+    totalProjects: number;
+    activeProjects: number;
+    completedTasks: number;
+    pendingTasks: number;
+  };
+  lastUpdated?: Date | null;
+  moistureData?: Array<{
+    day: string; // Changed from date to day
+    value: number;
+  }>;
+  yieldData?: Array<{
+    year: string;
+    value: number;
+  }>;
 }
 
 export interface DashboardContextType {
@@ -72,4 +75,28 @@ export interface DashboardContextType {
   activeProject: number;
   setActiveProject: (index: number) => void;
   refreshData: () => Promise<void>;
+}
+
+export interface ProjectData {
+  id: string;
+  title: string;
+  name?: string;
+  description?: string;
+  status: 'planning' | 'active' | 'completed';
+  progress: number;
+  crop: string;
+  location: string;
+  startDate?: string;
+  endDate?: string;
+  image?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  owner_id?: string;
+  user_name?: string;
+  user_email?: string;
+  user_avatar?: string;
+  is_public?: boolean;
+  start_date?: string;
+  end_date?: string;
 }

@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Task } from '@/contexts/DashboardContext';
+import { Task } from '@/types/dashboard';
 
 type TasksCardProps = {
   tasks: Task[] | null;
@@ -50,9 +50,9 @@ const TasksCard = ({ tasks, isLoading }: TasksCardProps) => {
                   />
                   
                   <div>
-                    <h4 className="font-medium text-gray-900">{item.task}</h4>
-                    <p className="text-xs text-gray-500">{item.project}</p>
-                    <p className="text-xs text-agri-blue-600 mt-1">{item.date}</p>
+                    <h4 className="font-medium text-gray-900">{item.title || item.task}</h4>
+                    <p className="text-xs text-gray-500">{item.projectId || item.project}</p>
+                    <p className="text-xs text-agri-blue-600 mt-1">{item.dueDate || item.date}</p>
                   </div>
                 </li>
               ))}

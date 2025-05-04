@@ -2,10 +2,12 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProjectForm from '@/components/projects/ProjectForm';
-import { ProjectData } from '@/types/auth';
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+// Use the dashboard ProjectData type explicitly
+import { ProjectData } from '@/types/dashboard';
 
 interface ProjectFormDialogProps {
   open: boolean;
@@ -27,6 +29,18 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
         return;
       }
 
+      // Ensure required fields are present
+      if (!formData.crop) {
+        formData.crop = ''; // Default value
+      }
+      if (!formData.location) {
+        formData.location = ''; // Default value
+      }
+      if (formData.progress === undefined) {
+        formData.progress = 0; // Default value
+      }
+
+      // Pass the user ID and formData to createProject
       const createdProject = await createProject(user.id, formData as Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>);
       if (createdProject) {
         onProjectCreated(createdProject);

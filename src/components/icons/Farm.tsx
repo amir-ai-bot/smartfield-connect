@@ -1,38 +1,25 @@
 
 import React from 'react';
 
-interface IconProps extends React.SVGProps<SVGSVGElement> {
-  size?: number;
-  strokeWidth?: number;
-  color?: string;
-}
-
-const Farm: React.FC<IconProps> = ({ 
-  size = 24, 
-  strokeWidth = 2, 
-  color = "currentColor", 
-  ...props 
-}) => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M3 21V10l8-6 8 6v11" />
-      <path d="M13 13h4v8h-4z" />
-      <path d="M7 21v-9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v9" />
-      <path d="M3 21h18" />
-      <path d="M16 13v-2" />
-    </svg>
-  );
-};
+const Farm = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 9h18V5H3v4Z" />
+    <path d="M13 18h4V9h-4v9Z" />
+    <path d="M7 18h4V9H7v9Z" />
+    <path d="M19 18h2v-4h-2v4Z" />
+    <path d="M3 18h2v-4H3v4Z" />
+    <path d="M3 20h18v2H3v-2Z" />
+  </svg>
+);
 
 export default Farm;

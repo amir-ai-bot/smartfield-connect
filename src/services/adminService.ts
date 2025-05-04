@@ -1,8 +1,98 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { User, ProjectData } from '@/types/auth';
+import { User, ProjectData } from '@/types/supabase';
 
-// Get all users
+// Get admin statistics
+export const getAdminStats = async () => {
+  try {
+    // Get user count
+    const { count: userCount, error: userError } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (userError) throw userError;
+
+    // Get new users this month
+    const { count: newUsersThisMonth, error: newUsersError } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', new Date(new Date().setDate(1)).toISOString());
+
+    if (newUsersError) throw newUsersError;
+
+    // Get project count
+    const { count: projectCount, error: projectError } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true });
+
+    if (projectError) throw projectError;
+
+    // Get active projects count
+    const { count: activeProjects, error: activeError } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    if (activeError) throw activeError;
+
+    // Get supplier count
+    const { count: supplierCount, error: supplierError } = await supabase
+      .from('suppliers')
+      .select('*', { count: 'exact', head: true });
+
+    if (supplierError) throw supplierError;
+
+    // Get messages sent today
+    const { count: messagesSentToday, error: messagesError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', new Date().toISOString().split('T')[0]);
+
+    if (messagesError) throw messagesError;
+
+    // Get users by role
+    const { data: roles, error: rolesError } = await supabase
+      .from('profiles')
+      .select('role');
+
+    if (rolesError) throw rolesError;
+
+    const usersByRole = {
+      user: roles.filter(r => r.role === 'user').length,
+      admin: roles.filter(r => r.role === 'admin').length,
+      fournisseur: roles.filter(r => r.role === 'fournisseur').length,
+      pending_fournisseur: roles.filter(r => r.role === 'pending_fournisseur').length,
+    };
+
+    // Get projects by status
+    const { data: projectStatuses, error: statusError } = await supabase
+      .from('projects')
+      .select('status');
+
+    if (statusError) throw statusError;
+
+    const projectsByStatus = {
+      planning: projectStatuses.filter(p => p.status === 'planning').length,
+      active: projectStatuses.filter(p => p.status === 'active').length,
+      completed: projectStatuses.filter(p => p.status === 'completed').length,
+    };
+
+    return {
+      userCount: userCount || 0,
+      projectCount: projectCount || 0,
+      supplierCount: supplierCount || 0,
+      activeProjects: activeProjects || 0,
+      newUsersThisMonth: newUsersThisMonth || 0,
+      messagesSentToday: messagesSentToday || 0,
+      usersByRole,
+      projectsByStatus,
+    };
+  } catch (error) {
+    console.error('Error getting admin stats:', error);
+    return null;
+  }
+};
+
+// Get all users for admin
 export const getAllUsers = async (): Promise<User[]> => {
   try {
     const { data, error } = await supabase
@@ -15,28 +105,29 @@ export const getAllUsers = async (): Promise<User[]> => {
       return [];
     }
 
-    // Transform the data to match User type
-    const usersWithEmailVerification = data.map(user => ({
-      ...user,
-      email_verified: true, // Since we can't easily check email verification from profiles table
-      name: user.display_name
-    })) as unknown as User[];
-
-    return usersWithEmailVerification;
+    return data as User[];
   } catch (error) {
     console.error('Error in getAllUsers:', error);
     return [];
   }
 };
 
-// Get all projects
+// Alias functions to match imports in Admin.tsx
+export const getAdminUsers = getAllUsers;
+
+// Get all projects for admin
 export const getAllProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
-        profiles:owner_id(*)
+        profiles:owner_id (
+          id,
+          email,
+          display_name,
+          avatar
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -45,8 +136,8 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
       return [];
     }
 
-    // Transform the data to match ProjectData type
-    const projects = data.map(project => {
+    // Process the data to match the ProjectData interface
+    const projects: ProjectData[] = data.map((project: any) => {
       // Handle the profiles
       let creator_name = null;
       let creator_email = null;
@@ -59,16 +150,26 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
       }
 
       return {
-        ...project,
-        title: project.name, // Map name to title
-        user_id: project.owner_id, // Map owner_id to user_id
-        creator_name,
-        creator_email,
-        creator_avatar,
-        status: project.status || 'planning',
+        id: project.id,
+        title: project.name || '',
+        name: project.name,
+        description: project.description,
+        status: project.status as 'planning' | 'active' | 'completed',
         progress: project.progress || 0,
-        image: project.image || null,
-      } as ProjectData;
+        crop: project.crop || '',
+        location: project.location || '',
+        image: project.image || '',
+        user_name: creator_name || project.profiles?.display_name || '',
+        user_email: creator_email || project.profiles?.email || '',
+        user_avatar: creator_avatar || project.profiles?.avatar || '',
+        owner_id: project.owner_id,
+        user_id: project.owner_id,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        start_date: project.start_date || '',
+        end_date: project.end_date || '',
+        is_public: project.is_public || false
+      };
     });
 
     return projects;
@@ -78,42 +179,43 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
   }
 };
 
-// Delete a user (admin only)
-export const deleteUser = async (userId: string): Promise<boolean> => {
+// Alias for getAllProjects
+export const getAdminProjects = getAllProjects;
+
+// Delete user function for admin
+export const deleteUser = async (userId: string) => {
   try {
     const { error } = await supabase.rpc('admin_delete_user', { user_id: userId });
 
     if (error) {
       console.error('Error deleting user:', error);
-      return false;
+      throw error;
     }
-
     return true;
   } catch (error) {
-    console.error('Error in deleteUser:', error);
-    return false;
+    console.error('Error deleting user:', error);
+    throw error;
   }
 };
 
-// Verify a user's email (admin only)
-export const verifyUser = async (userId: string): Promise<boolean> => {
+// Verify user's email for admin
+export const verifyUser = async (userId: string) => {
   try {
     const { error } = await supabase.rpc('admin_verify_user', { user_id: userId });
 
     if (error) {
       console.error('Error verifying user:', error);
-      return false;
+      throw error;
     }
-
     return true;
   } catch (error) {
-    console.error('Error in verifyUser:', error);
-    return false;
+    console.error('Error verifying user:', error);
+    throw error;
   }
 };
 
-// Update a user's role (admin only)
-export const updateUserRole = async (userId: string, role: string): Promise<boolean> => {
+// Update user role for admin
+export const updateUserRole = async (userId: string, role: string) => {
   try {
     const { error } = await supabase
       .from('profiles')
@@ -122,18 +224,17 @@ export const updateUserRole = async (userId: string, role: string): Promise<bool
 
     if (error) {
       console.error('Error updating user role:', error);
-      return false;
+      throw error;
     }
-
     return true;
   } catch (error) {
-    console.error('Error in updateUserRole:', error);
-    return false;
+    console.error('Error updating user role:', error);
+    throw error;
   }
 };
 
-// Delete a project (admin only)
-export const deleteProject = async (projectId: string): Promise<boolean> => {
+// Delete project function for admin
+export const deleteProject = async (projectId: string) => {
   try {
     const { error } = await supabase
       .from('projects')
@@ -142,124 +243,39 @@ export const deleteProject = async (projectId: string): Promise<boolean> => {
 
     if (error) {
       console.error('Error deleting project:', error);
-      return false;
+      throw error;
     }
-
     return true;
   } catch (error) {
-    console.error('Error in deleteProject:', error);
-    return false;
+    console.error('Error deleting project:', error);
+    throw error;
   }
 };
 
-// Get admin stats
-export const getAdminStats = async () => {
+// Get all suppliers for admin
+export const getAdminSuppliers = async () => {
   try {
-    // Stats we want to collect
-    const stats = {
-      userCount: 0,
-      projectCount: 0,
-      supplierCount: 0,
-      activeProjects: 0,
-      newUsersThisMonth: 0,
-      messagesSentToday: 0,
-      usersByRole: {
-        user: 0,
-        admin: 0,
-        fournisseur: 0,
-        pending_fournisseur: 0,
-      },
-      projectsByStatus: {
-        planning: 0,
-        active: 0,
-        completed: 0,
-      },
-    };
-
-    // Get user counts
-    const { data: users, error: userError } = await supabase
-      .from('profiles')
-      .select('id, role, created_at');
-
-    if (userError) {
-      console.error('Error fetching users for stats:', userError);
-    } else if (users) {
-      stats.userCount = users.length;
-
-      // Count users by role
-      users.forEach(user => {
-        const role = user.role as string;
-        if (role && stats.usersByRole.hasOwnProperty(role)) {
-          stats.usersByRole[role as keyof typeof stats.usersByRole]++;
-        } else {
-          stats.usersByRole.user++;
-        }
-      });
-
-      // Count new users this month
-      const firstDayOfMonth = new Date();
-      firstDayOfMonth.setDate(1);
-      firstDayOfMonth.setHours(0, 0, 0, 0);
-
-      stats.newUsersThisMonth = users.filter(
-        user => new Date(user.created_at) >= firstDayOfMonth
-      ).length;
-    }
-
-    // Get project counts
-    const { data: projects, error: projectError } = await supabase
-      .from('projects')
-      .select('id, status');
-
-    if (projectError) {
-      console.error('Error fetching projects for stats:', projectError);
-    } else if (projects) {
-      stats.projectCount = projects.length;
-
-      // Count projects by status
-      projects.forEach(project => {
-        const status = project.status as string;
-        if (status === 'active') {
-          stats.activeProjects++;
-        }
-
-        if (status && stats.projectsByStatus.hasOwnProperty(status)) {
-          stats.projectsByStatus[status as keyof typeof stats.projectsByStatus]++;
-        } else {
-          stats.projectsByStatus.planning++;
-        }
-      });
-    }
-
-    // Get supplier count
-    const { data: suppliers, error: supplierError } = await supabase
+    const { data, error } = await supabase
       .from('suppliers')
-      .select('count');
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          display_name,
+          email,
+          avatar
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-    if (supplierError) {
-      console.error('Error fetching suppliers for stats:', supplierError);
-    } else if (suppliers && suppliers[0]) {
-      stats.supplierCount = suppliers[0].count;
+    if (error) {
+      console.error('Error fetching suppliers:', error);
+      throw error;
     }
 
-    // Get messages sent today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const { data: messages, error: messageError } = await supabase
-      .from('messages')
-      .select('count')
-      .gte('created_at', today.toISOString());
-
-    if (messageError) {
-      console.error('Error fetching messages for stats:', messageError);
-    } else if (messages && messages[0]) {
-      stats.messagesSentToday = messages[0].count;
-    }
-
-    return stats;
+    return data;
   } catch (error) {
-    console.error('Error in getAdminStats:', error);
-    return null;
+    console.error('Error getting admin suppliers:', error);
+    return [];
   }
 };

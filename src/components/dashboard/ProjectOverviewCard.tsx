@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Droplet, Sprout } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Project } from '@/contexts/DashboardContext';
+import { Project } from '@/types/dashboard';
 
 type ProjectOverviewCardProps = {
   project: Project | null;
@@ -59,7 +59,7 @@ const ProjectOverviewCard = ({ project, isLoading }: ProjectOverviewCardProps) =
           <div className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-1">
-                <h4 className="font-semibold">{project?.name}</h4>
+                <h4 className="font-semibold">{project?.name || project?.title}</h4>
                 <span className="text-xs bg-agri-green-100 text-agri-green-700 px-2 py-0.5 rounded-full">
                   {project?.status}
                 </span>
@@ -79,14 +79,14 @@ const ProjectOverviewCard = ({ project, isLoading }: ProjectOverviewCardProps) =
                   <p className="text-xs text-gray-500 mb-1">Irrigation</p>
                   <div className="flex items-center">
                     <Droplet className="h-4 w-4 mr-1.5 text-agri-blue-500" />
-                    <span className="text-sm font-medium">{project?.irrigation}</span>
+                    <span className="text-sm font-medium">{project?.irrigation || 'Non définie'}</span>
                   </div>
                 </div>
                 
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Prochaine tâche</p>
-                  <p className="text-sm font-medium">{project?.nextTask}</p>
-                  <p className="text-xs text-agri-green-600">{project?.taskDate}</p>
+                  <p className="text-sm font-medium">{project?.nextTask || 'Aucune tâche'}</p>
+                  <p className="text-xs text-agri-green-600">{project?.taskDate || ''}</p>
                 </div>
               </div>
             </div>

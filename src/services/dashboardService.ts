@@ -1,40 +1,39 @@
 
+import { supabase } from '@/integrations/supabase/client';
 import { DashboardData } from '@/types/dashboard';
 import { initialDashboardData } from '@/data/dashboardMockData';
 
-// Function to simulate data fetching
+// Fetch dashboard data
 export const fetchDashboardData = async (): Promise<DashboardData> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Generate some random variations in the data
-  const randomizeData = (data: DashboardData): DashboardData => {
-    const newData = { ...data };
+  try {
+    // In a real application, you would fetch this data from your API
+    // For now, we'll use mock data with a delay to simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Randomize moisture data slightly
-    newData.moistureData = data.moistureData.map(item => ({
-      ...item,
-      value: Math.max(20, Math.min(80, item.value + Math.floor(Math.random() * 10) - 5))
-    }));
+    // Return mock data
+    return initialDashboardData;
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    return initialDashboardData;
+  }
+};
+
+// Update project in dashboard
+export const updateDashboardProject = async (projectId: string, projectData: any) => {
+  try {
+    // Here you would update the project in your database
+    console.log('Updating project:', projectId, projectData);
     
-    // Randomize weather
-    newData.weatherData = {
-      ...data.weatherData,
-      temperature: Math.floor(Math.random() * 5) + 30,
-      humidity: Math.floor(Math.random() * 10) + 20,
-      windSpeed: Math.floor(Math.random() * 5) + 10,
+    // Mock success response
+    return {
+      success: true,
+      message: 'Project updated successfully'
     };
-    
-    // Update projects progress slightly
-    newData.projects = data.projects.map(project => ({
-      ...project,
-      progress: Math.min(100, project.progress + (Math.random() > 0.7 ? 1 : 0))
-    }));
-    
-    newData.lastUpdated = new Date();
-    
-    return newData;
-  };
-  
-  return randomizeData(initialDashboardData);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    return {
+      success: false,
+      message: 'Failed to update project'
+    };
+  }
 };
