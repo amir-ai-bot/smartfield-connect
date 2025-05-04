@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectData, ProjectFormProps } from '@/types/auth';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, onProjectCreated }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch } = useForm<Partial<ProjectData>>({
+const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, onProjectCreated, isSubmitting: externalSubmitting }) => {
+  const { register, handleSubmit, formState: { errors, isSubmitting: formSubmitting }, setValue, watch } = useForm<Partial<ProjectData>>({
     defaultValues: project || {
       title: '',
       description: '',
@@ -48,8 +49,57 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
 
   const handleFormSubmit = async (data: Partial<ProjectData>) => {
     try {
+      console.log('Form data before submission:', data);
+
+      // Validate required fields
+      if (!data.title) {
+        toast.error('Le titre du projet est requis');
+        return;
+      }
+
+      if (!data.crop) {
+        toast.error('Le type de culture est requis');
+        return;
+      }
+
+      if (!data.location) {
+        toast.error('La localisation est requise');
+        return;
+      }
+
+      // Ensure dates are properly formatted
+      if (data.startDate && typeof data.startDate === 'string') {
+        try {
+          // Make sure it's a valid date
+          new Date(data.startDate).toISOString();
+        } catch (e) {
+          data.startDate = new Date().toISOString().split('T')[0];
+        }
+      }
+
+      if (data.endDate && typeof data.endDate === 'string') {
+        try {
+          // Make sure it's a valid date
+          new Date(data.endDate).toISOString();
+        } catch (e) {
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + 30);
+          data.endDate = endDate.toISOString().split('T')[0];
+        }
+      }
+
+      // Set default values for required fields
+      data.status = data.status || 'planning';
+      data.progress = data.progress !== undefined ? data.progress : 0;
+
+      // Make sure is_public is a boolean
+      data.is_public = !!data.is_public;
+
+      console.log('Processed form data:', data);
+
       await onSubmit(data);
-      toast.success(project ? 'Projet mis à jour avec succès' : 'Projet créé avec succès');
+
+      // Don't show success toast here, let the parent component handle it
       if (onProjectCreated && !project) {
         onProjectCreated(data as ProjectData);
       }
@@ -71,7 +121,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
         />
         {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <Textarea
@@ -81,7 +131,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           {...register('description')}
         />
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="crop">Type de culture</Label>
@@ -93,7 +143,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           />
           {errors.crop && <p className="text-destructive text-sm">{errors.crop.message}</p>}
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="location">Localisation</Label>
           <Input
@@ -105,7 +155,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           {errors.location && <p className="text-destructive text-sm">{errors.location.message}</p>}
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="startDate">Date de début</Label>
@@ -116,7 +166,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           />
           {errors.startDate && <p className="text-destructive text-sm">{errors.startDate.message}</p>}
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="endDate">Date de fin</Label>
           <Input
@@ -127,7 +177,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           {errors.endDate && <p className="text-destructive text-sm">{errors.endDate.message}</p>}
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="status">Statut</Label>
@@ -145,7 +195,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="progress">Progression (%)</Label>
           <Input
@@ -153,7 +203,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
             type="number"
             min="0"
             max="100"
-            {...register('progress', { 
+            {...register('progress', {
               valueAsNumber: true,
               min: { value: 0, message: 'La progression minimale est 0%' },
               max: { value: 100, message: 'La progression maximale est 100%' }
@@ -162,7 +212,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           {errors.progress && <p className="text-destructive text-sm">{errors.progress.message}</p>}
         </div>
       </div>
-      
+
       <div className="space-y-2">
         <div className="flex items-center space-x-2">
           <input
@@ -177,13 +227,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
           Les projets publics sont visibles par tous les utilisateurs et peuvent apparaître sur la page d'accueil.
         </p>
       </div>
-      
+
       <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={formSubmitting || externalSubmitting}>
           Annuler
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {project ? 'Mettre à jour' : 'Créer le projet'}
+        <Button type="submit" disabled={formSubmitting || externalSubmitting}>
+          {(formSubmitting || externalSubmitting) ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {project ? 'Mise à jour...' : 'Création...'}
+            </>
+          ) : (
+            project ? 'Mettre à jour' : 'Créer le projet'
+          )}
         </Button>
       </div>
     </form>
