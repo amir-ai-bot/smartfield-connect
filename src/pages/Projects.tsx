@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -30,11 +31,12 @@ const Projects: React.FC = () => {
       const fetchedProjects = await getUserProjects(user.id);
       
       // Ensure that all projects have a valid status value
-      const projectsWithValidStatus = fetchedProjects.map(project => ({
+      const projectsWithValidStatus: ProjectData[] = fetchedProjects.map(project => ({
         ...project,
-        status: (project.status as any === 'planning' || 
-                 project.status as any === 'active' || 
-                 project.status as any === 'completed') 
+        title: project.title || project.name || '',
+        status: (project.status === 'planning' || 
+                 project.status === 'active' || 
+                 project.status === 'completed') 
                 ? project.status 
                 : 'planning' as 'planning' | 'active' | 'completed'
       }));

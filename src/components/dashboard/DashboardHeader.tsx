@@ -1,10 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
-import { useState } from 'react';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { ProjectData } from '@/types/dashboard';
 
@@ -40,8 +39,8 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
     }
   };
 
-  // Handle project creation success - make this return a Promise
-  const handleProjectCreated = async (projectData: Omit<ProjectData, "id" | "created_at" | "updated_at" | "user_id">) => {
+  // Handle project creation success
+  const handleProjectCreated = async (project: Omit<ProjectData, "id" | "created_at" | "updated_at" | "user_id">) => {
     await refreshData();
     return Promise.resolve();
   };
@@ -91,6 +90,7 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
       <AuthDialog 
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
+        defaultTab="login"
       />
 
       <CreateProjectDialog 

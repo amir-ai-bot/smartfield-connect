@@ -1,11 +1,20 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
-import { getSupplierById, getRatingsByFournisseurId } from '@/services/ratingService';
+import { getSupplierById, getRatingsByFournisseurId } from '@/services/supplierService';
 import { useAuth } from '@/contexts/AuthContext';
 import { createConversation } from '@/services/conversationService';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import RatingComponent from '@/components/RatingComponent';
+import { Rating } from '@/types/auth';
 
 interface ExtendedRating extends Rating {
   profiles: {

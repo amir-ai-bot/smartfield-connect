@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { createFournisseurRequest } from '@/services/fournisseurService';
 
@@ -27,7 +27,6 @@ const AddFournisseurForm = ({
   trigger = <Button>Devenir fournisseur</Button>,
 }: AddFournisseurFormProps) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -46,32 +45,29 @@ const AddFournisseurForm = ({
     e.preventDefault();
     
     if (!user) {
-      toast({
-        title: 'Erreur',
-        description: 'Vous devez être connecté pour soumettre cette demande',
-        variant: 'destructive',
-      });
+      toast.error('Vous devez être connecté pour soumettre cette demande');
+      return;
+    }
+    
+    // Validate form data
+    if (!formData.name || !formData.category || !formData.location || !formData.phone) {
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
     
     try {
       setIsLoading(true);
       
-      const requestData = {
+      const result = await createFournisseurRequest({
         name: formData.name,
         category: formData.category,
         location: formData.location,
         phone: formData.phone,
         userId: user.id
-      };
-      
-      const result = await createFournisseurRequest(requestData);
+      });
       
       if (result) {
-        toast({
-          title: 'Demande envoyée',
-          description: 'Votre demande de devenir fournisseur a été envoyée avec succès',
-        });
+        toast.success('Votre demande de devenir fournisseur a été envoyée avec succès');
         
         setOpen(false);
         setFormData({
@@ -87,11 +83,7 @@ const AddFournisseurForm = ({
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue lors de l\'envoi de votre demande',
-        variant: 'destructive',
-      });
+      toast.error('Une erreur est survenue lors de l\'envoi de votre demande');
     } finally {
       setIsLoading(false);
     }
