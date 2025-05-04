@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { User, UserRole, ProjectData } from '@/types/auth';
@@ -273,6 +272,63 @@ export const createAdminAccount = async (): Promise<boolean> => {
   }
 };
 
+// Function to add a new supplier/fournisseur
+export const addFournisseur = async (data: {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  location: string;
+  category: string;
+  products: string[];
+}): Promise<boolean> => {
+  try {
+    // First, create the user account
+    const { data: userData, error: userError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          name: data.name,
+          role: 'fournisseur',
+        },
+      }
+    });
+
+    if (userError) {
+      throw new Error(userError.message);
+    }
+
+    if (!userData.user) {
+      throw new Error('Failed to create user account');
+    }
+
+    // Then create the supplier record
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: userData.user.id,
+        name: data.name,
+        phone: data.phone,
+        location: data.location,
+        category: data.category,
+        products: data.products,
+        email: data.email
+      });
+
+    if (supplierError) {
+      throw new Error(supplierError.message);
+    }
+
+    toast.success('Fournisseur ajouté avec succès');
+    return true;
+  } catch (error) {
+    console.error('Error adding supplier:', error);
+    toast.error('Erreur lors de l\'ajout du fournisseur');
+    return false;
+  }
+};
+
 // Placeholder function for analytics data
 export const getAnalyticsData = async () => {
   return {
@@ -282,8 +338,17 @@ export const getAnalyticsData = async () => {
     activeProjects: 0,
     newUsersThisMonth: 0,
     messagesSentToday: 0,
-    usersByRole: [],
-    projectsByStatus: []
+    usersByRole: {
+      user: 0,
+      admin: 0,
+      fournisseur: 0,
+      pending_fournisseur: 0
+    },
+    projectsByStatus: {
+      active: 0,
+      completed: 0,
+      planning: 0
+    }
   };
 };
 

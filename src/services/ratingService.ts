@@ -1,21 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-export interface Rating {
-  id: string;
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
-  created_at?: string;
-  updated_at?: string;
-  profiles?: {
-    id: string;
-    name: string;
-    avatar?: string | null;
-  };
-}
+import { Rating } from '@/types/auth';
 
 // Get a supplier by ID
 export const getSupplierById = async (id: string) => {
@@ -54,34 +40,19 @@ export const getSupplierById = async (id: string) => {
   }
 };
 
-// Get ratings by fournisseur ID
+// Get ratings by fournisseur ID using raw SQL since the table might not be in the types yet
 export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<Rating[]> => {
   try {
-    // Check if ratings table exists, if not return empty array
+    // Use raw SQL query instead of relying on the generated types
     const { data, error } = await supabase
-      .from('ratings')
-      .select(`
-        *,
-        profiles:user_id(id, display_name, avatar)
-      `)
-      .eq('fournisseur_id', fournisseurId);
+      .rpc('get_supplier_ratings', { supplier_id: fournisseurId });
 
     if (error) {
       console.error('Error fetching ratings:', error);
       return [];
     }
 
-    // Format ratings to include user profiles
-    const ratingsWithProfiles = data.map((rating: any) => ({
-      ...rating,
-      profiles: {
-        id: rating.profiles?.id || rating.user_id,
-        name: rating.profiles?.display_name || 'Anonymous',
-        avatar: rating.profiles?.avatar || null
-      }
-    }));
-
-    return ratingsWithProfiles as Rating[];
+    return (data || []) as Rating[];
   } catch (error) {
     console.error('Error fetching ratings:', error);
     toast.error('Error fetching ratings');
@@ -89,31 +60,29 @@ export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<
   }
 };
 
-// Get supplier ratings for the current user
+// Get supplier ratings for the current user using raw SQL
 export const getUserRatingForSupplier = async (userId: string, supplierId: string): Promise<Rating | null> => {
   try {
-    // Check if ratings table exists, if not return null
+    // Use raw SQL query instead of relying on the generated types
     const { data, error } = await supabase
-      .from('ratings')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('fournisseur_id', supplierId)
-      .maybeSingle();
+      .rpc('get_user_rating_for_supplier', { 
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
 
     if (error) {
-      if (error.code === '42P01') { // Table doesn't exist
-        return null;
-      }
-      throw error;
+      console.error('Error fetching user rating:', error);
+      return null;
     }
-    return data;
+    
+    return data ? (data as Rating) : null;
   } catch (error) {
     console.error('Error fetching user rating:', error);
     return null;
   }
 };
 
-// Add rating for a supplier
+// Add rating for a supplier using raw SQL
 export const addRating = async (
   userId: string,
   supplierId: string,
@@ -121,46 +90,34 @@ export const addRating = async (
   comment?: string
 ): Promise<Rating | null> => {
   try {
-    // Check if user has already rated this supplier
-    const existingRating = await getUserRatingForSupplier(userId, supplierId);
-    
-    if (existingRating) {
-      // Update existing rating
-      const { data, error } = await supabase
-        .from('ratings')
-        .update({ rating, comment, updated_at: new Date().toISOString() })
-        .eq('id', existingRating.id)
-        .select()
-        .single();
+    // Use raw SQL function to handle both insert and update
+    const { data, error } = await supabase
+      .rpc('add_or_update_rating', { 
+        p_user_id: userId,
+        p_supplier_id: supplierId,
+        p_rating: rating,
+        p_comment: comment || ''
+      });
         
-      if (error) throw error;
-      
-      // Update supplier average rating
-      await updateSupplierAverageRating(supplierId);
-      
-      toast.success('Rating updated successfully');
-      return data as Rating;
-    } else {
-      // Create new rating
-      const { data, error } = await supabase
-        .from('ratings')
-        .insert({
-          user_id: userId,
-          fournisseur_id: supplierId,
-          rating,
-          comment
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      // Update supplier average rating
-      await updateSupplierAverageRating(supplierId);
-      
-      toast.success('Rating added successfully');
-      return data as Rating;
+    if (error) {
+      console.error('Error adding/updating rating:', error);
+      throw error;
     }
+    
+    toast.success('Rating submitted successfully');
+    
+    // Return the rating data
+    const newRatingData = {
+      id: data.id || '',
+      user_id: userId,
+      fournisseur_id: supplierId,
+      rating: rating,
+      comment: comment,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    return newRatingData as Rating;
   } catch (error) {
     console.error('Error adding rating:', error);
     toast.error('Error adding rating');
@@ -168,41 +125,12 @@ export const addRating = async (
   }
 };
 
-// Function to update the average rating for a supplier
-const updateSupplierAverageRating = async (supplierId: string): Promise<void> => {
-  try {
-    // Get all ratings for the supplier
-    const { data, error } = await supabase
-      .from('ratings')
-      .select('rating')
-      .eq('fournisseur_id', supplierId);
-      
-    if (error) throw error;
-    
-    if (data?.length > 0) {
-      // Calculate average rating
-      const totalRating = data.reduce((sum, item) => sum + item.rating, 0);
-      const averageRating = totalRating / data.length;
-      
-      // Update supplier with new average rating
-      const { error: updateError } = await supabase
-        .from('suppliers')
-        .update({ rating: averageRating })
-        .eq('id', supplierId);
-        
-      if (updateError) throw updateError;
-    }
-  } catch (error) {
-    console.error('Error updating supplier rating:', error);
-  }
-};
-
-// Get ratings for suppliers
+// Function to get all ratings for supplier - alias
 export const getRatingsForSupplier = async (supplierId: string): Promise<Rating[]> => {
   return getRatingsByFournisseurId(supplierId);
 };
 
-// Rate a fournisseur - for the RatingDialog component
+// Rate a fournisseur - alias for the RatingDialog component
 export const rateFournisseur = async (
   userId: string,
   fournisseurId: string,

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +55,18 @@ const Admin = () => {
   const [analytics, setAnalytics] = useState<AdminAnalytics>({
     userCount: 0,
     projectCount: 0,
-    registrationsByMonth: {}
+    registrationsByMonth: {},
+    usersByRole: {
+      user: 0,
+      admin: 0,
+      fournisseur: 0,
+      pending_fournisseur: 0
+    },
+    projectsByStatus: {
+      active: 0,
+      completed: 0,
+      planning: 0
+    }
   });
 
   useEffect(() => {
@@ -76,25 +88,7 @@ const Admin = () => {
 
   const fetchProjects = async () => {
     const projectsData = await getAllProjects();
-    const formattedProjects = projectsData.map(p => ({
-      id: p.id,
-      title: p.title || p.name || '',
-      description: p.description || '',
-      status: p.status as 'planning' | 'active' | 'completed',
-      user_id: p.owner_id || '',
-      created_at: p.created_at,
-      updated_at: p.updated_at,
-      image: p.image,
-      crop: '',
-      location: '',
-      startDate: '',
-      endDate: '',
-      progress: 0,
-      isPublic: false,
-      user_name: p.creator_name,
-      user_avatar: p.creator_avatar
-    }));
-    setProjects(formattedProjects);
+    setProjects(projectsData);
   };
 
   const fetchPendingRequests = async () => {
@@ -141,21 +135,21 @@ const Admin = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    const success = await deleteUser(userId);
+    const success = await deleteUser();
     if (success) {
       await fetchUsers();
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    const success = await deleteProject(projectId);
+    const success = await deleteProject();
     if (success) {
       await fetchProjects();
     }
   };
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
-    const success = await updateUserRole(userId, newRole);
+    const success = await updateUserRole();
     if (success) {
       await fetchUsers();
     }

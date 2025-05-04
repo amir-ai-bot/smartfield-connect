@@ -111,7 +111,7 @@ export const createProject = async (projectData: Partial<ProjectData>, userId: s
 // Update an existing project
 export const updateProject = async (projectId: string, projectData: Partial<ProjectData>): Promise<ProjectData | null> => {
   try {
-    const updates = {
+    const updates: any = {
       name: projectData.title,
       description: projectData.description,
       status: projectData.status,
