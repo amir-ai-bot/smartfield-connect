@@ -61,8 +61,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
   };
   
   // Format dates for display
-  const startDate = project.start_date || project.startDate;
-  const endDate = project.end_date || project.endDate;
+  const startDate = project.startDate || project.start_date;
+  const endDate = project.endDate || project.end_date;
   
   const formattedStartDate = startDate ? 
     format(parseISO(startDate), 'dd/MM/yyyy') : 'Non définie';
@@ -97,7 +97,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
           />
           <div className="absolute top-3 right-3 flex space-x-2">
             <Badge className={statusClass}>{statusLabel}</Badge>
-            {project.is_public || project.isPublic ? 
+            {(project.is_public || project.isPublic) ? 
               <Badge variant="outline" className="bg-white">
                 <Eye className="h-3 w-3 mr-1" /> Public
               </Badge> :

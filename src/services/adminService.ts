@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types/auth';
 
@@ -315,13 +314,53 @@ export const addFournisseur = async (data: { name: string; category: string; loc
   }
 };
 
-export const createAdminAccount = async (email: string, password: string, name: string) => {
+/**
+ * Create an admin account (for use in scripts only)
+ */
+export async function createAdminAccount(email: string, password: string, name: string): Promise<boolean> {
   try {
-    // This would require a serverless function with admin privileges
-    console.error('Create admin account not yet implemented');
+    // This functionality should be restricted to trusted environments
+    // In a real implementation, this would be handled by a secure admin API
+    
+    // Example implementation (for demonstration only):
+    /*
+    // 1. Create the user account
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name
+      }
+    });
+    
+    if (authError) {
+      console.error('Error creating admin user:', authError);
+      return false;
+    }
+    
+    // 2. Update the role to admin
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        role: 'admin',
+        display_name: name
+      })
+      .eq('id', authData.user.id);
+    
+    if (updateError) {
+      console.error('Error updating admin role:', updateError);
+      return false;
+    }
+    
+    console.log('Admin account created successfully:', email);
+    return true;
+    */
+    
+    console.log('Admin account creation is disabled in this environment');
     return false;
   } catch (error) {
-    console.error('Error creating admin account:', error);
+    console.error('Error in createAdminAccount:', error);
     return false;
   }
-};
+}

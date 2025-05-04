@@ -20,19 +20,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'planning',
       progress: 0,
-      isPublic: false
+      is_public: false
     }
   });
 
   React.useEffect(() => {
     if (project) {
       Object.entries(project).forEach(([key, value]) => {
-        if (key === 'startDate' && project.start_date) {
-          setValue(key as any, project.start_date.split('T')[0]);
-        } else if (key === 'endDate' && project.end_date) {
-          setValue(key as any, project.end_date.split('T')[0]);
-        } else if (key === 'isPublic' && project.is_public !== undefined) {
+        if (key === 'startDate' && project.startDate) {
+          setValue(key as any, project.startDate.split('T')[0]);
+        } else if (key === 'endDate' && project.endDate) {
+          setValue(key as any, project.endDate.split('T')[0]);
+        } else if (key === 'start_date' && project.start_date) {
+          setValue('startDate' as any, project.start_date.split('T')[0]);
+        } else if (key === 'end_date' && project.end_date) {
+          setValue('endDate' as any, project.end_date.split('T')[0]);
+        } else if (key === 'is_public' && project.is_public !== undefined) {
           setValue(key as any, project.is_public);
+        } else if (key === 'isPublic' && project.isPublic !== undefined) {
+          setValue('is_public' as any, project.isPublic);
         } else if (value !== undefined) {
           setValue(key as any, value);
         }
@@ -161,11 +167,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
-            id="isPublic"
+            id="is_public"
             className="h-4 w-4 rounded border-gray-300 text-agri-green-600 focus:ring-agri-green-500"
-            {...register('isPublic')}
+            {...register('is_public')}
           />
-          <Label htmlFor="isPublic">Rendre ce projet public</Label>
+          <Label htmlFor="is_public">Rendre ce projet public</Label>
         </div>
         <p className="text-sm text-gray-500">
           Les projets publics sont visibles par tous les utilisateurs et peuvent apparaître sur la page d'accueil.

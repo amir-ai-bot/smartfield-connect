@@ -14,9 +14,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
     status: project?.status || 'planning',
     location: project?.location || '',
     crop: project?.crop || '',
-    startDate: project?.startDate || '',
-    endDate: project?.endDate || '',
-    isPublic: project?.isPublic || false
+    startDate: project?.startDate || project?.start_date || '',
+    endDate: project?.endDate || project?.end_date || '',
+    is_public: project?.is_public || project?.isPublic || false
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -29,14 +29,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
   };
 
   const handleIsPublicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, isPublic: e.target.checked });
+    setFormData({ ...formData, is_public: e.target.checked });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    if (onProjectCreated) {
-      onProjectCreated(formData as ProjectData);
+    const projectData: Partial<ProjectData> = {
+      ...formData,
+      // Ensure backward compatibility
+      isPublic: formData.is_public
+    };
+    onSubmit(projectData);
+    if (onProjectCreated && project?.id) {
+      onProjectCreated(project);
     }
   };
 
@@ -132,12 +137,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, 
       <div className="flex items-center space-x-2">
         <input
           type="checkbox"
-          id="isPublic"
-          checked={formData.isPublic}
+          id="is_public"
+          checked={formData.is_public}
           onChange={handleIsPublicChange}
           className="rounded border-gray-300"
         />
-        <Label htmlFor="isPublic">Projet public</Label>
+        <Label htmlFor="is_public">Projet public</Label>
       </div>
 
       <div className="flex justify-end space-x-2">

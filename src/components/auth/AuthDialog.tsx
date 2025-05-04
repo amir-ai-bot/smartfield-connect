@@ -12,123 +12,162 @@ import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import VerifyEmailForm from '@/components/auth/VerifyEmailForm';
 import { useAuth } from '@/contexts/AuthContext';
+import Alert from '@/components/ui/alert';
 
 type AuthDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialView?: 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
+  defaultTab?: "login" | "signup" | "forgot-password" | "reset-password" | "verify-email";
 };
 
 type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
 
-const AuthDialog: React.FC<AuthDialogProps> = ({ 
-  open, 
+export function AuthDialog({
+  open,
   onOpenChange,
-  initialView = 'login'
-}) => {
-  const { user } = useAuth();
-  const [view, setView] = useState<AuthView>(initialView);
-  const [tempEmail, setTempEmail] = useState<string>('');
+  defaultTab = "login",
+}: AuthDialogProps) {
+  const [tab, setTab] = useState<"login" | "signup" | "forgot-password" | "reset-password" | "verify-email">(defaultTab);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const [email, setEmail] = useState("");
 
-  // Reset view when dialog closes
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      // Wait for closing animation to complete before resetting view
-      setTimeout(() => setView(initialView), 300);
+  const handleSuccess = (successMessage?: string) => {
+    if (successMessage) {
+      setMessage(successMessage);
+      setMessageType("success");
     }
-    onOpenChange(open);
-  };
-
-  const handleSwitchToForgotPassword = () => {
-    setView('forgot-password');
-  };
-
-  const handleSwitchToResetPassword = (email?: string) => {
-    if (email) setTempEmail(email);
-    setView('reset-password');
-  };
-
-  const handleSwitchToVerifyEmail = (email?: string) => {
-    if (email) setTempEmail(email);
-    setView('verify-email');
-  };
-
-  const titles = {
-    'login': 'Connexion',
-    'signup': 'Inscription',
-    'forgot-password': 'Mot de passe oublié',
-    'reset-password': 'Nouveau mot de passe',
-    'verify-email': 'Vérification email'
-  };
-
-  const descriptions = {
-    'login': 'Connectez-vous pour accéder à votre compte.',
-    'signup': 'Créez un compte pour commencer à utiliser l\'application.',
-    'forgot-password': 'Recevez un code pour réinitialiser votre mot de passe.',
-    'reset-password': 'Entrez le code reçu et votre nouveau mot de passe.',
-    'verify-email': 'Vérifiez votre adresse email pour sécuriser votre compte.'
-  };
-
-  const renderForm = () => {
-    switch (view) {
-      case 'login':
-        return (
-          <LoginForm 
-            onSuccess={() => onOpenChange(false)} 
-            onSwitchToSignup={() => setView('signup')}
-            onSwitchToForgotPassword={handleSwitchToForgotPassword}
-          />
-        );
-      case 'signup':
-        return (
-          <SignupForm 
-            onSuccess={() => onOpenChange(false)} 
-            onSwitchToLogin={() => setView('login')}
-          />
-        );
-      case 'forgot-password':
-        return (
-          <ForgotPasswordForm 
-            onSuccess={() => handleSwitchToResetPassword()} 
-            onBackToLogin={() => setView('login')}
-          />
-        );
-      case 'reset-password':
-        return (
-          <ResetPasswordForm 
-            onSuccess={() => setView('login')}
-          />
-        );
-      case 'verify-email':
-        return (
-          <VerifyEmailForm
-            email={tempEmail || user?.email || ''}
-            onSuccess={() => onOpenChange(false)}
-            onCancel={() => onOpenChange(false)}
-          />
-        );
-      default:
-        return (
-          <LoginForm 
-            onSuccess={() => onOpenChange(false)} 
-            onSwitchToSignup={() => setView('signup')}
-          />
-        );
+    // After successful operation, decide where to go next
+    if (tab === "signup") {
+      setTab("verify-email");
+    } else if (tab === "forgot-password") {
+      setMessage("Instructions de réinitialisation envoyées à votre email.");
+      setTab("login");
+    } else if (tab === "reset-password") {
+      setMessage("Mot de passe réinitialisé avec succès.");
+      setTab("login");
+    } else if (tab === "verify-email") {
+      setMessage("Email vérifié avec succès.");
+      setTab("login");
+    } else {
+      onOpenChange(false);
     }
+  };
+
+  const handleLogin = () => {
+    setTab("login");
+  };
+
+  const handleSignup = () => {
+    setTab("signup");
+  };
+
+  const handleForgotPassword = () => {
+    setTab("forgot-password");
+  };
+
+  const handleResetPassword = () => {
+    setTab("reset-password");
+  };
+
+  const handleVerifyEmail = () => {
+    setTab("verify-email");
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{titles[view]}</DialogTitle>
-          <DialogDescription>{descriptions[view]}</DialogDescription>
-        </DialogHeader>
+        {message && (
+          <Alert
+            variant={messageType === "success" ? "default" : "destructive"}
+            className="mb-4"
+          >
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
 
-        {renderForm()}
+        {tab === "login" && (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Connexion</DialogTitle>
+              <DialogDescription>
+                Connectez-vous à votre compte
+              </DialogDescription>
+            </DialogHeader>
+            <LoginForm
+              onSuccess={handleSuccess}
+              onSignup={handleSignup}
+              onForgotPassword={handleForgotPassword}
+            />
+          </div>
+        )}
+
+        {tab === "signup" && (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Création de compte</DialogTitle>
+              <DialogDescription>
+                Créez un compte pour accéder à toutes les fonctionnalités
+              </DialogDescription>
+            </DialogHeader>
+            <SignupForm
+              onSuccess={() => handleSuccess("Compte créé avec succès. Veuillez vérifier votre email.")}
+              onBackToLogin={handleLogin}
+            />
+          </div>
+        )}
+
+        {tab === "forgot-password" && (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Mot de passe oublié</DialogTitle>
+              <DialogDescription>
+                Nous vous enverrons un lien pour réinitialiser votre mot de passe
+              </DialogDescription>
+            </DialogHeader>
+            <ForgotPasswordForm
+              onSuccess={(email) => {
+                setEmail(email);
+                handleSuccess("Instructions envoyées à votre email");
+              }}
+              onBackToLogin={handleLogin}
+            />
+          </div>
+        )}
+
+        {tab === "reset-password" && (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Réinitialisation du mot de passe</DialogTitle>
+              <DialogDescription>
+                Entrez votre nouveau mot de passe
+              </DialogDescription>
+            </DialogHeader>
+            <ResetPasswordForm
+              onSuccess={() => handleSuccess("Mot de passe réinitialisé avec succès")}
+              onBackToLogin={handleLogin}
+            />
+          </div>
+        )}
+
+        {tab === "verify-email" && (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Vérification d'email</DialogTitle>
+              <DialogDescription>
+                Veuillez vérifier votre email
+              </DialogDescription>
+            </DialogHeader>
+            <VerifyEmailForm
+              onSuccess={() => handleSuccess("Email vérifié avec succès")}
+              onBackToLogin={handleLogin}
+              email={email}
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
-};
+}
 
 export default AuthDialog;

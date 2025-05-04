@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Rating } from '@/types/auth';
 
@@ -43,6 +42,29 @@ export const getSupplierAverageRating = async (supplierId: string): Promise<numb
 };
 
 /**
+ * Get a user's rating for a specific supplier
+ */
+export const getUserRatingForSupplier = async (userId: string, supplierId: string): Promise<Rating | null> => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_user_rating_for_supplier', { 
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
+    
+    if (error) {
+      console.error('Error fetching user rating for supplier:', error);
+      return null;
+    }
+    
+    return data && data.length > 0 ? data[0] as Rating : null;
+  } catch (error) {
+    console.error('Error in getUserRatingForSupplier:', error);
+    return null;
+  }
+};
+
+/**
  * Check if a user has already rated a supplier
  */
 export const hasUserRatedSupplier = async (userId: string, supplierId: string): Promise<boolean> => {
@@ -66,51 +88,42 @@ export const hasUserRatedSupplier = async (userId: string, supplierId: string): 
 };
 
 /**
- * Add a new rating
+ * Add or update a rating
  */
-export const addRating = async (ratingData: Rating): Promise<boolean> => {
+export const addRating = async (userId: string, supplierId: string, rating: number, comment?: string): Promise<Rating | boolean> => {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .rpc('add_or_update_rating', { 
-        p_user_id: ratingData.user_id,
-        p_supplier_id: ratingData.fournisseur_id,
-        p_rating: ratingData.rating,
-        p_comment: ratingData.comment || ''
+        p_user_id: userId,
+        p_supplier_id: supplierId,
+        p_rating: rating,
+        p_comment: comment || ''
       });
     
     if (error) {
-      console.error('Error adding rating:', error);
+      console.error('Error adding/updating rating:', error);
       return false;
     }
     
+    // If data is returned and has ratings info, return it
+    if (data && typeof data === 'object') {
+      return {
+        user_id: userId,
+        fournisseur_id: supplierId,
+        rating: rating,
+        comment: comment || '',
+        id: data.id || '',
+        created_at: data.created_at || new Date().toISOString(),
+        user: {
+          id: userId
+        }
+      };
+    }
+    
+    // Otherwise just return success boolean
     return true;
   } catch (error) {
     console.error('Error in addRating:', error);
-    return false;
-  }
-};
-
-/**
- * Update an existing rating
- */
-export const updateRating = async (ratingData: Rating): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .rpc('add_or_update_rating', { 
-        p_user_id: ratingData.user_id,
-        p_supplier_id: ratingData.fournisseur_id,
-        p_rating: ratingData.rating,
-        p_comment: ratingData.comment || ''
-      });
-    
-    if (error) {
-      console.error('Error updating rating:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error in updateRating:', error);
     return false;
   }
 };
@@ -135,5 +148,44 @@ export const deleteRating = async (userId: string, supplierId: string): Promise<
   } catch (error) {
     console.error('Error in deleteRating:', error);
     return false;
+  }
+};
+
+/**
+ * Get all ratings (for admin)
+ */
+export const getAllRatings = async (): Promise<Rating[]> => {
+  try {
+    const { data, error } = await supabase.rpc('get_all_ratings');
+    
+    if (error) {
+      console.error('Error fetching all ratings:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getAllRatings:', error);
+    return [];
+  }
+};
+
+/**
+ * Get ratings for a supplier with user details
+ */
+export const getRatingsForSupplier = async (supplierId: string): Promise<Rating[]> => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_supplier_ratings_with_users', { p_supplier_id: supplierId });
+    
+    if (error) {
+      console.error('Error fetching ratings with users:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getRatingsForSupplier:', error);
+    return [];
   }
 };

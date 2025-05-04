@@ -1,13 +1,12 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Types for conversation data
 export interface ConversationData {
   id: string;
-  participant1_id: string;
-  participant2_id: string;
-  lastMessageAt?: string;
+  participant: ParticipantProfile;
+  lastMessageAt: string;
   createdAt: string;
+  userId: string;
 }
 
 export interface MessageData {
@@ -22,9 +21,8 @@ export interface MessageData {
 
 export interface ParticipantProfile {
   id: string;
-  display_name?: string;
+  name: string;
   avatar?: string;
-  email?: string;
 }
 
 // Get all conversations for a user
@@ -219,21 +217,22 @@ export const sendMessage = async (conversationId: string, senderId: string, rece
   }
 };
 
-// Mark messages as read
-export const markMessagesAsRead = async (conversationId: string, userId: string) => {
+// Mark all messages in a conversation as read for a specific user
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('conversation_id', conversationId)
-      .eq('receiver_id', userId)
-      .is('read', null);
+    const { error } = await supabase.rpc('mark_messages_as_read', {
+      p_conversation_id: conversationId,
+      p_user_id: userId
+    });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error marking messages as read:', error);
+      return false;
+    }
     
     return true;
   } catch (error) {
-    console.error('Error marking messages as read:', error);
+    console.error('Error in markMessagesAsRead:', error);
     return false;
   }
 };
@@ -250,5 +249,68 @@ export const getFavoriteSuppliers = async (userId: string) => {
   } catch (error) {
     console.error('Error fetching favorite suppliers:', error);
     return [];
+  }
+};
+
+/**
+ * Toggle favorite supplier for a user
+ */
+export const toggleFavoriteFournisseur = async (userId: string, supplierId: string): Promise<{ isFavorite: boolean }> => {
+  try {
+    // Check if the supplier is already a favorite
+    const isFavorite = await isFournisseurFavorite(userId, supplierId);
+    
+    if (isFavorite) {
+      // Remove from favorites
+      const { error } = await supabase
+        .from('favorite_suppliers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('supplier_id', supplierId);
+      
+      if (error) throw error;
+      
+      return { isFavorite: false };
+    } else {
+      // Add to favorites
+      const { error } = await supabase
+        .from('favorite_suppliers')
+        .insert({
+          user_id: userId,
+          supplier_id: supplierId
+        });
+      
+      if (error) throw error;
+      
+      return { isFavorite: true };
+    }
+  } catch (error) {
+    console.error('Error toggling favorite supplier:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a supplier is a favorite for a user
+ */
+export const isFournisseurFavorite = async (userId: string, supplierId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('favorite_suppliers')
+      .select()
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 is the error code for "no rows returned"
+      console.error('Error checking if supplier is favorite:', error);
+      throw error;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error('Error checking if supplier is favorite:', error);
+    return false;
   }
 };

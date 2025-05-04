@@ -27,7 +27,6 @@ interface VerificationCode {
 interface AdminAnalytics {
   userCount: number;
   projectCount: number;
-  registrationsByMonth: { [key: string]: number };
   supplierCount?: number;
   activeProjects?: number;
   newUsersThisMonth?: number;
@@ -49,12 +48,11 @@ const Admin = () => {
   const [tab, setTab] = useState("dashboard");
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [pendingRequests, setUsers] = useState<User[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<User[]>([]);
   const [verificationCodes, setVerificationCodes] = useState<VerificationCode[]>([]);
   const [analytics, setAnalytics] = useState<AdminAnalytics>({
     userCount: 0,
     projectCount: 0,
-    registrationsByMonth: {},
     usersByRole: {
       user: 0,
       admin: 0,
@@ -86,7 +84,8 @@ const Admin = () => {
       // Add email_verified property to each user
       const usersWithVerification = usersData.map(user => ({
         ...user,
-        email_verified: true // Default to true since we can't access auth.users
+        email_verified: true, // Default to true since we can't access auth.users
+        name: user.display_name || '' // Ensure name is set for compatibility
       }));
       setUsers(usersWithVerification);
     } catch (error) {
@@ -100,15 +99,16 @@ const Admin = () => {
       // Map received data to ProjectData format
       const formattedProjects: ProjectData[] = projectsData.map(project => ({
         id: project.id,
-        title: project.title || project.name || '',
+        title: project.name || '',
+        name: project.name || '',
         description: project.description || '',
         status: project.status as 'planning' | 'active' | 'completed',
         owner_id: project.owner_id || '',
-        user_id: project.owner_id || '',
+        user_id: project.owner_id || '', // Map owner_id to user_id for compatibility
         created_at: project.created_at || '',
         updated_at: project.updated_at || '',
         image: project.image || '',
-        crop: project.crop || '',
+        crop: project.crop_type || '',
         location: project.location || '',
         progress: project.progress || 0
       }));
@@ -121,15 +121,25 @@ const Admin = () => {
   const fetchPendingRequests = async () => {
     try {
       const requests = await getPendingFournisseurRequests();
-      setUsers(requests);
+      // Add required fields for User type
+      const formattedRequests = requests.map(user => ({
+        ...user,
+        email_verified: true, // Default to true since we can't access auth.users
+        name: user.display_name || '' // Ensure name is set for compatibility
+      }));
+      setPendingRequests(formattedRequests);
     } catch (error) {
       console.error('Failed to fetch pending requests:', error);
     }
   };
 
   const fetchVerificationCodes = async () => {
-    const codes = await getVerificationCodes();
-    setVerificationCodes(codes as unknown as VerificationCode[]);
+    try {
+      const codes = await getVerificationCodes();
+      setVerificationCodes(codes as unknown as VerificationCode[]);
+    } catch (error) {
+      console.error('Failed to fetch verification codes:', error);
+    }
   };
 
   const fetchAnalyticsData = async () => {
@@ -153,8 +163,7 @@ const Admin = () => {
           active: 0,
           completed: 0,
           planning: 0
-        },
-        registrationsByMonth: data.registrationsByMonth || {}
+        }
       });
     } catch (error) {
       console.error('Failed to fetch analytics data:', error);

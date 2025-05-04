@@ -234,7 +234,9 @@ export const updateUserProfile = async (
   }
 };
 
-// Reset password
+/**
+ * Reset password
+ */
 export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
   try {
     const { token, email, password } = data;

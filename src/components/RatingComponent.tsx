@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 
 export interface RatingComponentProps {
   supplierId: string;
-  onRatingAdded?: (newRating: any) => void;
+  onRatingAdded?: (newRating: Rating) => void;
 }
 
 const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingAdded }) => {
@@ -54,15 +54,16 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
     
     setIsSubmitting(true);
     try {
-      const newRating = await addRating(user.id, supplierId, rating, comment);
-      if (newRating) {
-        setUserRating(newRating);
+      const result = await addRating(user.id, supplierId, rating, comment);
+      
+      if (typeof result === 'object') {
+        setUserRating(result);
         // Add the profile information from the current user
-        const ratingWithProfile = {
-          ...newRating,
-          profiles: {
+        const ratingWithProfile: Rating = {
+          ...result,
+          user: {
             id: user.id,
-            name: user.name || user.display_name || 'Anonymous',
+            name: user.display_name || user.name || 'Anonymous',
             avatar: user.avatar
           }
         };
@@ -72,6 +73,15 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
         }
         
         toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
+      } else if (result === true) {
+        toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
+        // Re-fetch the user rating to update state
+        const updatedRating = await getUserRatingForSupplier(user.id, supplierId);
+        if (updatedRating) {
+          setUserRating(updatedRating);
+        }
+      } else {
+        toast.error('Failed to submit rating');
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
