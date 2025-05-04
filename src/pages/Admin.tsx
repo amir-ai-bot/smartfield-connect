@@ -1,99 +1,87 @@
 
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import NavBar from '@/components/Navbar';
+import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AdminStats from '@/components/admin/AdminStats';
 import UserList from '@/components/admin/UserList';
 import ProjectList from '@/components/admin/ProjectList';
-import AdminStats from '@/components/admin/AdminStats';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllUsers, getAllProjects } from '@/services/adminService';
-import { useNavigate } from 'react-router-dom';
-import { DataTable } from '@/components/ui/data-table';
+import { Navigate } from 'react-router-dom';
+import { getAllUsers, getAllProjects, getAdminStats } from '@/services/adminService';
 
 const Admin = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  
+  const { user, isAdmin, isLoading } = useAuth();
+  const [adminData, setAdminData] = useState({
+    users: [],
+    projects: [],
+    stats: null,
+    loading: true,
+  });
+
   useEffect(() => {
-    // Redirect if not an admin
-    if (user && user.role !== 'admin') {
-      navigate('/');
-      return;
-    }
+    document.title = 'Administration | AgriSmart';
     
-    const fetchData = async () => {
+    const fetchAdminData = async () => {
+      if (!isAdmin) return;
+      
       try {
-        setLoading(true);
-        const [usersData, projectsData] = await Promise.all([
+        const [users, projects, stats] = await Promise.all([
           getAllUsers(),
-          getAllProjects()
+          getAllProjects(),
+          getAdminStats()
         ]);
         
-        setUsers(usersData);
-        setProjects(projectsData);
+        setAdminData({
+          users,
+          projects,
+          stats,
+          loading: false,
+        });
       } catch (error) {
         console.error('Error fetching admin data:', error);
-      } finally {
-        setLoading(false);
+        setAdminData(prev => ({ ...prev, loading: false }));
       }
     };
     
-    fetchData();
-  }, [user, navigate]);
-  
-  if (!user) {
-    navigate('/login');
-    return null;
+    if (!isLoading && isAdmin) {
+      fetchAdminData();
+    }
+  }, [isAdmin, isLoading]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
-  
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <>
-      <NavBar />
-      <div className="container mx-auto py-10 px-4">
-        <h1 className="text-3xl font-bold mb-8">Administration</h1>
+      <Navbar />
+      <div className="container mx-auto px-4 py-8 min-h-screen">
+        <h1 className="text-3xl font-bold mb-6">Administration</h1>
         
-        <AdminStats />
-        
-        <Tabs defaultValue="users" className="mt-8">
+        <Tabs defaultValue="dashboard" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="projects">Projets</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="users" className="mt-4">
-            {loading ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Utilisateurs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-80 w-full" />
-                </CardContent>
-              </Card>
-            ) : (
-              <UserList users={users} />
-            )}
+          <TabsContent value="dashboard" className="space-y-4">
+            <AdminStats stats={adminData.stats} loading={adminData.loading} />
           </TabsContent>
           
-          <TabsContent value="projects" className="mt-4">
-            {loading ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Projets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-80 w-full" />
-                </CardContent>
-              </Card>
-            ) : (
-              <ProjectList projects={projects} />
-            )}
+          <TabsContent value="users">
+            <UserList users={adminData.users} />
+          </TabsContent>
+          
+          <TabsContent value="projects">
+            <ProjectList projects={adminData.projects} />
           </TabsContent>
         </Tabs>
       </div>

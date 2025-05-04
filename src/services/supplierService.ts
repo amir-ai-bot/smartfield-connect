@@ -45,7 +45,7 @@ export const searchSuppliers = async (searchTerm: string): Promise<Supplier[]> =
   }
 };
 
-// Get supplier by ID
+// Get supplier by ID - now with two function names for compatibility
 export const getSupplier = async (id: string): Promise<Supplier | null> => {
   try {
     const { data, error } = await supabase
@@ -65,6 +65,9 @@ export const getSupplier = async (id: string): Promise<Supplier | null> => {
     return null;
   }
 };
+
+// Alias for getSupplier
+export const getSupplierById = getSupplier;
 
 // Update supplier
 export const updateSupplier = async (id: string, supplierData: Partial<Supplier>): Promise<Supplier | null> => {
@@ -122,6 +125,77 @@ export const getFavoriteSuppliers = async (userId: string): Promise<Supplier[]> 
     return data as Supplier[];
   } catch (error) {
     console.error('Error in getFavoriteSuppliers:', error);
+    return [];
+  }
+};
+
+// Toggle favorite supplier
+export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: string): Promise<{isFavorite: boolean}> => {
+  try {
+    const isFavorite = await isFournisseurFavorite(userId, fournisseurId);
+    
+    if (isFavorite) {
+      const { error } = await supabase
+        .rpc('remove_favorite_supplier', { 
+          user_id: userId, 
+          supplier_id: fournisseurId 
+        });
+      
+      if (error) throw error;
+      return { isFavorite: false };
+    } else {
+      const { error } = await supabase
+        .rpc('add_favorite_supplier', { 
+          user_id: userId, 
+          supplier_id: fournisseurId 
+        });
+      
+      if (error) throw error;
+      return { isFavorite: true };
+    }
+  } catch (error) {
+    console.error('Error toggling favorite status:', error);
+    throw error;
+  }
+};
+
+// Check if supplier is in favorites
+export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .rpc('check_favorite_supplier', {
+        user_id: userId,
+        supplier_id: fournisseurId
+      });
+    
+    if (error) throw error;
+    return !!data;
+  } catch (error) {
+    console.error('Error checking if supplier is favorite:', error);
+    return false;
+  }
+};
+
+// Get ratings for a supplier
+export const getRatingsByFournisseurId = async (supplierId: string): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('ratings')
+      .select(`
+        *,
+        profiles (id, name, avatar)
+      `)
+      .eq('supplier_id', supplierId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching supplier ratings:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getRatingsByFournisseurId:', error);
     return [];
   }
 };

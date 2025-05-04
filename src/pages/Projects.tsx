@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import ProjectCard from '@/components/Projects/ProjectCard';
+import ProjectCard from '@/components/projects/ProjectCard'; // Fixed casing
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

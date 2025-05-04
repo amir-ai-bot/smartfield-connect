@@ -8,11 +8,17 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Check, Trash2, UserCheck, Shield } from 'lucide-react';
 import { User } from '@/types/supabase';
 import { toast } from 'sonner';
-import { deleteUser, verifyUser, updateUserRole } from '@/services/adminService';
 import { DataTable } from '@/components/ui/data-table';
+import { deleteUser, verifyUser, updateUserRole } from '@/services/adminService';
 
 interface UserListProps {
   users: User[];
+}
+
+interface DataTableColumn<TData> {
+  header: string;
+  accessorKey?: keyof TData;
+  cell?: (props: { row: { original: TData } }) => React.ReactNode;
 }
 
 const UserList = ({ users }: UserListProps) => {
@@ -52,11 +58,10 @@ const UserList = ({ users }: UserListProps) => {
     }
   };
   
-  const columns = [
+  const columns: DataTableColumn<User>[] = [
     {
       header: 'Utilisateur',
-      accessorKey: 'name',
-      cell: ({ row }: { row: { original: User } }) => (
+      cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Avatar>
             <AvatarImage src={row.original.avatar} />
@@ -72,7 +77,7 @@ const UserList = ({ users }: UserListProps) => {
     {
       header: 'Rôle',
       accessorKey: 'role',
-      cell: ({ row }: { row: { original: User } }) => (
+      cell: ({ row }) => (
         <Badge variant={
           row.original.role === 'admin' 
             ? 'destructive' 
@@ -86,8 +91,7 @@ const UserList = ({ users }: UserListProps) => {
     },
     {
       header: 'Statut',
-      accessorKey: 'email_verified',
-      cell: ({ row }: { row: { original: User } }) => (
+      cell: ({ row }) => (
         <Badge variant={row.original.email_verified ? 'success' : 'outline'}>
           {row.original.email_verified ? 'Vérifié' : 'Non vérifié'}
         </Badge>
@@ -95,8 +99,7 @@ const UserList = ({ users }: UserListProps) => {
     },
     {
       header: 'Date de création',
-      accessorKey: 'created_at',
-      cell: ({ row }: { row: { original: User } }) => (
+      cell: ({ row }) => (
         <div className="text-sm">
           {row.original.created_at 
             ? new Date(row.original.created_at).toLocaleDateString() 
@@ -106,7 +109,7 @@ const UserList = ({ users }: UserListProps) => {
     },
     {
       header: 'Actions',
-      cell: ({ row }: { row: { original: User } }) => (
+      cell: ({ row }) => (
         <div className="flex gap-2">
           {!row.original.email_verified && (
             <Button 

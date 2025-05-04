@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Get admin statistics
@@ -109,7 +110,6 @@ export const getAllUsers = async () => {
 
 // Alias functions to match imports in Admin.tsx
 export const getAdminUsers = getAllUsers;
-export const getAdminProjects = getAllProjects;
 
 // Get all projects for admin
 export const getAllProjects = async () => {
@@ -144,17 +144,17 @@ export const getAllProjects = async () => {
         user_id: project.owner_id,
         created_at: project.created_at,
         updated_at: project.updated_at,
-        // Handle potentially missing properties with default values
+        // Properties that may not exist in the database - provide defaults
         image: project.image || '',
         crop: project.crop || '',
         location: project.location || '',
         progress: project.progress || 0,
-        // Safe access to profile properties
-        user_name: profile && typeof profile === 'object' && 'display_name' in profile ? profile.display_name : 'Unknown',
-        user_email: profile && typeof profile === 'object' && 'email' in profile ? profile.email : '',
-        user_avatar: profile && typeof profile === 'object' && 'avatar' in profile ? profile.avatar : '',
-        startDate: project.start_date || '',
-        endDate: project.end_date || '',
+        // Safe access to profile properties with nullish coalescing
+        user_name: profile?.display_name || 'Unknown',
+        user_email: profile?.email || '',
+        user_avatar: profile?.avatar || '',
+        start_date: project.start_date || '',
+        end_date: project.end_date || '',
         is_public: project.is_public || false
       };
     });
@@ -165,6 +165,9 @@ export const getAllProjects = async () => {
     return [];
   }
 };
+
+// Alias for getAllProjects
+export const getAdminProjects = getAllProjects;
 
 // Delete user function for admin
 export const deleteUser = async (userId: string) => {

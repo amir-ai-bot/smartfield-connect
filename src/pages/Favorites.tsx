@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { getFavoriteSuppliers } from '@/services/supplierService'; // Updated import
+import { getFavoriteSuppliers } from '@/services/supplierService'; // Fixed import
 import SupplierCardEnhanced from '@/components/SupplierCardEnhanced';
 import { Supplier } from '@/types/supabase';
 

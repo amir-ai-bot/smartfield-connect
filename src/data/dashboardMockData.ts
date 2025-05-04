@@ -5,6 +5,7 @@ export const initialDashboardData: DashboardData = {
   projects: [
     {
       id: '1',
+      name: 'Plantation d\'oliviers',
       title: 'Plantation d\'oliviers',
       description: 'Projet de plantation d\'oliviers dans la région de Marrakech',
       status: 'active',
@@ -17,6 +18,7 @@ export const initialDashboardData: DashboardData = {
     },
     {
       id: '2',
+      name: 'Culture de tomates',
       title: 'Culture de tomates',
       description: 'Culture de tomates en serre',
       status: 'planning',

@@ -2,17 +2,22 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Eye, Trash2 } from 'lucide-react';
 import { ProjectData } from '@/types/dashboard';
 import { toast } from 'sonner';
-import { deleteProject } from '@/services/projectService';
 import { DataTable } from '@/components/ui/data-table';
 import { useNavigate } from 'react-router-dom';
+import { deleteProject } from '@/services/projectService';
 
 interface ProjectListProps {
   projects: ProjectData[];
+}
+
+interface DataTableColumn<TData> {
+  header: string;
+  accessorKey?: keyof TData;
+  cell?: (props: { row: { original: TData } }) => React.ReactNode;
 }
 
 const ProjectList = ({ projects }: ProjectListProps) => {
@@ -31,11 +36,11 @@ const ProjectList = ({ projects }: ProjectListProps) => {
     }
   };
   
-  const columns = [
+  const columns: DataTableColumn<ProjectData>[] = [
     {
       header: 'Projet',
       accessorKey: 'title',
-      cell: ({ row }: { row: { original: ProjectData } }) => (
+      cell: ({ row }) => (
         <div className="flex items-center gap-2">
           {row.original.image && (
             <div className="h-10 w-10 rounded overflow-hidden">
@@ -61,7 +66,7 @@ const ProjectList = ({ projects }: ProjectListProps) => {
     {
       header: 'Statut',
       accessorKey: 'status',
-      cell: ({ row }: { row: { original: ProjectData } }) => {
+      cell: ({ row }) => {
         const statusColors = {
           active: 'bg-green-100 text-green-800',
           planning: 'bg-blue-100 text-blue-800',
@@ -86,7 +91,7 @@ const ProjectList = ({ projects }: ProjectListProps) => {
     },
     {
       header: 'Propriétaire',
-      cell: ({ row }: { row: { original: ProjectData } }) => (
+      cell: ({ row }) => (
         <div className="text-sm">
           {row.original.user_name || 'N/A'}
         </div>
@@ -102,8 +107,7 @@ const ProjectList = ({ projects }: ProjectListProps) => {
     },
     {
       header: 'Date de création',
-      accessorKey: 'created_at',
-      cell: ({ row }: { row: { original: ProjectData } }) => (
+      cell: ({ row }) => (
         <div className="text-sm">
           {row.original.created_at 
             ? new Date(row.original.created_at).toLocaleDateString() 
@@ -113,7 +117,7 @@ const ProjectList = ({ projects }: ProjectListProps) => {
     },
     {
       header: 'Actions',
-      cell: ({ row }: { row: { original: ProjectData } }) => (
+      cell: ({ row }) => (
         <div className="flex gap-2">
           <Button 
             size="icon" 

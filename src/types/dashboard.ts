@@ -1,109 +1,102 @@
 
-export interface ProjectData {
-  id: string;
-  title: string;
-  name?: string;
-  description?: string;
-  image?: string;
-  crop: string;  // Making sure crop is required
-  crop_type?: string;
-  location: string;  // Making sure location is required
-  startDate?: string;
-  start_date?: string;
-  endDate?: string;
-  end_date?: string;
-  progress: number;  // Making sure progress is required
-  status: 'planning' | 'active' | 'completed';
-  owner_id?: string;
-  user_id?: string;
-  created_at?: string;
-  updated_at?: string;
-  is_public?: boolean;
-  isPublic?: boolean;
-  // Added extra fields for compatibility with APIs
-  creator_name?: string;
-  creator_email?: string;
-  creator_avatar?: string;
-  user_name?: string;
-  user_email?: string;
-  user_avatar?: string;
-  timeAgo?: string;
-}
-
-// Project with additional fields needed for dashboard
 export interface Project {
   id: string;
-  title: string;
-  name: string;  // Added to match ProjectSelector usage
+  name: string;
+  title?: string; // For backward compatibility
   description?: string;
   status: 'planning' | 'active' | 'completed';
   progress: number;
   crop: string;
   location: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   image?: string;
-  irrigation?: string;  // Added for ProjectOverviewCard
-  nextTask?: string;    // Added for ProjectOverviewCard
-  taskDate?: string;    // Added for ProjectOverviewCard
+  irrigation?: string;
+  nextTask?: string;
+  taskDate?: string;
 }
 
-// Task type
 export interface Task {
   id: string;
-  title: string;
-  task?: string;        // Added for TasksCard
+  title?: string;
+  task?: string; // For backward compatibility
   description?: string;
-  dueDate: string;
-  date?: string;        // Added for TasksCard
-  priority: 'high' | 'medium' | 'low';
+  dueDate?: string;
+  date?: string; // For backward compatibility
+  priority?: 'low' | 'medium' | 'high';
   completed: boolean;
   projectId?: string;
-  project?: string;     // Added for TasksCard
+  project?: string; // For backward compatibility
 }
 
-// Weather data type
 export interface WeatherData {
   date?: string;
   day?: string;
   temp?: number;
+  temperature?: number; // For backward compatibility
   humidity?: number;
   windSpeed?: number;
-  condition?: 'sunny' | 'cloudy' | 'rainy' | 'partly-cloudy';
+  condition?: string;
   isToday?: boolean;
-  // Added fields for WeatherCard
-  temperature?: number;
-  location?: string;
+  location?: string; // Location name
   feelsLike?: number;
-  forecast?: Array<{
+  forecast?: {
     day: string;
     temperature: number;
     condition: string;
-  }>;
+  }[];
 }
 
-// Dashboard data type
 export interface DashboardData {
   projects: Project[];
   weather: WeatherData[];
+  weatherData?: WeatherData; // Current weather
   tasks: Task[];
-  weatherData?: WeatherData;  // Added for WeatherCard
-  moistureData?: Array<{ day: string; value: number }>;  // Added for MoistureChart
-  yieldData?: Array<{ year: string; value: number }>;    // Added for YieldChart
-  lastUpdated?: Date;  // Added for DashboardHeader
-  stats: {
+  stats?: {
     totalProjects: number;
     activeProjects: number;
     completedTasks: number;
     pendingTasks: number;
   };
+  lastUpdated?: Date | null;
+  moistureData?: Array<{
+    date: string;
+    value: number;
+  }>;
+  yieldData?: Array<{
+    year: string;
+    value: number;
+  }>;
 }
 
-// Dashboard context types
 export interface DashboardContextType {
   data: DashboardData;
   isLoading: boolean;
   activeProject: number;
   setActiveProject: (index: number) => void;
   refreshData: () => Promise<void>;
+}
+
+export interface ProjectData {
+  id: string;
+  title: string;
+  name?: string;
+  description?: string;
+  status: 'planning' | 'active' | 'completed';
+  progress: number;
+  crop: string;
+  location: string;
+  startDate?: string;
+  endDate?: string;
+  image?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  owner_id?: string;
+  user_name?: string;
+  user_email?: string;
+  user_avatar?: string;
+  is_public?: boolean;
+  start_date?: string;
+  end_date?: string;
 }

@@ -2,10 +2,12 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProjectForm from '@/components/Projects/ProjectForm';
-import { ProjectData } from '@/types/dashboard';
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+// Use the dashboard ProjectData type explicitly
+import { ProjectData } from '@/types/dashboard';
 
 interface ProjectFormDialogProps {
   open: boolean;
@@ -41,7 +43,7 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
       // Pass the user ID and formData to createProject
       const createdProject = await createProject(user.id, formData);
       if (createdProject) {
-        onProjectCreated(createdProject as ProjectData);
+        onProjectCreated(createdProject);
         toast.success('Projet créé avec succès');
       }
     } catch (error) {

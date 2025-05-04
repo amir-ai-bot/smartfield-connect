@@ -6,12 +6,12 @@ import { Supplier } from '@/types/supabase';
 interface MessageData {
   id: string;
   sender_id: string;
-  receiver_id: string;
+  receiver_id?: string;
   content?: string;
   created_at?: string;
   updated_at?: string;
-  conversation_id?: string; // Add this field
-  is_read?: boolean; // Use this instead of 'read'
+  conversation_id: string; 
+  is_read?: boolean;
 }
 
 interface ConversationData {
@@ -31,6 +31,58 @@ interface ConversationData {
   };
 }
 
+// Create a conversation
+export const createConversation = async (userId: string, supplierId: string): Promise<string> => {
+  try {
+    // First check if a conversation already exists
+    const { data: existingConversations, error: searchError } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
+      .or(`participant1_id.eq.${supplierId},participant2_id.eq.${supplierId}`)
+      .limit(1);
+
+    if (searchError) {
+      console.error('Error searching for existing conversation:', searchError);
+      throw new Error('Failed to search for existing conversation: ' + searchError.message);
+    }
+
+    // No conversation exists, create a new one
+    if (!existingConversations || existingConversations.length === 0) {
+      console.log('Creating new conversation between', userId, 'and', supplierId);
+      const { data: newConv, error: insertError } = await supabase
+        .from('conversations')
+        .insert({
+          participant1_id: userId,
+          participant2_id: supplierId,
+          created_at: new Date().toISOString(),
+          last_message_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating conversation:', insertError);
+        throw new Error('Failed to create conversation: ' + insertError.message);
+      }
+
+      if (!newConv) {
+        throw new Error('No conversation was created');
+      }
+
+      console.log('Created new conversation:', newConv.id);
+      return newConv.id;
+    }
+
+    // Return the existing conversation ID
+    console.log('Found existing conversation:', existingConversations[0].id);
+    return existingConversations[0].id;
+  } catch (error) {
+    console.error('Error in createConversation:', error);
+    throw error;
+  }
+};
+
 // Get user conversations
 export const getConversations = async (userId: string): Promise<ConversationData[]> => {
   try {
@@ -41,7 +93,7 @@ export const getConversations = async (userId: string): Promise<ConversationData
         *,
         profiles!conversations_participant1_id_fkey (id, display_name, avatar),
         profiles!conversations_participant2_id_fkey (id, display_name, avatar),
-        messages!inner (content, created_at)
+        messages (content, created_at)
       `)
       .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
       .order('last_message_at', { ascending: false });
@@ -61,9 +113,13 @@ export const getConversations = async (userId: string): Promise<ConversationData
       // Determine which participant is the other user
       const isParticipant1 = conversation.participant1_id === userId;
       const otherParticipantId = isParticipant1 ? conversation.participant2_id : conversation.participant1_id;
-      const otherParticipantData = isParticipant1 
-        ? conversation.profiles_conversations_participant2_id_fkey 
-        : conversation.profiles_conversations_participant1_id_fkey;
+      
+      // Extract profiles data using explicit type assumption
+      const participant1Data = conversation.profiles_conversations_participant1_id_fkey;
+      const participant2Data = conversation.profiles_conversations_participant2_id_fkey;
+      
+      // Select the appropriate profile based on which participant the current user is
+      const otherParticipantData = isParticipant1 ? participant2Data : participant1Data;
 
       // Get last message
       const messages = conversation.messages || [];
@@ -101,11 +157,15 @@ export const getConversations = async (userId: string): Promise<ConversationData
 export const getUserConversations = getConversations;
 
 // Get conversation details
-export const getConversation = async (conversationId: string): Promise<ConversationData | null> => {
+export const getConversation = async (conversationId: string, userId: string): Promise<ConversationData | null> => {
   try {
     const { data, error } = await supabase
       .from('conversations')
-      .select('*')
+      .select(`
+        *,
+        profiles!conversations_participant1_id_fkey (id, display_name, avatar),
+        profiles!conversations_participant2_id_fkey (id, display_name, avatar)
+      `)
       .eq('id', conversationId)
       .single();
 
@@ -114,7 +174,29 @@ export const getConversation = async (conversationId: string): Promise<Conversat
       return null;
     }
 
-    return data as ConversationData;
+    // Determine which participant is the other user
+    const isParticipant1 = data.participant1_id === userId;
+    const otherParticipantId = isParticipant1 ? data.participant2_id : data.participant1_id;
+    
+    // Extract profiles data using explicit type assumption
+    const participant1Data = data.profiles_conversations_participant1_id_fkey;
+    const participant2Data = data.profiles_conversations_participant2_id_fkey;
+    
+    // Select the appropriate profile based on which participant the current user is
+    const otherParticipantData = isParticipant1 ? participant2Data : participant1Data;
+
+    return {
+      id: data.id,
+      participant1_id: data.participant1_id,
+      participant2_id: data.participant2_id,
+      last_message_at: data.last_message_at,
+      created_at: data.created_at,
+      participant: {
+        id: otherParticipantId || '',
+        display_name: otherParticipantData?.display_name || 'Unknown',
+        avatar: otherParticipantData?.avatar || '',
+      }
+    };
   } catch (error) {
     console.error('Error in getConversation:', error);
     return null;
@@ -135,10 +217,10 @@ export const getConversationMessages = async (conversationId: string): Promise<M
       return [];
     }
 
-    // Add conversation_id to each message
+    // Add conversation_id to each message if it doesn't exist
     const messages: MessageData[] = (data || []).map(msg => ({
       ...msg,
-      conversation_id: conversationId
+      conversation_id: msg.conversation_id || conversationId
     }));
 
     return messages;
@@ -148,12 +230,52 @@ export const getConversationMessages = async (conversationId: string): Promise<M
   }
 };
 
+// Send a message
+export const sendMessage = async (
+  conversationId: string,
+  senderId: string,
+  receiverId: string,
+  content: string
+): Promise<MessageData | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        receiver_id: receiverId,
+        content: content,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending message:', error);
+      return null;
+    }
+
+    // Also update the conversation's last_message_at
+    await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+
+    return data as MessageData;
+  } catch (error) {
+    console.error('Error in sendMessage:', error);
+    return null;
+  }
+};
+
 // Mark message as read
 export const markMessageAsRead = async (messageId: string): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('messages')
-      .update({ is_read: true }) // Using is_read instead of read
+      .update({ is_read: true }) 
       .eq('id', messageId);
 
     if (error) {
@@ -168,66 +290,23 @@ export const markMessageAsRead = async (messageId: string): Promise<boolean> => 
   }
 };
 
-// For compatibility - supplier service functions
-export const getFavoriteSuppliers = async (userId: string): Promise<Supplier[]> => {
+// Mark all messages in a conversation as read
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_favorite_suppliers', { user_id: userId });
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', userId);
 
     if (error) {
-      console.error('Error fetching favorite suppliers:', error);
-      return [];
-    }
-
-    return data as Supplier[];
-  } catch (error) {
-    console.error('Error in getFavoriteSuppliers:', error);
-    return [];
-  }
-};
-
-// Additional functions for supplier favorites
-export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const isFavorite = await isFournisseurFavorite(userId, fournisseurId);
-    
-    if (isFavorite) {
-      const { error } = await supabase
-        .rpc('remove_favorite_supplier', { 
-          user_id: userId, 
-          supplier_id: fournisseurId 
-        });
-      
-      if (error) throw error;
+      console.error('Error marking messages as read:', error);
       return false;
-    } else {
-      const { error } = await supabase
-        .rpc('add_favorite_supplier', { 
-          user_id: userId, 
-          supplier_id: fournisseurId 
-        });
-      
-      if (error) throw error;
-      return true;
     }
-  } catch (error) {
-    console.error('Error toggling favorite status:', error);
-    return false;
-  }
-};
 
-export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .rpc('check_favorite_supplier', {
-        user_id: userId,
-        supplier_id: fournisseurId
-      });
-    
-    if (error) throw error;
-    return !!data;
+    return true;
   } catch (error) {
-    console.error('Error checking if supplier is favorite:', error);
+    console.error('Error in markMessagesAsRead:', error);
     return false;
   }
 };
