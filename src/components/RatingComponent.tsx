@@ -1,146 +1,108 @@
 
 import React, { useState, useEffect } from 'react';
+import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  addRating, 
-  getUserRatingForSupplier, 
-  getRatingsForSupplier
-} from '@/services/ratingService';
-import { Rating } from '@/types/auth';
+import { addRating, getUserRatingForSupplier, getRatingsForSupplier } from '@/services/ratingService';
+import { Rating } from '@/types/supabase';
 import { toast } from 'sonner';
 
-export interface RatingComponentProps {
+interface RatingComponentProps {
   supplierId: string;
-  onRatingAdded?: (newRating: Rating) => void;
+  onRatingAdded?: () => void;
 }
 
 const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingAdded }) => {
   const { user } = useAuth();
-  const [rating, setRating] = useState<number>(0);
-  const [comment, setComment] = useState<string>('');
-  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState('');
   const [userRating, setUserRating] = useState<Rating | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  
-  // Load user's existing rating if available
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
-    const loadUserRating = async () => {
-      if (user) {
-        const existingRating = await getUserRatingForSupplier(user.id, supplierId);
-        if (existingRating) {
-          setUserRating(existingRating);
-          setRating(existingRating.rating);
-          setComment(existingRating.comment || '');
-        }
-      }
-    };
-    
-    loadUserRating();
+    if (user) {
+      loadUserRating();
+    }
   }, [user, supplierId]);
-  
+
+  const loadUserRating = async () => {
+    if (!user) return;
+    
+    const rating = await getUserRatingForSupplier(user.id, supplierId);
+    if (rating) {
+      setRating(rating.rating);
+      setComment(rating.comment || '');
+      setUserRating(rating);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) {
-      toast.error('You must be logged in to leave a rating');
+      toast.error('Vous devez être connecté pour laisser un avis');
       return;
     }
-    
-    if (rating === 0) {
-      toast.error('Please select a rating');
-      return;
-    }
-    
-    setIsSubmitting(true);
+
     try {
+      setIsSubmitting(true);
       const result = await addRating(user.id, supplierId, rating, comment);
       
-      if (typeof result === 'object') {
+      if (result) {
+        toast.success(userRating ? 'Avis mis à jour avec succès' : 'Avis ajouté avec succès');
         setUserRating(result);
-        // Add the profile information from the current user
-        const ratingWithProfile: Rating = {
-          ...result,
-          user: {
-            id: user.id,
-            name: user.display_name || user.name || 'Anonymous',
-            avatar: user.avatar
-          }
-        };
-        
         if (onRatingAdded) {
-          onRatingAdded(ratingWithProfile);
+          onRatingAdded();
         }
-        
-        toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
-      } else if (result === true) {
-        toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
-        // Re-fetch the user rating to update state
-        const updatedRating = await getUserRatingForSupplier(user.id, supplierId);
-        if (updatedRating) {
-          setUserRating(updatedRating);
-        }
-      } else {
-        toast.error('Failed to submit rating');
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
-      toast.error('Failed to submit rating');
+      toast.error('Erreur lors de l\'envoi de l\'avis');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
-    <div className="bg-white p-4 rounded-lg shadow mb-4">
-      <h3 className="font-medium text-lg mb-2">Write a Review</h3>
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Votre avis</h3>
       
-      {!user ? (
-        <p className="text-gray-500 mb-4">Please log in to leave a review.</p>
-      ) : (
-        <>
-          <div 
-            className="flex items-center mb-3" 
+      <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-8 w-8 cursor-pointer ${
+              (hoverRating || rating) >= star
+                ? 'text-yellow-400 fill-yellow-400'
+                : 'text-gray-300'
+            }`}
+            onClick={() => setRating(star)}
+            onMouseEnter={() => setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}
-          >
-            {[1, 2, 3, 4, 5].map((star) => (
-              <div 
-                key={star}
-                className="cursor-pointer"
-                onClick={() => setRating(star)}
-                onMouseEnter={() => setHoverRating(star)}
-              >
-                <Star
-                  className={`w-6 h-6 ${
-                    (hoverRating ? hoverRating >= star : rating >= star)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                />
-              </div>
-            ))}
-            <span className="ml-2 text-sm text-gray-600">
-              {rating > 0 ? `You rated ${rating} star${rating !== 1 ? 's' : ''}` : 'Select a rating'}
-            </span>
-          </div>
-          
-          <Textarea
-            placeholder="Write your review here (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="mb-3"
-            rows={3}
           />
-          
-          <Button 
-            onClick={handleSubmit}
-            disabled={rating === 0 || isSubmitting}
-            className="w-full"
-          >
-            {isSubmitting ? 'Submitting...' : userRating ? 'Update Review' : 'Submit Review'}
-          </Button>
-        </>
-      )}
+        ))}
+        <span className="ml-2 text-sm text-gray-600">
+          {rating > 0 ? `${rating} étoile${rating > 1 ? 's' : ''}` : 'Aucune note'}
+        </span>
+      </div>
+      
+      <div>
+        <Textarea
+          placeholder="Partagez votre expérience (facultatif)"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={4}
+          className="w-full"
+        />
+      </div>
+      
+      <Button
+        onClick={handleSubmit}
+        disabled={rating === 0 || isSubmitting}
+        className="w-full"
+      >
+        {isSubmitting ? 'Envoi en cours...' : userRating ? 'Mettre à jour' : 'Soumettre'}
+      </Button>
     </div>
   );
 };

@@ -1,10 +1,27 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ProjectData } from '@/types/auth';
+import { ProjectData } from '@/types/dashboard';
 
 // Get all projects for a user
 export const getUserProjects = async (userId: string): Promise<ProjectData[]> => {
   try {
+    // First, check if needed columns exist
+    const { data: columnsCheck, error: columnsError } = await supabase
+      .from('projects')
+      .select('*')
+      .limit(1);
+    
+    if (columnsError) {
+      console.error('Error checking projects schema:', columnsError);
+      return [];
+    }
+
+    // Determine if we need to modify our query based on available columns
+    const hasExtendedSchema = columnsCheck && 
+                            columnsCheck.length > 0 && 
+                            'image' in columnsCheck[0];
+
+    // Select only columns that are guaranteed to exist
     const { data, error } = await supabase
       .from('projects')
       .select('*')
@@ -27,16 +44,16 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
       user_id: project.owner_id,
       created_at: project.created_at,
       updated_at: project.updated_at,
-      image: project.image || '',
-      crop: project.crop || '',
-      location: project.location || '',
-      progress: project.progress || 0,
-      startDate: project.start_date || '',
-      start_date: project.start_date || '',
-      endDate: project.end_date || '',
-      end_date: project.end_date || '',
-      is_public: !!project.is_public,
-      isPublic: !!project.is_public
+      image: hasExtendedSchema && 'image' in project ? project.image : '',
+      crop: hasExtendedSchema && 'crop' in project ? project.crop : '',
+      location: hasExtendedSchema && 'location' in project ? project.location : '',
+      progress: hasExtendedSchema && 'progress' in project ? project.progress : 0,
+      startDate: hasExtendedSchema && 'start_date' in project ? project.start_date : '',
+      start_date: hasExtendedSchema && 'start_date' in project ? project.start_date : '',
+      endDate: hasExtendedSchema && 'end_date' in project ? project.end_date : '',
+      end_date: hasExtendedSchema && 'end_date' in project ? project.end_date : '',
+      is_public: hasExtendedSchema && 'is_public' in project ? !!project.is_public : false,
+      isPublic: hasExtendedSchema && 'is_public' in project ? !!project.is_public : false
     }));
 
     return projects;

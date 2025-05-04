@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Get admin statistics
@@ -108,6 +107,10 @@ export const getAllUsers = async () => {
   }
 };
 
+// Alias functions to match imports in Admin.tsx
+export const getAdminUsers = getAllUsers;
+export const getAdminProjects = getAllProjects;
+
 // Get all projects for admin
 export const getAllProjects = async () => {
   try {
@@ -127,7 +130,7 @@ export const getAllProjects = async () => {
 
     if (error) throw error;
 
-    // Transform to match expected format
+    // Transform to match expected format with safe property access
     const transformedProjects = data.map(project => {
       // Safely access nested profile data
       const profile = project.profiles || {};
@@ -147,9 +150,9 @@ export const getAllProjects = async () => {
         location: project.location || '',
         progress: project.progress || 0,
         // Safe access to profile properties
-        user_name: profile.display_name || 'Unknown',
-        user_email: profile.email || '',
-        user_avatar: profile.avatar || '',
+        user_name: profile && typeof profile === 'object' && 'display_name' in profile ? profile.display_name : 'Unknown',
+        user_email: profile && typeof profile === 'object' && 'email' in profile ? profile.email : '',
+        user_avatar: profile && typeof profile === 'object' && 'avatar' in profile ? profile.avatar : '',
         startDate: project.start_date || '',
         endDate: project.end_date || '',
         is_public: project.is_public || false

@@ -27,10 +27,21 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
         return;
       }
 
+      // Ensure required fields are present
+      if (!formData.crop) {
+        formData.crop = ''; // Default value
+      }
+      if (!formData.location) {
+        formData.location = ''; // Default value
+      }
+      if (formData.progress === undefined) {
+        formData.progress = 0; // Default value
+      }
+
       // Pass the user ID and formData to createProject
       const createdProject = await createProject(user.id, formData);
       if (createdProject) {
-        onProjectCreated(createdProject);
+        onProjectCreated(createdProject as ProjectData);
         toast.success('Projet créé avec succès');
       }
     } catch (error) {

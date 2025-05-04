@@ -22,7 +22,7 @@ const DashboardContent = () => {
       {/* Dashboard Header */}
       <DashboardHeader 
         isLoading={isLoading} 
-        lastUpdated={data.lastUpdated} 
+        lastUpdated={data.lastUpdated || null} 
         refreshData={refreshData} 
       />
       
@@ -44,7 +44,7 @@ const DashboardContent = () => {
         
         {/* Weather card */}
         <WeatherCard 
-          weatherData={isLoading ? null : data.weatherData} 
+          weatherData={isLoading ? null : (data.weatherData || data.weather[0])} 
           isLoading={isLoading} 
         />
         
@@ -56,13 +56,13 @@ const DashboardContent = () => {
         
         {/* Moisture chart */}
         <MoistureChart 
-          moistureData={isLoading ? null : data.moistureData} 
+          moistureData={isLoading ? null : data.moistureData || []} 
           isLoading={isLoading} 
         />
         
         {/* Yearly yield chart */}
         <YieldChart 
-          yieldData={isLoading ? null : data.yieldData} 
+          yieldData={isLoading ? null : data.yieldData || []} 
           isLoading={isLoading} 
         />
       </div>

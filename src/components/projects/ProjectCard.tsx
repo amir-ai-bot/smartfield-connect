@@ -1,27 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, MapPin, Sprout } from "lucide-react";
-import Farm from '@/components/icons/Farm';
-import { formatRelativeDate } from '@/lib/utils';
-import { ProjectData } from '@/types/dashboard';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectData } from '@/types/dashboard';
 
-export interface ProjectCardProps {
-  id: string;
-  title: string;
-  crop: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  status: 'active' | 'planning' | 'completed';
-  image?: string;
-  user_name?: string;
-  user_avatar?: string;
-  onClick?: () => void;
-}
+// Create a Farm icon component since it's missing
+const Farm = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 9h18V5H3v4Z" />
+    <path d="M13 18h4V9h-4v9Z" />
+    <path d="M7 18h4V9H7v9Z" />
+    <path d="M19 18h2v-4h-2v4Z" />
+    <path d="M3 18h2v-4H3v4Z" />
+    <path d="M3 20h18v2H3v-2Z" />
+  </svg>
+);
+
+// Add formatRelativeDate utility function
+const formatRelativeDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+    } else if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30);
+      return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+    } else {
+      const years = Math.floor(diffDays / 365);
+      return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+    }
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return 'Unknown date';
+  }
+};
 
 const cropDefaultImages: Record<string, string> = {
   'Oliviers': 'https://cdn.pixabay.com/photo/2021/07/14/11/31/olive-tree-6465723_1280.jpg',
@@ -45,6 +84,21 @@ const cropDefaultImages: Record<string, string> = {
 
 // Fallback image for general use
 const defaultFallbackImage = 'https://cdn.pixabay.com/photo/2019/09/28/04/02/agriculture-4509751_1280.jpg';
+
+export interface ProjectCardProps {
+  id: string;
+  title: string;
+  crop: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  status: 'active' | 'planning' | 'completed';
+  image?: string;
+  user_name?: string;
+  user_avatar?: string;
+  onClick?: () => void;
+}
 
 const ProjectCard = ({ 
   id, 
