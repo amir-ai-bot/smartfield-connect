@@ -1,75 +1,31 @@
-// Type definitions for the dashboard data
 
-export interface Project {
-  id: number;
-  name: string;
-  progress: number;
-  status: string;
-  irrigation: string;
-  nextTask: string;
-  taskDate: string;
-}
-
-export interface WeatherData {
-  temperature: number;
-  feelsLike: number;
-  humidity: number;
-  windSpeed: number;
-  condition: string;
-  location: string;
-  forecast: {
-    day: string;
-    temperature: number;
-    condition: string;
-  }[];
-}
-
-export interface Task {
-  task: string;
-  project: string;
-  date: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
-export interface DashboardData {
-  projects: Project[];
-  weatherData: WeatherData;
-  tasks: Task[];
-  moistureData: { day: string; value: number }[];
-  yieldData: { year: string; value: number }[];
-  lastUpdated: Date;
-}
-
-// Modified ProjectData interface to match database schema
 export interface ProjectData {
   id: string;
   title: string;
-  crop: string;
-  location: string;
-  // Map directly to database field names
-  start_date?: string;
-  end_date?: string; 
-  // Keep the camelCase versions for backward compatibility
-  startDate?: string;
-  endDate?: string;
-  progress: number;
-  status: string;
-  image?: string;
+  name?: string;
   description?: string;
-  user_id: string;
-  is_public?: boolean;
+  image?: string;
+  crop: string;
+  crop_type?: string;
+  location: string;
+  startDate?: string;
+  start_date?: string;
+  endDate?: string;
+  end_date?: string;
+  progress?: number;
+  status: 'planning' | 'active' | 'completed';
+  owner_id?: string;
+  user_id?: string;
   created_at?: string;
   updated_at?: string;
-  last_modified?: string;
-  // UI-specific fields
+  is_public?: boolean;
+  isPublic?: boolean;
+  // Added extra fields for compatibility with APIs
+  creator_name?: string;
+  creator_email?: string;
+  creator_avatar?: string;
   user_name?: string;
+  user_email?: string;
   user_avatar?: string;
-}
-
-export interface DashboardContextType {
-  data: DashboardData;
-  isLoading: boolean;
-  activeProject: number;
-  setActiveProject: (index: number) => void;
-  refreshData: () => Promise<void>;
+  timeAgo?: string;
 }

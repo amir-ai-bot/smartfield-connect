@@ -64,27 +64,49 @@ export const getAllSuppliers = async () => {
   }
 };
 
+// Search suppliers
+export const searchSuppliers = async (query: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .ilike('name', `%${query}%`)
+      .order('name');
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error searching suppliers:', error);
+    return [];
+  }
+};
+
 // Toggle favorite supplier
 export const toggleFavoriteFournisseur = async (
   userId: string,
-  supplierId: string,
-  isFavorite: boolean
-): Promise<boolean> => {
+  supplierId: string
+): Promise<{ isFavorite: boolean }> => {
   try {
-    const { data, error } = await supabase.rpc(
-      isFavorite ? 'remove_favorite_supplier' : 'add_favorite_supplier',
-      { p_user_id: userId, p_supplier_id: supplierId }
-    );
+    // Check if already a favorite
+    const isFav = await isFournisseurFavorite(userId, supplierId);
     
-    if (error) {
-      console.error('Error toggling favorite supplier:', error);
-      return false;
+    // Toggle accordingly
+    if (isFav) {
+      await supabase.rpc('remove_favorite_supplier', {
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
+      return { isFavorite: false };
+    } else {
+      await supabase.rpc('add_favorite_supplier', {
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
+      return { isFavorite: true };
     }
-    
-    return true;
   } catch (error) {
-    console.error('Error in toggleFavoriteFournisseur:', error);
-    return false;
+    console.error('Error toggling favorite supplier:', error);
+    return { isFavorite: false };
   }
 };
 
@@ -110,3 +132,22 @@ export const isFournisseurFavorite = async (
     return false;
   }
 };
+
+// Get favorite suppliers
+export const getFavoriteSuppliers = async (userId: string) => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'get_favorite_suppliers',
+      { p_user_id: userId }
+    );
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching favorite suppliers:', error);
+    return [];
+  }
+};
+
+// For aliasing
+export const getSuppliers = getAllSuppliers;

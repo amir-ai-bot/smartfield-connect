@@ -3,7 +3,8 @@ import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, User, Edit, Trash2, Eye, Farm } from "lucide-react";
+import { Calendar, MapPin, User, Edit, Trash2, Eye, Lock } from "lucide-react";
+import { Farm } from "@/components/icons/Farm";
 import { Link, useNavigate } from 'react-router-dom';
 import { formatRelativeDate } from '@/lib/utils';
 import { ProjectData } from '@/types/auth';
@@ -90,7 +91,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <h3 className="text-lg font-semibold truncate">{project.title || project.name}</h3>
+          <h3 className="text-lg font-semibold truncate">{project.title}</h3>
           {project.progress !== undefined && (
             <div className="bg-gray-100 rounded-full h-2 w-20 overflow-hidden">
               <div 
@@ -175,3 +176,5 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     </Card>
   );
 };
+
+export default ProjectCard;

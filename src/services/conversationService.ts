@@ -144,6 +144,61 @@ export const getConversations = async (userId: string): Promise<ConversationData
   }
 };
 
+// Alias for getConversations to maintain compatibility
+export const getUserConversations = getConversations;
+
+// Get specific conversation
+export const getConversation = async (conversationId: string, userId: string): Promise<ConversationData | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        id,
+        created_at,
+        last_message_at,
+        participant1_id,
+        participant2_id
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (error || !data) {
+      console.error('Error fetching conversation:', error);
+      return null;
+    }
+
+    // Determine the other participant
+    const otherParticipantId = 
+      data.participant1_id === userId
+        ? data.participant2_id
+        : data.participant1_id;
+
+    // Get the other participant's profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar')
+      .eq('id', otherParticipantId)
+      .single();
+
+    const participant: ParticipantProfile = {
+      id: otherParticipantId,
+      name: profileData?.display_name || 'Utilisateur',
+      avatar: profileData?.avatar || undefined,
+    };
+
+    return {
+      id: data.id,
+      participant,
+      lastMessageAt: data.last_message_at || data.created_at,
+      createdAt: data.created_at,
+      userId,
+    };
+  } catch (error) {
+    console.error('Error in getConversation:', error);
+    return null;
+  }
+};
+
 export const getMessages = async (
   conversationId: string,
   limit = 50,
@@ -162,12 +217,21 @@ export const getMessages = async (
       return [];
     }
 
-    return data || [];
+    // Add conversation_id to all messages to match MessageData interface
+    const messagesWithConversationId = data.map(msg => ({
+      ...msg,
+      conversation_id: conversationId
+    }));
+
+    return messagesWithConversationId;
   } catch (error) {
     console.error('Error in getMessages:', error);
     return [];
   }
 };
+
+// Alias for getMessages to maintain compatibility
+export const getConversationMessages = getMessages;
 
 export const sendMessage = async (
   conversationId: string,
@@ -200,7 +264,10 @@ export const sendMessage = async (
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    return data;
+    return {
+      ...data,
+      conversation_id: conversationId
+    };
   } catch (error) {
     console.error('Error in sendMessage:', error);
     return null;
@@ -212,12 +279,13 @@ export const markMessagesAsRead = async (
   userId: string
 ): Promise<boolean> => {
   try {
+    // Use direct SQL update instead of RPC
     const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .eq('receiver_id', userId)
-      .is('read', false);
+      .eq('read', false);
 
     if (error) {
       console.error('Error marking messages as read:', error);
@@ -276,3 +344,6 @@ export const getUserProfile = async (userId: string): Promise<ParticipantProfile
     return null;
   }
 };
+
+// Alias for backward compatibility
+export const createSupplierConversation = createConversation;

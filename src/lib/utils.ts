@@ -1,4 +1,3 @@
-
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
  
@@ -77,3 +76,29 @@ export function timeAgo(dateString: string): string {
   
   return Math.floor(seconds) + ' seconde' + (Math.floor(seconds) > 1 ? 's' : '');
 }
+
+export const formatRelativeDate = (dateString: string): string => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 1) {
+    return "Aujourd'hui";
+  } else if (diffDays === 1) {
+    return "Hier";
+  } else if (diffDays < 7) {
+    return `Il y a ${diffDays} jours`;
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `Il y a ${weeks} semaine${weeks > 1 ? 's' : ''}`;
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `Il y a ${months} mois`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    return `Il y a ${years} an${years > 1 ? 's' : ''}`;
+  }
+};

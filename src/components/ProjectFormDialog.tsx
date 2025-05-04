@@ -27,7 +27,8 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
         return;
       }
 
-      const createdProject = await createProject(formData, user.id);
+      // Pass the user ID and formData to createProject
+      const createdProject = await createProject(user.id, formData);
       if (createdProject) {
         onProjectCreated(createdProject);
         toast.success('Projet créé avec succès');

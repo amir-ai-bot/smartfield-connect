@@ -16,7 +16,7 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
       return [];
     }
 
-    // Transform to match ProjectData interface
+    // Transform the data to match the ProjectData interface
     const projects: ProjectData[] = data.map(project => ({
       id: project.id,
       title: project.name,
@@ -36,7 +36,7 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
       endDate: project.end_date || '',
       end_date: project.end_date || '',
       is_public: !!project.is_public,
-      isPublic: !!project.is_public,
+      isPublic: !!project.is_public
     }));
 
     return projects;
@@ -80,7 +80,7 @@ export const getProjectById = async (projectId: string): Promise<ProjectData | n
       endDate: data.end_date || '',
       end_date: data.end_date || '',
       is_public: !!data.is_public,
-      isPublic: !!data.is_public,
+      isPublic: !!data.is_public
     };
 
     return project;
@@ -90,10 +90,13 @@ export const getProjectById = async (projectId: string): Promise<ProjectData | n
   }
 };
 
+// Alias for getProjectById
+export const getProject = getProjectById;
+
 // Create a new project
 export const createProject = async (
   userId: string,
-  projectData: Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>
+  projectData: Partial<ProjectData>
 ): Promise<ProjectData | null> => {
   try {
     const { data, error } = await supabase
@@ -139,7 +142,7 @@ export const createProject = async (
       endDate: data.end_date || '',
       end_date: data.end_date || '',
       is_public: !!data.is_public,
-      isPublic: !!data.is_public,
+      isPublic: !!data.is_public
     };
 
     return project;
@@ -156,7 +159,7 @@ export const updateProject = async (
 ): Promise<ProjectData | null> => {
   try {
     // Prepare data for update
-    const updateData: any = {};
+    const updateData: Record<string, any> = {};
 
     if (projectData.title) updateData.name = projectData.title;
     if (projectData.description !== undefined) updateData.description = projectData.description;
@@ -202,7 +205,7 @@ export const updateProject = async (
       endDate: data.end_date || '',
       end_date: data.end_date || '',
       is_public: !!data.is_public,
-      isPublic: !!data.is_public,
+      isPublic: !!data.is_public
     };
 
     return project;

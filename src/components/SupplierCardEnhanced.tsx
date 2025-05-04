@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   toggleFavoriteFournisseur, 
   isFournisseurFavorite 
-} from '@/services/conversationService';
+} from '@/services/supplierService';
 import { toast } from 'sonner';
 
 interface Supplier {
