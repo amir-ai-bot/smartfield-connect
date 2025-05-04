@@ -11,15 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSupplierConversation } from '@/services/supplierService';
+import { createSupplierConversation } from '@/services/conversationService';
 import { toast } from 'sonner';
 
-// Define a local Rating type that matches what's expected
 interface ExtendedRating extends Rating {
   profiles: {
     id: string;
     name: string;
-    avatar?: string;
+    avatar?: string | null;
   };
 }
 

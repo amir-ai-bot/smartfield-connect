@@ -2,15 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { StarFilledIcon } from '@radix-ui/react-icons';
+import { Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { addRating, getUserRatingForSupplier, getRatingsForSupplier } from '@/services/ratingService';
+import { 
+  addRating, 
+  getUserRatingForSupplier, 
+  getRatingsForSupplier
+} from '@/services/ratingService';
 import { Rating } from '@/types/auth';
 import { toast } from 'sonner';
 
 export interface RatingComponentProps {
   supplierId: string;
-  onRatingAdded: (newRating: any) => void;
+  onRatingAdded?: (newRating: any) => void;
 }
 
 const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingAdded }) => {
@@ -62,7 +66,11 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
             avatar: user.avatar
           }
         };
-        onRatingAdded(ratingWithProfile);
+        
+        if (onRatingAdded) {
+          onRatingAdded(ratingWithProfile);
+        }
+        
         toast.success(userRating ? 'Rating updated successfully' : 'Rating added successfully');
       }
     } catch (error) {
@@ -71,17 +79,6 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
     } finally {
       setIsSubmitting(false);
     }
-  };
-  
-  const renderStars = (count: number, filled: boolean = false) => {
-    return Array(count)
-      .fill(0)
-      .map((_, i) => (
-        <StarFilledIcon
-          key={i}
-          className={`w-6 h-6 ${filled ? 'text-yellow-400' : 'text-gray-300'}`}
-        />
-      ));
   };
   
   return (
@@ -103,10 +100,10 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHoverRating(star)}
               >
-                <StarFilledIcon
+                <Star
                   className={`w-6 h-6 ${
                     (hoverRating ? hoverRating >= star : rating >= star)
-                      ? 'text-yellow-400'
+                      ? 'text-yellow-400 fill-yellow-400'
                       : 'text-gray-300'
                   }`}
                 />

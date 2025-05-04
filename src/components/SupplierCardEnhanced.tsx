@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Phone, Mail, MapPin, Heart, Star } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import RatingComponent from './RatingComponent';
 import { useAuth } from '@/contexts/AuthContext';
-import { toggleFavoriteFournisseur, isFournisseurFavorite } from '@/services/conversationService';
+import { 
+  toggleFavoriteFournisseur, 
+  isFournisseurFavorite 
+} from '@/services/conversationService';
 import { toast } from 'sonner';
 
 interface Supplier {
@@ -28,6 +30,26 @@ interface SupplierCardProps {
   supplier: Supplier;
   onFavoriteToggle?: () => void;
 }
+
+const StarRating: React.FC<{ rating?: number }> = ({ rating = 0 }) => {
+  return (
+    <div className="flex items-center">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star 
+          key={star}
+          className={`h-4 w-4 ${
+            star <= Math.round(rating)
+              ? 'text-yellow-400 fill-yellow-400'
+              : 'text-gray-300'
+          }`}
+        />
+      ))}
+      {rating > 0 && (
+        <span className="ml-1 text-sm text-gray-600">{rating.toFixed(1)}</span>
+      )}
+    </div>
+  );
+};
 
 const SupplierCardEnhanced: React.FC<SupplierCardProps> = ({ supplier, onFavoriteToggle }) => {
   const { user, isAuthenticated } = useAuth();
@@ -133,7 +155,7 @@ const SupplierCardEnhanced: React.FC<SupplierCardProps> = ({ supplier, onFavorit
       </CardHeader>
       <CardContent className="pt-4">
         <div className="space-y-3">
-          <RatingComponent supplierId={supplier.id} userRating={supplier.rating} />
+          <StarRating rating={supplier.rating} />
           
           {supplier.location && (
             <div className="flex items-center text-sm text-gray-500">

@@ -38,9 +38,9 @@ const SignupForm: React.FC<SignupFormProps> = ({
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
       if (onSuccess) onSuccess();
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup form error:', error);
-      // Error is handled in the auth context
+      toast.error(error?.message || 'Erreur lors de l\'inscription');
     } finally {
       setIsSubmitting(false);
     }

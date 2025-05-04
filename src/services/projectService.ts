@@ -35,10 +35,7 @@ export const getProjects = async (userId: string): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
-      .select(`
-        *,
-        profiles:owner_id(id, display_name, avatar)
-      `)
+      .select('*')
       .eq('owner_id', userId)
       .order('created_at', { ascending: false });
 
@@ -52,15 +49,15 @@ export const getProjects = async (userId: string): Promise<ProjectData[]> => {
   }
 };
 
+// Alias for getUserProjects
+export const getUserProjects = getProjects;
+
 // Get a single project by ID
 export const getProjectById = async (projectId: string): Promise<ProjectData | null> => {
   try {
     const { data, error } = await supabase
       .from('projects')
-      .select(`
-        *,
-        profiles:owner_id(id, display_name, avatar)
-      `)
+      .select('*')
       .eq('id', projectId)
       .single();
 
@@ -73,6 +70,9 @@ export const getProjectById = async (projectId: string): Promise<ProjectData | n
     return null;
   }
 };
+
+// Alias for getProjectById
+export const getProject = getProjectById;
 
 // Create a new project
 export const createProject = async (projectData: Partial<ProjectData>, userId: string): Promise<ProjectData | null> => {
@@ -172,10 +172,7 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
   try {
     const { data, error } = await supabase
       .from('projects')
-      .select(`
-        *,
-        profiles:owner_id(id, display_name, avatar)
-      `)
+      .select('*')
       .eq('is_public', true)
       .order('created_at', { ascending: false });
 

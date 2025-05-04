@@ -1,19 +1,52 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Rating } from '@/types/auth';
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+  created_at?: string;
+  updated_at?: string;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+}
 
 // Get a supplier by ID
 export const getSupplierById = async (id: string) => {
   try {
-    const { data, error } = await supabase
+    const { data: supplier, error: supplierError } = await supabase
       .from('suppliers')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (error) throw error;
-    return data;
+    if (supplierError) throw supplierError;
+    
+    // Get supplier's user profile info if available
+    if (supplier.user_id) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, avatar, display_name')
+        .eq('id', supplier.user_id)
+        .single();
+        
+      if (!profileError && profile) {
+        return {
+          ...supplier,
+          email: profile.email,
+          avatar: profile.avatar,
+          name: profile.display_name || 'Unnamed Supplier'
+        };
+      }
+    }
+    
+    return supplier;
   } catch (error) {
     console.error('Error fetching supplier:', error);
     toast.error('Error fetching supplier details');
@@ -24,6 +57,7 @@ export const getSupplierById = async (id: string) => {
 // Get ratings by fournisseur ID
 export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<Rating[]> => {
   try {
+    // Check if ratings table exists, if not return empty array
     const { data, error } = await supabase
       .from('ratings')
       .select(`
@@ -32,7 +66,10 @@ export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<
       `)
       .eq('fournisseur_id', fournisseurId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching ratings:', error);
+      return [];
+    }
 
     // Format ratings to include user profiles
     const ratingsWithProfiles = data.map((rating: any) => ({
@@ -55,6 +92,7 @@ export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<
 // Get supplier ratings for the current user
 export const getUserRatingForSupplier = async (userId: string, supplierId: string): Promise<Rating | null> => {
   try {
+    // Check if ratings table exists, if not return null
     const { data, error } = await supabase
       .from('ratings')
       .select('*')
@@ -62,7 +100,12 @@ export const getUserRatingForSupplier = async (userId: string, supplierId: strin
       .eq('fournisseur_id', supplierId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42P01') { // Table doesn't exist
+        return null;
+      }
+      throw error;
+    }
     return data;
   } catch (error) {
     console.error('Error fetching user rating:', error);
@@ -87,10 +130,7 @@ export const addRating = async (
         .from('ratings')
         .update({ rating, comment, updated_at: new Date().toISOString() })
         .eq('id', existingRating.id)
-        .select(`
-          *,
-          profiles:user_id(id, display_name, avatar)
-        `)
+        .select()
         .single();
         
       if (error) throw error;
@@ -99,7 +139,7 @@ export const addRating = async (
       await updateSupplierAverageRating(supplierId);
       
       toast.success('Rating updated successfully');
-      return data;
+      return data as Rating;
     } else {
       // Create new rating
       const { data, error } = await supabase
@@ -110,10 +150,7 @@ export const addRating = async (
           rating,
           comment
         })
-        .select(`
-          *,
-          profiles:user_id(id, display_name, avatar)
-        `)
+        .select()
         .single();
         
       if (error) throw error;
@@ -122,7 +159,7 @@ export const addRating = async (
       await updateSupplierAverageRating(supplierId);
       
       toast.success('Rating added successfully');
-      return data;
+      return data as Rating;
     }
   } catch (error) {
     console.error('Error adding rating:', error);
@@ -163,4 +200,14 @@ const updateSupplierAverageRating = async (supplierId: string): Promise<void> =>
 // Get ratings for suppliers
 export const getRatingsForSupplier = async (supplierId: string): Promise<Rating[]> => {
   return getRatingsByFournisseurId(supplierId);
+};
+
+// Rate a fournisseur - for the RatingDialog component
+export const rateFournisseur = async (
+  userId: string,
+  fournisseurId: string,
+  rating: number,
+  comment?: string
+): Promise<Rating | null> => {
+  return addRating(userId, fournisseurId, rating, comment);
 };

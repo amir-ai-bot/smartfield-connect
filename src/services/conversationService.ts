@@ -21,6 +21,7 @@ export interface ConversationData {
   created_at?: string;
   participant1?: ParticipantProfile;
   participant2?: ParticipantProfile;
+  otherParticipant?: ParticipantProfile;
 }
 
 export interface MessageData {
@@ -28,12 +29,27 @@ export interface MessageData {
   content?: string;
   sender_id: string;
   receiver_id: string;
+  conversation_id?: string;
   created_at?: string;
   updated_at?: string;
   read?: boolean;
   sender?: ParticipantProfile;
   receiver?: ParticipantProfile;
 }
+
+// Safe profile extraction helper
+const extractProfile = (profile: any): ParticipantProfile | undefined => {
+  if (!profile) return undefined;
+  
+  return {
+    id: profile.id || '',
+    display_name: profile.display_name || profile.name || '',
+    avatar: profile.avatar || null,
+    email: profile.email || '',
+    role: profile.role || '',
+    name: profile.display_name || profile.name || ''
+  };
+};
 
 // Fetch conversations for a user
 export const getConversations = async (userId: string): Promise<ConversationData[]> => {
@@ -51,43 +67,19 @@ export const getConversations = async (userId: string): Promise<ConversationData
     if (error) throw error;
 
     const formattedConversations: ConversationData[] = data.map((conversation: any) => {
+      // Safely extract participant profiles
+      const participant1 = extractProfile(conversation.participant1);
+      const participant2 = extractProfile(conversation.participant2);
+      
       // Determine the other participant profile (not the current user)
       const otherParticipant = conversation.participant1_id === userId 
-        ? {
-            id: conversation.participant2?.id || '',
-            display_name: conversation.participant2?.display_name || '',
-            avatar: conversation.participant2?.avatar || null,
-            email: conversation.participant2?.email || '',
-            role: conversation.participant2?.role || '',
-            name: conversation.participant2?.display_name || ''
-          }
-        : {
-            id: conversation.participant1?.id || '',
-            display_name: conversation.participant1?.display_name || '',
-            avatar: conversation.participant1?.avatar || null,
-            email: conversation.participant1?.email || '',
-            role: conversation.participant1?.role || '',
-            name: conversation.participant1?.display_name || ''
-          };
+        ? participant2
+        : participant1;
 
       return {
         ...conversation,
-        participant1: conversation.participant1 ? {
-          id: conversation.participant1.id || '',
-          display_name: conversation.participant1.display_name || '',
-          avatar: conversation.participant1.avatar || null,
-          email: conversation.participant1.email || '',
-          role: conversation.participant1.role || '',
-          name: conversation.participant1.display_name || ''
-        } : undefined,
-        participant2: conversation.participant2 ? {
-          id: conversation.participant2.id || '',
-          display_name: conversation.participant2.display_name || '',
-          avatar: conversation.participant2.avatar || null,
-          email: conversation.participant2.email || '',
-          role: conversation.participant2.role || '',
-          name: conversation.participant2.display_name || ''
-        } : undefined,
+        participant1,
+        participant2,
         otherParticipant
       };
     });
@@ -98,6 +90,11 @@ export const getConversations = async (userId: string): Promise<ConversationData
     toast.error('Failed to load conversations');
     return [];
   }
+};
+
+// Get user conversations for ConversationList
+export const getUserConversations = async (userId: string): Promise<any[]> => {
+  return getConversations(userId);
 };
 
 // Get a specific conversation by ID
@@ -119,22 +116,8 @@ export const getConversationById = async (conversationId: string): Promise<Conve
 
     return {
       ...data,
-      participant1: data.participant1 ? {
-        id: data.participant1.id || '',
-        display_name: data.participant1.display_name || '',
-        avatar: data.participant1.avatar || null,
-        email: data.participant1.email || '',
-        role: data.participant1.role || '',
-        name: data.participant1.display_name || ''
-      } : undefined,
-      participant2: data.participant2 ? {
-        id: data.participant2.id || '',
-        display_name: data.participant2.display_name || '',
-        avatar: data.participant2.avatar || null,
-        email: data.participant2.email || '',
-        role: data.participant2.role || '',
-        name: data.participant2.display_name || ''
-      } : undefined
+      participant1: extractProfile(data.participant1),
+      participant2: extractProfile(data.participant2)
     };
   } catch (error) {
     console.error('Error fetching conversation:', error);
@@ -153,10 +136,7 @@ export const getConversationMessages = async (conversationId: string): Promise<M
         sender:sender_id(id, display_name, avatar, email, role),
         receiver:receiver_id(id, display_name, avatar, email, role)
       `)
-      .or(`
-        and(sender_id.eq.${conversationId}),
-        and(receiver_id.eq.${conversationId})
-      `)
+      .eq('conversation_id', conversationId)
       .order('created_at');
 
     if (messagesError) throw messagesError;
@@ -164,22 +144,8 @@ export const getConversationMessages = async (conversationId: string): Promise<M
     // Format messages with sender and receiver information
     return messagesData.map((message: any) => ({
       ...message,
-      sender: message.sender ? {
-        id: message.sender.id || '',
-        display_name: message.sender.display_name || '',
-        avatar: message.sender.avatar || null,
-        email: message.sender.email || '',
-        role: message.sender.role || '',
-        name: message.sender.display_name || ''
-      } : undefined,
-      receiver: message.receiver ? {
-        id: message.receiver.id || '',
-        display_name: message.receiver.display_name || '',
-        avatar: message.receiver.avatar || null,
-        email: message.receiver.email || '',
-        role: message.receiver.role || '',
-        name: message.receiver.display_name || ''
-      } : undefined
+      sender: extractProfile(message.sender),
+      receiver: extractProfile(message.receiver)
     }));
   } catch (error) {
     console.error('Error fetching messages:', error);
@@ -224,6 +190,7 @@ export const sendMessage = async (
         receiver_id: receiverId,
         content,
         conversation_id: conversationId,
+        read: false
       })
       .select()
       .single();
@@ -310,5 +277,81 @@ export const createSupplierConversation = async (
     console.error('Error creating supplier conversation:', error);
     toast.error('Failed to create conversation with supplier');
     return null;
+  }
+};
+
+// Toggle favorite status for a supplier
+export const toggleFavoriteFournisseur = async (
+  userId: string,
+  supplierId: string
+): Promise<{ isFavorite: boolean } | false> => {
+  try {
+    // Check if already a favorite
+    const isFav = await isFournisseurFavorite(userId, supplierId);
+    
+    if (isFav) {
+      // Remove from favorites
+      const { error } = await supabase
+        .from('favorite_suppliers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('supplier_id', supplierId);
+        
+      if (error) throw error;
+      return { isFavorite: false };
+    } else {
+      // Add to favorites
+      const { error } = await supabase
+        .from('favorite_suppliers')
+        .insert({
+          user_id: userId,
+          supplier_id: supplierId
+        });
+        
+      if (error) throw error;
+      return { isFavorite: true };
+    }
+  } catch (error) {
+    console.error('Error toggling favorite status:', error);
+    toast.error('Failed to update favorite status');
+    return false;
+  }
+};
+
+// Check if a supplier is in user's favorites
+export const isFournisseurFavorite = async (
+  userId: string,
+  supplierId: string
+): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('favorite_suppliers')
+      .select()
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    
+    return !!data;
+  } catch (error) {
+    console.error('Error checking favorite status:', error);
+    return false;
+  }
+};
+
+// Get user's favorite suppliers
+export const getFavoriteFournisseurs = async (userId: string): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_favorite_suppliers', { p_user_id: userId });
+      
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching favorite suppliers:', error);
+    toast.error('Failed to load favorite suppliers');
+    return [];
   }
 };

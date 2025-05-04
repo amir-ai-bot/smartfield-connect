@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { getUserConversations } from '@/services/conversationService'; 
+import { getConversations } from '@/services/conversationService'; 
 import { User } from '@/types/auth';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +28,11 @@ interface Conversation {
   user_id: string;
   fournisseur_id: string;
   unreadCount?: number;
+  otherParticipant?: {
+    name: string;
+    avatar: string | null;
+    id: string;
+  };
 }
 
 const ConversationList = ({ currentUser, filterUnread = false }: ConversationListProps) => {
@@ -38,9 +43,9 @@ const ConversationList = ({ currentUser, filterUnread = false }: ConversationLis
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const data = await getUserConversations(currentUser.id);
+        const data = await getConversations(currentUser.id);
         
-        // Cast the data to the correct type to avoid type errors
+        // Cast the data to the correct type
         let conversationsData = data as unknown as Conversation[];
         
         // Filter for unread messages if specified
@@ -79,6 +84,11 @@ const ConversationList = ({ currentUser, filterUnread = false }: ConversationLis
   }, [currentUser.id, filterUnread]);
 
   const getOtherParty = (conversation: Conversation) => {
+    if (conversation.otherParticipant) {
+      return conversation.otherParticipant;
+    }
+    
+    // Fallback to older format
     if (conversation.user_id === currentUser.id) {
       return conversation.fournisseur;
     }
@@ -126,17 +136,17 @@ const ConversationList = ({ currentUser, filterUnread = false }: ConversationLis
           >
             <CardContent className="p-4 flex items-center">
               <Avatar className="h-12 w-12 mr-4">
-                <AvatarImage src={otherParty.avatar || undefined} alt={otherParty.name} />
+                <AvatarImage src={otherParty?.avatar || undefined} alt={otherParty?.name || 'User'} />
                 <AvatarFallback className="bg-agri-green-100 text-agri-green-700">
-                  {otherParty.name.substring(0, 2).toUpperCase()}
+                  {(otherParty?.name || 'AN').substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               
               <div className="flex-1">
                 <div className="flex justify-between items-start">
-                  <h3 className="font-medium">{otherParty.name}</h3>
+                  <h3 className="font-medium">{otherParty?.name || 'Unknown User'}</h3>
                   <span className="text-xs text-gray-500">
-                    {timeAgo(conversation.updated_at)}
+                    {conversation.updated_at ? timeAgo(conversation.updated_at) : 'Recent'}
                   </span>
                 </div>
                 

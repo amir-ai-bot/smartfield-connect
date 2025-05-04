@@ -1,7 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { getConversationById, getConversationMessages, sendMessage, markMessagesAsRead, ConversationData, MessageData } from '@/services/conversationService';
+import { 
+  getConversationById, 
+  getConversationMessages, 
+  sendMessage, 
+  markMessagesAsRead, 
+  ConversationData, 
+  MessageData,
+  ParticipantProfile
+} from '@/services/conversationService';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,8 +32,10 @@ const ConversationDetail = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Determine other user (not the current user)
-  const otherUser = conversation ? (
-    user?.id === conversation.participant1_id ? conversation.participant2 : conversation.participant1
+  const otherUser = conversation && user ? (
+    user.id === conversation.participant1_id 
+      ? conversation.participant2 
+      : conversation.participant1
   ) : null;
 
   // Scroll to bottom when new messages are added
@@ -93,7 +103,7 @@ const ConversationDetail = () => {
             email: user.email || '',
             role: user.role || '',
             name: user.name || ''
-          }
+          } as ParticipantProfile
         };
         
         setMessages([...messages, messageWithSender]);
@@ -159,13 +169,13 @@ const ConversationDetail = () => {
                     key={msg.id}
                     className={`flex mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                   >
-                    {!isCurrentUser && (
+                    {!isCurrentUser && msg.sender && (
                       <Avatar className="h-8 w-8 mr-2">
-                        {msg.sender?.avatar ? (
+                        {msg.sender.avatar ? (
                           <AvatarImage src={msg.sender.avatar} alt={msg.sender.display_name || 'User'} />
                         ) : (
                           <AvatarFallback>
-                            {(msg.sender?.display_name || 'U').substring(0, 2).toUpperCase()}
+                            {(msg.sender.display_name || 'U').substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         )}
                       </Avatar>
