@@ -46,6 +46,9 @@ export const getRatingsByFournisseurId = async (fournisseurId: string): Promise<
   }
 };
 
+// Alias function for backwards compatibility
+export const getRatingsForSupplier = getRatingsByFournisseurId;
+
 // Get a specific supplier
 export const getSupplierById = async (id: string) => {
   try {
@@ -91,26 +94,8 @@ export const getUserRatingForSupplier = async (userId: string, fournisseurId: st
   }
 };
 
-// Check if user has rated a supplier
-export const hasUserRatedSupplier = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const { count, error } = await supabase
-      .from('ratings')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('fournisseur_id', fournisseurId);
-
-    if (error) throw error;
-    
-    return !!count && count > 0;
-  } catch (error) {
-    console.error('Error in hasUserRatedSupplier:', error);
-    return false;
-  }
-};
-
-// Rate a supplier
-export const rateFournisseur = async (
+// Add or update a rating
+export const addRating = async (
   userId: string,
   fournisseurId: string,
   rating: number,
@@ -154,8 +139,29 @@ export const rateFournisseur = async (
 
     return result as Rating;
   } catch (error) {
-    console.error('Error in rateFournisseur:', error);
+    console.error('Error in addRating:', error);
     return null;
+  }
+};
+
+// Alias for backwards compatibility
+export const rateFournisseur = addRating;
+
+// Check if user has rated a supplier
+export const hasUserRatedSupplier = async (userId: string, fournisseurId: string): Promise<boolean> => {
+  try {
+    const { count, error } = await supabase
+      .from('ratings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('fournisseur_id', fournisseurId);
+
+    if (error) throw error;
+    
+    return !!count && count > 0;
+  } catch (error) {
+    console.error('Error in hasUserRatedSupplier:', error);
+    return false;
   }
 };
 

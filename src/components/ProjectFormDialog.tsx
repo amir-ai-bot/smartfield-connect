@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProjectForm from '@/components/Projects/ProjectForm';
-import { ProjectData } from '@/types/auth';
+import { ProjectData } from '@/types/dashboard';
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';

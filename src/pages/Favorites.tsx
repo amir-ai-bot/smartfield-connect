@@ -1,88 +1,66 @@
-
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getFavoriteSuppliers } from '@/services/conversationService';
-import { Card, CardContent } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
-import SupplierCardEnhanced from '@/components/SupplierCardEnhanced';
+import { getFavoriteSuppliers } from '@/services/supplierService';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import { SupplierCardEnhanced } from '@/components/SupplierCardEnhanced';
 
 const Favorites = () => {
-  const { user } = useAuth();
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const { user, isAuthenticated } = useAuth();
+  const [favoriteSuppliers, setFavoriteSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFavorites = async () => {
-      if (user) {
-        try {
-          const data = await getFavoriteSuppliers(user.id);
-          setFavorites(data);
-        } catch (error) {
-          console.error('Error fetching favorites:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchFavorites();
+    document.title = 'Favoris | AgriSmart';
+    fetchFavoriteSuppliers();
   }, [user]);
 
-  const handleFavoriteToggle = () => {
-    // Refresh the favorites list
-    if (user) {
-      getFavoriteSuppliers(user.id).then(data => setFavorites(data));
+  const fetchFavoriteSuppliers = async () => {
+    if (isAuthenticated && user) {
+      setLoading(true);
+      try {
+        const suppliers = await getFavoriteSuppliers(user.id);
+        setFavoriteSuppliers(suppliers);
+      } catch (error) {
+        console.error('Error fetching favorite suppliers:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setFavoriteSuppliers([]);
+      setLoading(false);
     }
   };
 
-  if (!user) {
-    return (
-      <div className="container mx-auto p-4">
-        <Card>
-          <CardContent className="p-8">
-            <h1 className="text-2xl font-semibold mb-4">Please Login</h1>
-            <p>You need to be logged in to see your favorites.</p>
-            <Link to="/login" className="text-blue-600 hover:underline block mt-4">
-              Login
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <div className="container mx-auto p-4">Loading your favorites...</div>;
-  }
+  const handleFavoriteToggle = () => {
+    fetchFavoriteSuppliers();
+  };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Favorite Suppliers</h1>
-      
-      {favorites.length === 0 ? (
-        <Card>
-          <CardContent className="p-8">
-            <h2 className="text-xl font-semibold mb-3">No favorites yet</h2>
-            <p className="mb-4">
-              You haven't added any suppliers to your favorites list yet.
-            </p>
-            <Link to="/suppliers" className="text-blue-600 hover:underline">
-              Browse Suppliers
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {favorites.map((supplier) => (
-            <SupplierCardEnhanced
-              key={supplier.id}
-              supplier={supplier}
-              onFavoriteToggle={handleFavoriteToggle}
-            />
-          ))}
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50 pt-24 pb-10">
+        <div className="container mx-auto px-4">
+          <h1 className="text-2xl font-bold mb-6">Vos Fournisseurs Favoris</h1>
+          {loading ? (
+            <p>Chargement...</p>
+          ) : favoriteSuppliers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favoriteSuppliers.map((supplier) => (
+                <SupplierCardEnhanced
+                  key={supplier.id}
+                  supplier={supplier}
+                  onFavoriteToggle={handleFavoriteToggle}
+                />
+              ))}
+            </div>
+          ) : (
+            <p>Vous n'avez pas encore de fournisseurs favoris.</p>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+      <Footer />
+    </>
   );
 };
 

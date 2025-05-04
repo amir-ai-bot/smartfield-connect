@@ -93,7 +93,7 @@ export const getAdminStats = async () => {
 };
 
 // Get all users for admin
-export const getAdminUsers = async () => {
+export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -109,7 +109,7 @@ export const getAdminUsers = async () => {
 };
 
 // Get all projects for admin
-export const getAdminProjects = async () => {
+export const getAllProjects = async () => {
   try {
     // Get projects with owner info
     const { data, error } = await supabase
@@ -134,23 +134,25 @@ export const getAdminProjects = async () => {
       
       return {
         id: project.id,
-        title: project.name,
+        title: project.name || '',
         description: project.description || '',
         status: project.status || 'planning',
         owner_id: project.owner_id,
         user_id: project.owner_id,
         created_at: project.created_at,
         updated_at: project.updated_at,
+        // Handle potentially missing properties with default values
         image: project.image || '',
         crop: project.crop || '',
         location: project.location || '',
         progress: project.progress || 0,
+        // Safe access to profile properties
         user_name: profile.display_name || 'Unknown',
         user_email: profile.email || '',
         user_avatar: profile.avatar || '',
         startDate: project.start_date || '',
         endDate: project.end_date || '',
-        is_public: !!project.is_public
+        is_public: project.is_public || false
       };
     });
 
@@ -158,6 +160,66 @@ export const getAdminProjects = async () => {
   } catch (error) {
     console.error('Error getting admin projects:', error);
     return [];
+  }
+};
+
+// Delete user function for admin
+export const deleteUser = async (userId: string) => {
+  try {
+    const { error } = await supabase
+      .rpc('admin_delete_user', { user_id: userId });
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+// Verify user's email for admin
+export const verifyUser = async (userId: string) => {
+  try {
+    const { error } = await supabase
+      .rpc('admin_verify_user', { user_id: userId });
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error verifying user:', error);
+    throw error;
+  }
+};
+
+// Update user role for admin
+export const updateUserRole = async (userId: string, role: string) => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+};
+
+// Delete project function for admin
+export const deleteProject = async (projectId: string) => {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    throw error;
   }
 };
 

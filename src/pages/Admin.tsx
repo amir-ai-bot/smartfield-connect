@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -10,9 +9,8 @@ import { ProjectList } from "@/components/admin/ProjectList";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { getAllUsers, getAllProjects, getAdminStats } from "@/services/adminService";
+import { getAdminUsers, getAdminProjects, getAdminStats } from "@/services/adminService";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { DataTable } from "@/components/ui/data-table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 // Mock data for charts
@@ -52,8 +50,8 @@ const Admin = () => {
     setIsLoading(true);
     try {
       const [usersData, projectsData, statsData] = await Promise.all([
-        getAllUsers(),
-        getAllProjects(),
+        getAdminUsers(),
+        getAdminProjects(),
         getAdminStats()
       ]);
 

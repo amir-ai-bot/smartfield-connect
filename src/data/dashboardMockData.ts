@@ -1,94 +1,109 @@
 
 import { DashboardData } from '@/types/dashboard';
 
-// Initial mock data
 export const initialDashboardData: DashboardData = {
   projects: [
     {
-      id: 1,
-      name: 'Oliveraie Secteur Nord',
+      id: '1',
+      title: 'Plantation d\'oliviers',
+      description: 'Projet de plantation d\'oliviers dans la région de Marrakech',
+      status: 'active',
       progress: 65,
-      status: 'En croissance',
-      irrigation: 'Programmée',
-      nextTask: 'Fertilisation',
-      taskDate: '18 Juin',
+      crop: 'Oliviers',
+      location: 'Marrakech',
+      startDate: '2023-03-15',
+      endDate: '2023-11-30',
+      image: 'https://images.unsplash.com/photo-1579750482338-f4550383dcd4?auto=format&fit=crop&q=80&w=1000'
     },
     {
-      id: 2,
-      name: 'Palmeraie El Oasis',
-      progress: 80,
-      status: 'Fructification',
-      irrigation: 'Manuelle',
-      nextTask: 'Récolte',
-      taskDate: '30 Juin',
-    },
-    {
-      id: 3,
-      name: 'Culture de Pistaches',
-      progress: 30,
-      status: 'Plantation',
-      irrigation: 'Automatisée',
-      nextTask: 'Inspection',
-      taskDate: '22 Juin',
-    },
-  ],
-  weatherData: {
-    temperature: 32,
-    feelsLike: 34,
-    humidity: 25,
-    windSpeed: 12,
-    condition: 'sunny',
-    location: 'Gafsa, Tunisie',
-    forecast: [
-      { day: 'Lun', temperature: 31, condition: 'sunny' },
-      { day: 'Mar', temperature: 32, condition: 'sunny' },
-      { day: 'Mer', temperature: 33, condition: 'cloudy' },
-      { day: 'Jeu', temperature: 34, condition: 'sunny' },
-      { day: 'Ven', temperature: 35, condition: 'sunny' },
-    ]
-  },
-  tasks: [
-    {
-      task: 'Fertilisation des oliviers',
-      project: 'Oliveraie Secteur Nord',
-      date: '18 Juin, 2023',
-      priority: 'high'
-    },
-    {
-      task: 'Inspection des palmiers',
-      project: 'Palmeraie El Oasis',
-      date: '20 Juin, 2023',
-      priority: 'medium'
-    },
-    {
-      task: 'Récolte des dattes',
-      project: 'Palmeraie El Oasis',
-      date: '30 Juin, 2023',
-      priority: 'medium'
-    },
-    {
-      task: 'Contrôle des parasites',
-      project: 'Culture de Pistaches',
-      date: '22 Juin, 2023',
-      priority: 'low'
+      id: '2',
+      title: 'Culture de tomates',
+      description: 'Culture de tomates en serre',
+      status: 'planning',
+      progress: 25,
+      crop: 'Tomates',
+      location: 'Casablanca',
+      startDate: '2023-05-01',
+      endDate: '2023-08-30',
+      image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=1000'
     }
   ],
-  moistureData: [
-    { day: 'Lun', value: 40 },
-    { day: 'Mar', value: 35 },
-    { day: 'Mer', value: 45 },
-    { day: 'Jeu', value: 30 },
-    { day: 'Ven', value: 50 },
-    { day: 'Sam', value: 45 },
-    { day: 'Dim', value: 42 },
+  weather: [
+    {
+      date: '2023-05-15',
+      day: 'Lundi',
+      temp: 28,
+      humidity: 45,
+      windSpeed: 12,
+      condition: 'sunny',
+      isToday: true
+    },
+    {
+      date: '2023-05-16',
+      day: 'Mardi',
+      temp: 27,
+      humidity: 50,
+      windSpeed: 10,
+      condition: 'partly-cloudy'
+    },
+    {
+      date: '2023-05-17',
+      day: 'Mercredi',
+      temp: 25,
+      humidity: 60,
+      windSpeed: 15,
+      condition: 'cloudy'
+    },
+    {
+      date: '2023-05-18',
+      day: 'Jeudi',
+      temp: 23,
+      humidity: 70,
+      windSpeed: 20,
+      condition: 'rainy'
+    },
+    {
+      date: '2023-05-19',
+      day: 'Vendredi',
+      temp: 26,
+      humidity: 55,
+      windSpeed: 8,
+      condition: 'partly-cloudy'
+    }
   ],
-  yieldData: [
-    { year: '2018', value: 30 },
-    { year: '2019', value: 40 },
-    { year: '2020', value: 35 },
-    { year: '2021', value: 50 },
-    { year: '2022', value: 65 },
-    { year: '2023', value: 75 },
+  tasks: [
+    {
+      id: '1',
+      title: 'Irrigation des plants',
+      description: 'Planifier l\'irrigation des nouveaux plants d\'oliviers',
+      dueDate: '2023-05-18',
+      priority: 'high',
+      completed: false,
+      projectId: '1'
+    },
+    {
+      id: '2',
+      title: 'Commander des engrais',
+      description: 'Commander des engrais pour la saison',
+      dueDate: '2023-05-20',
+      priority: 'medium',
+      completed: true,
+      projectId: '1'
+    },
+    {
+      id: '3',
+      title: 'Préparer le terrain',
+      description: 'Préparer le terrain pour la plantation des tomates',
+      dueDate: '2023-05-25',
+      priority: 'high',
+      completed: false,
+      projectId: '2'
+    }
   ],
-  lastUpdated: new Date()
+  stats: {
+    totalProjects: 2,
+    activeProjects: 1,
+    completedTasks: 1,
+    pendingTasks: 2
+  }
 };
