@@ -52,21 +52,97 @@ export const signUp = async (
   phone_number?: string
 ): Promise<AuthResponse> => {
   try {
+    console.log("Signing up user via authService:", { name, email, phone_number });
+
+    // Step 1: Create the user in auth.users
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name,
+          display_name: name,
           phone_number,
           role: 'user'
         }
       }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Signup error details:", error);
+      throw error;
+    }
 
+    console.log("Auth signup successful, user data:", data);
+
+    // Step 2: Ensure the profile exists
     if (data.user) {
+      try {
+        // First check if profile already exists
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means not found, which is expected
+          console.error("Error checking for existing profile:", checkError);
+        }
+
+        // If profile doesn't exist, create it
+        if (!existingProfile) {
+          console.log("Creating profile for user:", data.user.id);
+
+          // Try using RPC call for more direct database access
+          const { error: rpcError } = await supabase.rpc('create_user_profile', {
+            user_id: data.user.id,
+            user_email: email,
+            user_name: name,
+            user_role: 'user',
+            user_phone: phone_number || null
+          });
+
+          if (rpcError) {
+            console.error("RPC error creating profile:", rpcError);
+
+            // Fallback to regular insert
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                email: email,
+                display_name: name,
+                name: name,
+                role: 'user',
+                phone_number: phone_number || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (insertError) {
+              console.error("Error creating profile via insert:", insertError);
+
+              // Last resort: try a direct SQL query
+              const { error: sqlError } = await supabase.rpc('exec_sql', {
+                sql: `
+                  INSERT INTO public.profiles (id, email, display_name, name, role, phone_number, created_at, updated_at)
+                  VALUES ('${data.user.id}', '${email}', '${name}', '${name}', 'user', ${phone_number ? `'${phone_number}'` : 'NULL'}, NOW(), NOW())
+                  ON CONFLICT (id) DO NOTHING;
+                `
+              });
+
+              if (sqlError) {
+                console.error("SQL error creating profile:", sqlError);
+                throw new Error(`Failed to create profile: ${sqlError.message}`);
+              }
+            }
+          }
+        }
+      } catch (profileErr) {
+        console.error("Exception creating profile:", profileErr);
+        // Continue anyway - we'll try to fix the profile later if needed
+      }
+
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
       return { user: null, session: data.session, error: null }; // Return null user until email verification
     } else {
@@ -118,14 +194,14 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
 export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
   try {
     const { token, email, password } = data;
-    
+
     // Use the token to reset the password
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password?token=${token}`,
     });
-    
+
     if (error) throw error;
-    
+
     return { error: null };
   } catch (error) {
     console.error('Reset password error:', error);
@@ -238,7 +314,7 @@ export const updateUserProfile = async (
 
     // Get the current auth user
     const { data: userData } = await supabase.auth.getUser();
-    
+
     if (!userData?.user) {
       throw new Error('User not found');
     }

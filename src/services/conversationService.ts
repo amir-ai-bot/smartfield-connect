@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { toggleFavoriteFournisseur as toggleFavSupplier, isFournisseurFavorite as isSupplierFav } from '@/services/supplierService';
 
 export interface ParticipantProfile {
   id: string;
@@ -24,6 +25,10 @@ export interface MessageData {
   created_at: string;
   read?: boolean;
 }
+
+// Re-export supplier functions for backward compatibility
+export const toggleFavoriteFournisseur = toggleFavSupplier;
+export const isFournisseurFavorite = isSupplierFav;
 
 export const createConversation = async (userId: string, participantId: string): Promise<string | null> => {
   try {
@@ -107,7 +112,13 @@ export const getConversations = async (userId: string): Promise<ConversationData
 
     // Map the conversations to get the other participant's profile
     const conversationsWithProfiles: ConversationData[] = await Promise.all(
-      data.map(async (conversation) => {
+      data.map(async (conversation: {
+        id: string;
+        last_message_at?: string;
+        created_at: string;
+        participant1_id: string;
+        participant2_id: string;
+      }) => {
         // Determine the other participant
         const otherParticipantId =
           conversation.participant1_id === userId
@@ -274,5 +285,82 @@ export const getUserProfile = async (userId: string): Promise<ParticipantProfile
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     return null;
+  }
+};
+
+// Alias for getConversations for backward compatibility
+export const getUserConversations = getConversations;
+
+// Get a single conversation by ID
+export const getConversation = async (conversationId: string): Promise<ConversationData | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select(`
+        id,
+        last_message_at,
+        created_at,
+        participant1_id,
+        participant2_id
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (error || !data) {
+      console.error('Error fetching conversation:', error);
+      return null;
+    }
+
+    // Get the participants
+    const participants = await getParticipants(conversationId);
+    if (!participants) {
+      return null;
+    }
+
+    const [participant1Id, participant2Id] = participants;
+
+    // For simplicity, we'll use the first participant as the user
+    const userId = participant1Id;
+    const otherParticipantId = participant2Id;
+
+    // Get the other participant's profile
+    const participantProfile = await getUserProfile(otherParticipantId);
+    if (!participantProfile) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      participant: participantProfile,
+      lastMessageAt: data.last_message_at || data.created_at,
+      createdAt: data.created_at,
+      userId,
+    };
+  } catch (error) {
+    console.error('Error in getConversation:', error);
+    return null;
+  }
+};
+
+// Alias for getMessages for backward compatibility
+export const getConversationMessages = getMessages;
+
+// Get favorite suppliers
+export const getFavoriteSuppliers = async (userId: string) => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'get_favorite_suppliers',
+      { p_user_id: userId }
+    );
+
+    if (error) {
+      console.error('Error fetching favorite suppliers:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getFavoriteSuppliers:', error);
+    return [];
   }
 };

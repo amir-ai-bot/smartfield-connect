@@ -95,9 +95,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           },
           theme: 'light'
         };
-        
+
         if (!preferences) return defaultPreferences;
-        
+
         try {
           // If it's a string, try to parse it
           if (typeof preferences === 'string') {
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               return defaultPreferences;
             }
           }
-          
+
           // If it's already an object
           return {
             language: (preferences.language as any) || defaultPreferences.language,
@@ -168,19 +168,98 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signUp = async (name: string, email: string, password: string, phone_number?: string) => {
     setLoading(true);
     try {
+      console.log("Signing up user:", { name, email, phone_number });
+
+      // Step 1: Create the user in auth.users
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
+            display_name: name,
             phone_number,
             role: 'user'
           }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Signup error details:", error);
+        throw error;
+      }
+
+      console.log("Auth signup successful, user data:", data);
+
+      // Step 2: Ensure the profile exists
+      if (data.user) {
+        try {
+          // First check if profile already exists
+          const { data: existingProfile, error: checkError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', data.user.id)
+            .single();
+
+          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means not found, which is expected
+            console.error("Error checking for existing profile:", checkError);
+          }
+
+          // If profile doesn't exist, create it
+          if (!existingProfile) {
+            console.log("Creating profile for user:", data.user.id);
+
+            // Try using RPC call for more direct database access
+            const { error: rpcError } = await supabase.rpc('create_user_profile', {
+              user_id: data.user.id,
+              user_email: email,
+              user_name: name,
+              user_role: 'user',
+              user_phone: phone_number || null
+            });
+
+            if (rpcError) {
+              console.error("RPC error creating profile:", rpcError);
+
+              // Fallback to regular insert
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: data.user.id,
+                  email: email,
+                  display_name: name,
+                  name: name,
+                  role: 'user',
+                  phone_number: phone_number || null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                });
+
+              if (insertError) {
+                console.error("Error creating profile via insert:", insertError);
+
+                // Last resort: try a direct SQL query
+                const { error: sqlError } = await supabase.rpc('exec_sql', {
+                  sql: `
+                    INSERT INTO public.profiles (id, email, display_name, name, role, phone_number, created_at, updated_at)
+                    VALUES ('${data.user.id}', '${email}', '${name}', '${name}', 'user', ${phone_number ? `'${phone_number}'` : 'NULL'}, NOW(), NOW())
+                    ON CONFLICT (id) DO NOTHING;
+                  `
+                });
+
+                if (sqlError) {
+                  console.error("SQL error creating profile:", sqlError);
+                  throw new Error(`Failed to create profile: ${sqlError.message}`);
+                }
+              }
+            }
+          }
+        } catch (profileErr) {
+          console.error("Exception creating profile:", profileErr);
+          // Continue anyway - we'll try to fix the profile later if needed
+        }
+      }
+
       toast.success('Inscription réussie! Veuillez vérifier votre email.');
     } catch (error) {
       console.error('Signup error:', error);
@@ -302,12 +381,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // When updating a user profile, convert preferences to JSON compatible format
   const updateProfile = async (userData: Partial<User>) => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       const updates: Record<string, any> = {};
-      
+
       if (userData.name !== undefined) updates.display_name = userData.name;
       if (userData.avatar !== undefined) updates.avatar = userData.avatar;
       if (userData.phone_number !== undefined) updates.phone_number = userData.phone_number;
@@ -316,19 +395,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (userData.preferences !== undefined) {
         updates.preferences = userData.preferences as unknown as Json;
       }
-      
+
       updates.updated_at = new Date().toISOString();
-      
+
       const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
-        
+
       if (error) throw error;
-        
+
       // Update the local user state
       setUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
-        
+
       toast.success('Profil mis à jour avec succès');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -346,25 +425,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Function to become a supplier (fournisseur)
   const becomeFournisseur = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       const updates = {
         role: 'pending_fournisseur' as const,
         updated_at: new Date().toISOString()
       };
-      
+
       const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
-        
+
       if (error) throw error;
-      
+
       // Update the local user state
       setUser(prevUser => prevUser ? { ...prevUser, role: 'pending_fournisseur' } : null);
-        
+
       toast.success('Demande envoyée ! Nous examinerons votre profil.');
     } catch (error) {
       console.error('Error updating to fournisseur:', error);
@@ -376,7 +455,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Check if user is authenticated
   const isAuthenticated = !!user;
-  
+
   return (
     <AuthContext.Provider
       value={{

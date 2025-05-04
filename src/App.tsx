@@ -12,15 +12,15 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
 // Create a fallback component to display when errors occur
-const ErrorFallback = ({ error, resetErrorBoundary }) => {
+const ErrorFallback = ({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
       <h2 className="text-2xl font-bold text-red-600 mb-4">Une erreur est survenue</h2>
       <p className="text-gray-600 mb-6">
         Nous sommes désolés pour ce désagrément. Veuillez rafraîchir la page pour réessayer.
       </p>
-      <Button 
-        onClick={resetErrorBoundary} 
+      <Button
+        onClick={resetErrorBoundary}
         className="flex items-center bg-primary hover:bg-primary/90"
       >
         <RefreshCw className="mr-2 h-4 w-4" />
@@ -58,11 +58,11 @@ const App = () => (
           <LanguageProvider>
             <TestEnv />
             <Toaster />
-            <Sonner 
+            <Sonner
               position="top-center"
-              toastOptions={{ 
+              toastOptions={{
                 duration: 3000,
-                style: { 
+                style: {
                   zIndex: 50,
                   marginTop: '1rem',
                   transform: 'translateY(0)',
@@ -81,7 +81,7 @@ const App = () => (
                   cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
                   closeButton: "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100",
                 }
-              }} 
+              }}
             />
             <main>
               <Outlet />

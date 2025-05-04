@@ -51,8 +51,8 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
       let creator_name = null;
       let creator_email = null;
       let creator_avatar = null;
-      
-      if (project.profiles && typeof project.profiles === 'object' && !project.profiles.error) {
+
+      if (project.profiles && typeof project.profiles === 'object' && !('error' in project.profiles)) {
         creator_name = project.profiles.display_name || project.profiles.name;
         creator_email = project.profiles.email;
         creator_avatar = project.profiles.avatar;
@@ -82,12 +82,12 @@ export const getAllProjects = async (): Promise<ProjectData[]> => {
 export const deleteUser = async (userId: string): Promise<boolean> => {
   try {
     const { error } = await supabase.rpc('admin_delete_user', { user_id: userId });
-    
+
     if (error) {
       console.error('Error deleting user:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in deleteUser:', error);
@@ -99,12 +99,12 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
 export const verifyUser = async (userId: string): Promise<boolean> => {
   try {
     const { error } = await supabase.rpc('admin_verify_user', { user_id: userId });
-    
+
     if (error) {
       console.error('Error verifying user:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in verifyUser:', error);
@@ -119,12 +119,12 @@ export const updateUserRole = async (userId: string, role: string): Promise<bool
       .from('profiles')
       .update({ role })
       .eq('id', userId);
-    
+
     if (error) {
       console.error('Error updating user role:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in updateUserRole:', error);
@@ -139,12 +139,12 @@ export const deleteProject = async (projectId: string): Promise<boolean> => {
       .from('projects')
       .delete()
       .eq('id', projectId);
-    
+
     if (error) {
       console.error('Error deleting project:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in deleteProject:', error);
@@ -180,12 +180,12 @@ export const getAdminStats = async () => {
     const { data: users, error: userError } = await supabase
       .from('profiles')
       .select('id, role, created_at');
-    
+
     if (userError) {
       console.error('Error fetching users for stats:', userError);
     } else if (users) {
       stats.userCount = users.length;
-      
+
       // Count users by role
       users.forEach(user => {
         const role = user.role as string;
@@ -195,12 +195,12 @@ export const getAdminStats = async () => {
           stats.usersByRole.user++;
         }
       });
-      
+
       // Count new users this month
       const firstDayOfMonth = new Date();
       firstDayOfMonth.setDate(1);
       firstDayOfMonth.setHours(0, 0, 0, 0);
-      
+
       stats.newUsersThisMonth = users.filter(
         user => new Date(user.created_at) >= firstDayOfMonth
       ).length;
@@ -210,19 +210,19 @@ export const getAdminStats = async () => {
     const { data: projects, error: projectError } = await supabase
       .from('projects')
       .select('id, status');
-    
+
     if (projectError) {
       console.error('Error fetching projects for stats:', projectError);
     } else if (projects) {
       stats.projectCount = projects.length;
-      
+
       // Count projects by status
       projects.forEach(project => {
         const status = project.status as string;
         if (status === 'active') {
           stats.activeProjects++;
         }
-        
+
         if (status && stats.projectsByStatus.hasOwnProperty(status)) {
           stats.projectsByStatus[status as keyof typeof stats.projectsByStatus]++;
         } else {
@@ -235,7 +235,7 @@ export const getAdminStats = async () => {
     const { data: suppliers, error: supplierError } = await supabase
       .from('suppliers')
       .select('count');
-    
+
     if (supplierError) {
       console.error('Error fetching suppliers for stats:', supplierError);
     } else if (suppliers && suppliers[0]) {
@@ -245,12 +245,12 @@ export const getAdminStats = async () => {
     // Get messages sent today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const { data: messages, error: messageError } = await supabase
       .from('messages')
       .select('count')
       .gte('created_at', today.toISOString());
-    
+
     if (messageError) {
       console.error('Error fetching messages for stats:', messageError);
     } else if (messages && messages[0]) {

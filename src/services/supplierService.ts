@@ -64,6 +64,9 @@ export const getAllSuppliers = async () => {
   }
 };
 
+// Alias for getAllSuppliers for backward compatibility
+export const getSuppliers = getAllSuppliers;
+
 // Toggle favorite supplier
 export const toggleFavoriteFournisseur = async (
   userId: string,
@@ -75,12 +78,12 @@ export const toggleFavoriteFournisseur = async (
       isFavorite ? 'remove_favorite_supplier' : 'add_favorite_supplier',
       { p_user_id: userId, p_supplier_id: supplierId }
     );
-    
+
     if (error) {
       console.error('Error toggling favorite supplier:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in toggleFavoriteFournisseur:', error);
@@ -98,15 +101,36 @@ export const isFournisseurFavorite = async (
       'check_favorite_supplier',
       { p_user_id: userId, p_supplier_id: supplierId }
     );
-    
+
     if (error) {
       console.error('Error checking if supplier is favorite:', error);
       return false;
     }
-    
+
     return !!data;
   } catch (error) {
     console.error('Error in isFournisseurFavorite:', error);
     return false;
+  }
+};
+
+// Search suppliers by name, category, or location
+export const searchSuppliers = async (query: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .or(`name.ilike.%${query}%,category.ilike.%${query}%,location.ilike.%${query}%`)
+      .order('name');
+
+    if (error) {
+      console.error('Error searching suppliers:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in searchSuppliers:', error);
+    return [];
   }
 };

@@ -90,6 +90,9 @@ export const getProjectById = async (projectId: string): Promise<ProjectData | n
   }
 };
 
+// Alias for getProjectById for backward compatibility
+export const getProject = getProjectById;
+
 // Create a new project
 export const createProject = async (
   userId: string,

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProjectForm from '@/components/Projects/ProjectForm';
+import ProjectForm from '@/components/projects/ProjectForm';
 import { ProjectData } from '@/types/auth';
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +27,7 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
         return;
       }
 
-      const createdProject = await createProject(formData, user.id);
+      const createdProject = await createProject(user.id, formData as Omit<ProjectData, 'id' | 'created_at' | 'updated_at' | 'user_id'>);
       if (createdProject) {
         onProjectCreated(createdProject);
         toast.success('Projet créé avec succès');
