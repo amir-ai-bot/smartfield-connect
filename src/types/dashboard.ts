@@ -18,14 +18,14 @@ export interface Project {
 
 export interface Task {
   id: string;
-  title?: string;
+  title: string;
   task?: string; // For backward compatibility
   description?: string;
-  dueDate?: string;
+  dueDate: string;
   date?: string; // For backward compatibility
   priority?: 'low' | 'medium' | 'high';
   completed: boolean;
-  projectId?: string;
+  projectId: string;
   project?: string; // For backward compatibility
 }
 
@@ -60,7 +60,7 @@ export interface DashboardData {
   };
   lastUpdated?: Date | null;
   moistureData?: Array<{
-    date: string;
+    day: string; // Changed from date to day
     value: number;
   }>;
   yieldData?: Array<{

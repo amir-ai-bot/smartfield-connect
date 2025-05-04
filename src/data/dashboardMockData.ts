@@ -1,4 +1,3 @@
-
 import { DashboardData } from '@/types/dashboard';
 
 export const initialDashboardData: DashboardData = {
@@ -38,7 +37,10 @@ export const initialDashboardData: DashboardData = {
       humidity: 45,
       windSpeed: 12,
       condition: 'sunny',
-      isToday: true
+      isToday: true,
+      temperature: 28,
+      location: 'Casablanca',
+      feelsLike: 30
     },
     {
       date: '2023-05-16',
@@ -77,11 +79,14 @@ export const initialDashboardData: DashboardData = {
     {
       id: '1',
       title: 'Irrigation des plants',
+      task: 'Irrigation des plants',
       description: 'Planifier l\'irrigation des nouveaux plants d\'oliviers',
       dueDate: '2023-05-18',
+      date: '2023-05-18',
       priority: 'high',
       completed: false,
-      projectId: '1'
+      projectId: '1',
+      project: '1'
     },
     {
       id: '2',
@@ -107,5 +112,19 @@ export const initialDashboardData: DashboardData = {
     activeProjects: 1,
     completedTasks: 1,
     pendingTasks: 2
-  }
+  },
+  moistureData: [
+    { day: '01/05', value: 42 },
+    { day: '02/05', value: 45 },
+    { day: '03/05', value: 40 },
+    { day: '04/05', value: 38 },
+    { day: '05/05', value: 55 }
+  ],
+  yieldData: [
+    { year: '2020', value: 10 },
+    { year: '2021', value: 15 },
+    { year: '2022', value: 12 },
+    { year: '2023', value: 18 }
+  ],
+  lastUpdated: new Date()
 };

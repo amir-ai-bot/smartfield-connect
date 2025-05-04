@@ -1,205 +1,67 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Trash2, Eye } from 'lucide-react';
-import Farm from '@/components/icons/Farm'; // Fixed import
-import { formatRelativeDate } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
-
-// ProjectData type definition
-interface ProjectData {
-  id: string;
-  title?: string;
-  name?: string;
-  description?: string;
-  status: 'planning' | 'active' | 'completed';
-  progress: number;
-  crop: string;
-  location?: string;
-  startDate?: string;
-  endDate?: string;
-  image?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import { CalendarIcon, Clock, MapPin, Sprout } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { ProjectData } from '@/types/dashboard';
+import { LoadingImage } from '@/components/ui/LoadingImage';
 
 interface ProjectCardProps {
   project: ProjectData;
-  onDelete?: (id: string) => void;
-  showActions?: boolean;
+  onClick?: () => void;
+  className?: string;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ 
-  project, 
-  onDelete, 
-  showActions = true 
-}) => {
-  const navigate = useNavigate();
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState<boolean>(false);
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, className }) => {
+  const [timeAgo, setTimeAgo] = useState<string>('');
 
   useEffect(() => {
-    // Reset confirmation state when project changes
-    setIsConfirmingDelete(false);
-    setIsDeleting(false);
-  }, [project.id]);
+    if (project.created_at) {
+      const interval = setInterval(() => {
+        setTimeAgo(formatDistanceToNow(new Date(project.created_at), { addSuffix: true, locale: fr }));
+      }, 60000); // Update every minute
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (!isConfirmingDelete) {
-      setIsConfirmingDelete(true);
-      return;
+      // Initial update
+      setTimeAgo(formatDistanceToNow(new Date(project.created_at), { addSuffix: true, locale: fr }));
+
+      return () => clearInterval(interval); // Clear interval on unmount
     }
-    
-    try {
-      setIsDeleting(true);
-      await onDelete?.(project.id);
-    } catch (error) {
-      console.error('Error deleting project:', error);
-    } finally {
-      setIsDeleting(false);
-      setIsConfirmingDelete(false);
-    }
-  };
-
-  const handleViewDetails = () => {
-    navigate(`/projects/${project.id}`);
-  };
-
-  const handleCardClick = () => {
-    handleViewDetails();
-  };
-
-  // Get display name - fallback from title to name
-  const displayName = project.title || project.name || 'Untitled Project';
-
-  // Get status badge color
-  const getStatusColor = () => {
-    switch (project.status) {
-      case 'planning': return 'bg-blue-100 text-blue-800';
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Get status label
-  const getStatusLabel = () => {
-    switch (project.status) {
-      case 'planning': return 'Planification';
-      case 'active': return 'Actif';
-      case 'completed': return 'Terminé';
-      default: return project.status;
-    }
-  };
+  }, [project.created_at]);
 
   return (
-    <Card 
-      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-      onClick={handleCardClick}
-    >
-      {project.image ? (
-        <div className="h-40 overflow-hidden">
-          <img 
-            src={project.image} 
-            alt={displayName}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+    <Card className={`hover:shadow-md transition-all duration-200 cursor-pointer ${className}`} onClick={onClick}>
+      <div className="relative">
+        {project.image ? (
+          <LoadingImage
+            src={project.image}
+            alt={project.title}
+            className="w-full h-40 object-cover rounded-t-md"
+            fallbackSrc="https://images.unsplash.com/photo-1519682337058-a94d519337bc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
           />
-        </div>
-      ) : (
-        <div className="h-40 bg-gray-100 flex items-center justify-center">
-          <Farm />
-        </div>
-      )}
-      
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-lg font-medium">{displayName}</h3>
-            <span className={`inline-block px-2 py-1 rounded-full text-xs ${getStatusColor()}`}>
-              {getStatusLabel()}
-            </span>
+        ) : (
+          <div className="w-full h-40 bg-gray-100 flex items-center justify-center rounded-t-md">
+            <Sprout className="h-10 w-10 text-gray-400" />
           </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="pb-2">
-        {project.description && (
-          <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-            {project.description}
-          </p>
         )}
-        
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Progression</span>
-              <span>{project.progress}%</span>
-            </div>
-            <Progress value={project.progress} className="h-1.5" />
-          </div>
-          
-          {project.crop && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Farm className="h-4 w-4 mr-1" />
-              {project.crop}
-            </div>
-          )}
-          
-          {project.location && (
-            <div className="flex items-center text-sm text-gray-600">
-              <MapPin className="h-4 w-4 mr-1" />
-              {project.location}
-            </div>
-          )}
-          
-          {project.startDate && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-1" />
-              {new Date(project.startDate).toLocaleDateString()}
-            </div>
-          )}
-          
-          {project.created_at && (
-            <div className="text-xs text-gray-500">
-              Créé {formatRelativeDate(project.created_at)}
-            </div>
-          )}
+        <Badge className="absolute top-2 left-2">{project.status}</Badge>
+      </div>
+      <CardContent className="p-4">
+        <h3 className="text-lg font-semibold mb-2 line-clamp-1">{project.title}</h3>
+        <p className="text-sm text-gray-500 line-clamp-2">{project.description || 'Pas de description'}</p>
+        <div className="flex items-center mt-2 text-sm text-gray-600">
+          <MapPin className="h-4 w-4 mr-1.5" />
+          {project.location}
+        </div>
+        <div className="flex items-center mt-2 text-sm text-gray-600">
+          <CalendarIcon className="h-4 w-4 mr-1.5" />
+          {project.startDate || project.start_date ? new Date(project.startDate || project.start_date || '').toLocaleDateString() : 'Date inconnue'}
+        </div>
+        <div className="flex items-center mt-2 text-sm text-gray-600">
+          <Clock className="h-4 w-4 mr-1.5" />
+          Mis à jour {timeAgo}
         </div>
       </CardContent>
-      
-      {showActions && (
-        <CardFooter className="pt-0 flex gap-2">
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            className="flex-1"
-            onClick={handleViewDetails}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Voir détails
-          </Button>
-          
-          {onDelete && (
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className={isConfirmingDelete ? "bg-red-50 text-red-500 border-red-200" : ""}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </CardFooter>
-      )}
     </Card>
   );
 };

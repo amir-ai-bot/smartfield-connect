@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -14,7 +13,7 @@ import { MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import RatingComponent from '@/components/RatingComponent';
-import { Rating } from '@/types/auth';
+import { Rating } from '@/types/supabase';
 
 interface ExtendedRating extends Rating {
   profiles: {
@@ -58,17 +57,24 @@ const SupplierProfilePage = () => {
     fetchRatings();
   }, [id]);
 
-  const handleRatingAdded = (newRating: any) => {
-    // Make sure the new rating has the expected shape
-    const formattedRating = {
-      ...newRating,
-      profiles: newRating.profiles || { 
-        id: newRating.user_id,
-        name: 'Anonymous',
-      }
-    };
-    
-    setRatings([...ratings, formattedRating as ExtendedRating]);
+  // Make the signature correct for onRatingAdded
+  const handleRatingAdded = () => {
+    // Refresh ratings after a new one is added
+    if (id) {
+      const fetchRatings = async () => {
+        const data = await getRatingsByFournisseurId(id);
+        // Make sure we have the expected shape with profiles
+        const formattedRatings = data.map((rating: any) => ({
+          ...rating,
+          profiles: rating.profiles || { 
+            id: rating.user_id,
+            name: 'Anonymous',
+          }
+        }));
+        setRatings(formattedRatings as any);
+      };
+      fetchRatings();
+    }
   };
 
   if (!supplier) {

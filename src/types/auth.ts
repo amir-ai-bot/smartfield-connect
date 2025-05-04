@@ -1,4 +1,3 @@
-
 // User type definition
 export interface User {
   id: string;
@@ -130,7 +129,7 @@ export interface MessageData {
 
 // Rating types
 export interface Rating {
-  id?: string;
+  id: string; // Make id required for consistency
   user_id: string;
   fournisseur_id: string;
   rating: number; // 1-5

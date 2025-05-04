@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { ConversationData } from '@/types/auth';
 
 interface Conversation {
   id: string;
@@ -30,7 +31,18 @@ const ConversationList: React.FC = () => {
         setLoading(true);
         try {
           const data = await getUserConversations(user.id);
-          setConversations(data);
+          // Transform the data to match the Conversation type
+          const formattedConversations: Conversation[] = data.map((conv: any) => ({
+            id: conv.id,
+            participant: {
+              id: conv.participant?.id || '',
+              name: conv.participant?.name || 'Unknown',
+              avatar: conv.participant?.avatar,
+            },
+            lastMessageAt: conv.lastMessageAt || conv.last_message_at || new Date().toISOString(),
+            createdAt: conv.createdAt || conv.created_at || new Date().toISOString(),
+          }));
+          setConversations(formattedConversations);
         } catch (error) {
           console.error('Error loading conversations:', error);
         } finally {

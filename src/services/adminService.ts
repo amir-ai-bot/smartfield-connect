@@ -1,5 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
+import { User, ProjectData } from '@/types/supabase';
 
 // Get admin statistics
 export const getAdminStats = async () => {
@@ -93,17 +93,21 @@ export const getAdminStats = async () => {
 };
 
 // Get all users for admin
-export const getAllUsers = async () => {
+export const getAllUsers = async (): Promise<User[]> => {
   try {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+
+    return data as User[];
   } catch (error) {
-    console.error('Error getting admin users:', error);
+    console.error('Error in getAllUsers:', error);
     return [];
   }
 };
@@ -112,56 +116,51 @@ export const getAllUsers = async () => {
 export const getAdminUsers = getAllUsers;
 
 // Get all projects for admin
-export const getAllProjects = async () => {
+export const getAllProjects = async (): Promise<ProjectData[]> => {
   try {
-    // Get projects with owner info
     const { data, error } = await supabase
       .from('projects')
       .select(`
         *,
         profiles:owner_id (
           id,
-          display_name,
           email,
+          display_name,
           avatar
         )
       `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching projects:', error);
+      return [];
+    }
 
-    // Transform to match expected format with safe property access
-    const transformedProjects = data.map(project => {
-      // Safely access nested profile data
-      const profile = project.profiles || {};
-      
-      return {
-        id: project.id,
-        title: project.name || '',
-        description: project.description || '',
-        status: project.status || 'planning',
-        owner_id: project.owner_id,
-        user_id: project.owner_id,
-        created_at: project.created_at,
-        updated_at: project.updated_at,
-        // Properties that may not exist in the database - provide defaults
-        image: project.image || '',
-        crop: project.crop || '',
-        location: project.location || '',
-        progress: project.progress || 0,
-        // Safe access to profile properties with nullish coalescing
-        user_name: profile?.display_name || 'Unknown',
-        user_email: profile?.email || '',
-        user_avatar: profile?.avatar || '',
-        start_date: project.start_date || '',
-        end_date: project.end_date || '',
-        is_public: project.is_public || false
-      };
-    });
+    // Process the data to match the ProjectData interface
+    const projects: ProjectData[] = data.map((project: any) => ({
+      id: project.id,
+      title: project.name || '',
+      name: project.name,
+      description: project.description,
+      status: project.status as 'planning' | 'active' | 'completed',
+      progress: project.progress || 0,
+      crop: project.crop || '',
+      location: project.location || '',
+      image: project.image || '',
+      user_name: project.profiles?.display_name || '',
+      user_email: project.profiles?.email || '',
+      user_avatar: project.profiles?.avatar || '',
+      owner_id: project.owner_id,
+      created_at: project.created_at,
+      updated_at: project.updated_at,
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
+      is_public: project.is_public || false
+    }));
 
-    return transformedProjects;
+    return projects;
   } catch (error) {
-    console.error('Error getting admin projects:', error);
+    console.error('Error in getAllProjects:', error);
     return [];
   }
 };

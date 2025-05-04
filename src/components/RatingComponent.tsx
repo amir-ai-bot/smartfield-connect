@@ -30,11 +30,15 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
   const loadUserRating = async () => {
     if (!user) return;
     
-    const rating = await getUserRatingForSupplier(user.id, supplierId);
-    if (rating) {
-      setRating(rating.rating);
-      setComment(rating.comment || '');
-      setUserRating(rating);
+    try {
+      const ratingData = await getUserRatingForSupplier(user.id, supplierId);
+      if (ratingData) {
+        setRating(ratingData.rating);
+        setComment(ratingData.comment || '');
+        setUserRating(ratingData);
+      }
+    } catch (error) {
+      console.error('Error loading user rating:', error);
     }
   };
 
@@ -50,7 +54,12 @@ const RatingComponent: React.FC<RatingComponentProps> = ({ supplierId, onRatingA
       
       if (result) {
         toast.success(userRating ? 'Avis mis à jour avec succès' : 'Avis ajouté avec succès');
-        setUserRating(result);
+        // Update the userRating state with type safety
+        setUserRating(prevRating => ({
+          ...result,
+          id: result.id || (prevRating?.id || ''),
+        }));
+        
         if (onRatingAdded) {
           onRatingAdded();
         }
