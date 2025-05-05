@@ -1,51 +1,25 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Supplier } from '@/types/supabase';
+import { Rating, Supplier } from '@/types/supabase';
 
 // Get all suppliers
-export const getAllSuppliers = async (): Promise<Supplier[]> => {
+export const getSuppliers = async (): Promise<Supplier[]> => {
   try {
-    const { data, error } = await supabase
-      .from('suppliers')
-      .select('*')
-      .order('name', { ascending: true });
+    const { data, error } = await supabase.from('suppliers').select('*');
 
     if (error) {
       console.error('Error fetching suppliers:', error);
       return [];
     }
 
-    return data as Supplier[];
+    return data || [];
   } catch (error) {
-    console.error('Error in getAllSuppliers:', error);
+    console.error('Error in getSuppliers:', error);
     return [];
   }
 };
 
-// Alias for getAllSuppliers
-export const getSuppliers = getAllSuppliers;
-
-// Search suppliers by name, category, or location
-export const searchSuppliers = async (searchTerm: string): Promise<Supplier[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('suppliers')
-      .select('*')
-      .or(`name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`);
-
-    if (error) {
-      console.error('Error searching suppliers:', error);
-      return [];
-    }
-
-    return data as Supplier[];
-  } catch (error) {
-    console.error('Error in searchSuppliers:', error);
-    return [];
-  }
-};
-
-// Get supplier by ID - now with two function names for compatibility
+// Get supplier by ID
 export const getSupplier = async (id: string): Promise<Supplier | null> => {
   try {
     const { data, error } = await supabase
@@ -59,15 +33,33 @@ export const getSupplier = async (id: string): Promise<Supplier | null> => {
       return null;
     }
 
-    return data as Supplier;
+    return data;
   } catch (error) {
     console.error('Error in getSupplier:', error);
     return null;
   }
 };
 
-// Alias for getSupplier
-export const getSupplierById = getSupplier;
+// Create new supplier
+export const createSupplier = async (supplierData: Partial<Supplier>): Promise<Supplier | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert([supplierData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating supplier:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createSupplier:', error);
+    return null;
+  }
+};
 
 // Update supplier
 export const updateSupplier = async (id: string, supplierData: Partial<Supplier>): Promise<Supplier | null> => {
@@ -76,7 +68,7 @@ export const updateSupplier = async (id: string, supplierData: Partial<Supplier>
       .from('suppliers')
       .update(supplierData)
       .eq('id', id)
-      .select('*')
+      .select()
       .single();
 
     if (error) {
@@ -84,7 +76,7 @@ export const updateSupplier = async (id: string, supplierData: Partial<Supplier>
       return null;
     }
 
-    return data as Supplier;
+    return data;
   } catch (error) {
     console.error('Error in updateSupplier:', error);
     return null;
@@ -111,101 +103,119 @@ export const deleteSupplier = async (id: string): Promise<boolean> => {
   }
 };
 
-// Get favorite suppliers
+// Get favorite suppliers for a user
 export const getFavoriteSuppliers = async (userId: string): Promise<Supplier[]> => {
   try {
     const { data, error } = await supabase
-      .rpc('get_favorite_suppliers', { user_id: userId });
+      .rpc('get_favorite_suppliers', {
+        p_user_id: userId
+      });
 
     if (error) {
       console.error('Error fetching favorite suppliers:', error);
       return [];
     }
 
-    return data as Supplier[];
+    return data || [];
   } catch (error) {
     console.error('Error in getFavoriteSuppliers:', error);
     return [];
   }
 };
 
-// This is already defined above
-
-// Toggle favorite supplier
-export const toggleFavoriteFournisseur = async (userId: string, fournisseurId: string): Promise<{isFavorite: boolean}> => {
+// Add a supplier to favorites
+export const toggleFavoriteFournisseur = async (userId: string, supplierId: string): Promise<boolean> => {
   try {
-    const isFavorite = await isFournisseurFavorite(userId, fournisseurId);
-
+    // First check if it's already a favorite
+    const isFavorite = await isFournisseurFavorite(userId, supplierId);
+    
     if (isFavorite) {
+      // If already favorite, remove it
       const { error } = await supabase
-        .rpc('remove_favorite_supplier', {
-          user_id: userId,
-          supplier_id: fournisseurId
+        .rpc('remove_favorite_supplier', { 
+          p_user_id: userId, 
+          p_supplier_id: supplierId 
         });
-
+      
       if (error) {
         console.error('Error removing favorite supplier:', error);
-        throw error;
+        return false;
       }
-      return { isFavorite: false };
+      
+      return false; // Return false to indicate it's no longer a favorite
     } else {
+      // If not favorite, add it
       const { error } = await supabase
-        .rpc('add_favorite_supplier', {
-          user_id: userId,
-          supplier_id: fournisseurId
+        .rpc('add_favorite_supplier', { 
+          p_user_id: userId, 
+          p_supplier_id: supplierId 
         });
-
+      
       if (error) {
         console.error('Error adding favorite supplier:', error);
-        throw error;
+        return false;
       }
-      return { isFavorite: true };
+      
+      return true; // Return true to indicate it's now a favorite
     }
   } catch (error) {
-    console.error('Error toggling favorite status:', error);
-    throw error;
-  }
-};
-
-// Check if supplier is in favorites
-export const isFournisseurFavorite = async (userId: string, fournisseurId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .rpc('check_favorite_supplier', {
-        user_id: userId,
-        supplier_id: fournisseurId
-      });
-
-    if (error) throw error;
-    return !!data;
-  } catch (error) {
-    console.error('Error checking if supplier is favorite:', error);
+    console.error('Error in toggleFavoriteFournisseur:', error);
     return false;
   }
 };
 
-// Get ratings for a supplier
-export const getRatingsByFournisseurId = async (supplierId: string): Promise<any[]> => {
+// Check if a supplier is a favorite for a user
+export const isFournisseurFavorite = async (userId: string, supplierId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
-      .from('ratings')
+      .rpc('check_favorite_supplier', {
+        p_user_id: userId,
+        p_supplier_id: supplierId
+      });
+    
+    if (error) {
+      console.error('Error checking if supplier is favorite:', error);
+      return false;
+    }
+    
+    return data || false;
+  } catch (error) {
+    console.error('Error in isFournisseurFavorite:', error);
+    return false;
+  }
+};
+
+// Get supplier ratings
+export const getSupplierRatings = async (supplierId: string): Promise<Rating[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplier_ratings')
       .select(`
         *,
-        profiles (id, name, avatar)
+        user:user_id (
+          id,
+          display_name,
+          avatar
+        )
       `)
-      .eq('supplier_id', supplierId)
-      .order('created_at', { ascending: false });
+      .eq('supplier_id', supplierId);
 
     if (error) {
       console.error('Error fetching supplier ratings:', error);
       return [];
     }
 
-    return data || [];
+    return data as unknown as Rating[];
   } catch (error) {
-    console.error('Error in getRatingsByFournisseurId:', error);
+    console.error('Error in getSupplierRatings:', error);
     return [];
   }
 };
 
-// This function is already defined above
+// Add aliases for backward compatibility
+export const getFournisseurs = getSuppliers;
+export const getFournisseur = getSupplier;
+export const createFournisseur = createSupplier;
+export const updateFournisseur = updateSupplier;
+export const deleteFournisseur = deleteSupplier;
+export const getFournisseurRatings = getSupplierRatings;

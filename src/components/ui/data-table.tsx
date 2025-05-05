@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 export interface DataTableColumn<T> {
   header: string;
-  accessorKey: keyof T | string;
+  accessorKey?: keyof T | string;
   cell?: (info: { row: { original: T } }) => React.ReactNode;
 }
 
@@ -20,8 +20,8 @@ export function DataTable<T>({ columns, data, onRowClick }: DataTableProps<T>) {
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map((column) => (
-              <TableHead key={String(column.accessorKey)}>{column.header}</TableHead>
+            {columns.map((column, index) => (
+              <TableHead key={String(column.accessorKey || index)}>{column.header}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
@@ -32,11 +32,11 @@ export function DataTable<T>({ columns, data, onRowClick }: DataTableProps<T>) {
               onClick={() => onRowClick && onRowClick(row)}
               className={onRowClick ? "cursor-pointer hover:bg-gray-50" : ""}
             >
-              {columns.map((column) => (
-                <TableCell key={String(column.accessorKey)}>
+              {columns.map((column, colIndex) => (
+                <TableCell key={String(column.accessorKey || colIndex)}>
                   {column.cell
                     ? column.cell({ row: { original: row } })
-                    : String((row as any)[column.accessorKey] || '')}
+                    : column.accessorKey ? String((row as any)[column.accessorKey] || '') : ''}
                 </TableCell>
               ))}
             </TableRow>

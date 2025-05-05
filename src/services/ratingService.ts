@@ -2,153 +2,97 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Rating } from '@/types/supabase';
 
-// Get a user's rating for a supplier
-export const getUserRatingForFournisseur = async (userId: string, supplierId: string): Promise<Partial<Rating> | null> => {
+// Create a new rating
+export const createRating = async (
+  userId: string, 
+  supplierId: string, 
+  rating: number, 
+  comment?: string
+): Promise<Rating | null> => {
   try {
     const { data, error } = await supabase
       .from('supplier_ratings')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('supplier_id', supplierId)
+      .insert({
+        user_id: userId,
+        supplier_id: supplierId,
+        rating,
+        comment
+      })
+      .select()
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No rating found, not an error
-        return null;
-      }
-      console.error('Error fetching user rating:', error);
+      console.error('Error creating rating:', error);
       return null;
     }
 
+    // After rating, update average rating on the supplier
+    await updateSupplierAverageRating(supplierId);
+
     return data as Rating;
   } catch (error) {
-    console.error('Error in getUserRatingForFournisseur:', error);
+    console.error('Error in createRating:', error);
     return null;
   }
 };
 
-// Submit or update a rating
-export interface RatingInput {
-  user_id: string;
-  fournisseur_id: string;
-  rating: number;
-  comment?: string;
-}
-
-export const rateFournisseur = async (ratingData: RatingInput): Promise<Partial<Rating> | null> => {
-  try {
-    const { user_id, fournisseur_id, rating, comment } = ratingData;
-    
-    // Check if the user has already rated this supplier
-    const existingRating = await getUserRatingForFournisseur(user_id, fournisseur_id);
-    
-    let result;
-    
-    if (existingRating) {
-      // Update the existing rating
-      const { data, error } = await supabase
-        .from('supplier_ratings')
-        .update({
-          rating,
-          comment,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user_id)
-        .eq('supplier_id', fournisseur_id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error updating rating:', error);
-        return null;
-      }
-      
-      result = data;
-    } else {
-      // Create a new rating
-      const { data, error } = await supabase
-        .from('supplier_ratings')
-        .insert({
-          user_id,
-          supplier_id: fournisseur_id,
-          rating,
-          comment,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error creating rating:', error);
-        return null;
-      }
-      
-      result = data;
-    }
-    
-    // Update the average rating for the supplier
-    await updateSupplierAverageRating(fournisseur_id);
-    
-    return result as Rating;
-  } catch (error) {
-    console.error('Error in rateFournisseur:', error);
-    return null;
-  }
-};
-
-// Get all ratings for a supplier
-export const getRatingsByFournisseurId = async (supplierId: string): Promise<any[]> => {
+// Get ratings for a supplier
+export const getRatings = async (supplierId: string): Promise<Rating[]> => {
   try {
     const { data, error } = await supabase
       .from('supplier_ratings')
       .select(`
         *,
-        profiles (id, display_name, avatar)
+        user:user_id (
+          id,
+          display_name,
+          avatar
+        )
       `)
-      .eq('supplier_id', supplierId)
-      .order('created_at', { ascending: false });
+      .eq('supplier_id', supplierId);
 
     if (error) {
       console.error('Error fetching ratings:', error);
       return [];
     }
 
-    return data || [];
+    return data as Rating[];
   } catch (error) {
-    console.error('Error in getRatingsByFournisseurId:', error);
+    console.error('Error in getRatings:', error);
     return [];
   }
 };
 
-// Update the average rating for a supplier
+// Update supplier average rating
 const updateSupplierAverageRating = async (supplierId: string): Promise<void> => {
   try {
-    // Calculate the average rating
+    // Get all ratings for this supplier
     const { data, error } = await supabase
       .from('supplier_ratings')
       .select('rating')
       .eq('supplier_id', supplierId);
 
     if (error) {
-      console.error('Error calculating average rating:', error);
+      console.error('Error fetching ratings for average calculation:', error);
       return;
     }
 
-    if (!data || data.length === 0) {
-      return;
+    // Calculate average rating
+    if (data && data.length > 0) {
+      const totalRating = data.reduce((sum, item) => sum + item.rating, 0);
+      const averageRating = totalRating / data.length;
+
+      // Update supplier with new average rating
+      await supabase
+        .from('suppliers')
+        .update({ rating: averageRating })
+        .eq('id', supplierId);
     }
-
-    const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
-    const average = sum / data.length;
-
-    // Update the supplier's average rating
-    await supabase
-      .from('suppliers')
-      .update({ rating: average })
-      .eq('id', supplierId);
   } catch (error) {
-    console.error('Error in updateSupplierAverageRating:', error);
+    console.error('Error updating supplier average rating:', error);
   }
 };
+
+// Alias for backward compatibility
+export const rateFournisseur = createRating;
+export const getFournisseurRatings = getRatings;

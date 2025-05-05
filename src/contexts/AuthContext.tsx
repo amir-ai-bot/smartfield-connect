@@ -1,486 +1,373 @@
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { 
+  createContext, 
+  useState, 
+  useEffect, 
+  useContext, 
+  ReactNode,
+  useCallback 
+} from 'react';
+import { 
+  supabase, 
+  Session, 
+  AuthChangeEvent, 
+  SupabaseClient 
+} from '@/integrations/supabase/client';
+import { 
+  User as SupabaseUser,
+  User,
+  Supplier
+} from '@/types/supabase';
 import { toast } from 'sonner';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { User, UserPreferences } from '@/types/auth';
-import { Json } from '@/integrations/supabase/types';
+import { useNavigate } from 'react-router-dom';
 
-interface AuthContextProps {
+interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: any | null;
-  signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<void>;
-  confirmPasswordReset: (token: string, password: string) => Promise<void>;
-  resetPassword: (password: string) => Promise<void>;
-  verifyEmail: (email: string, token: string) => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-  updateEmail: (email: string) => Promise<void>;
+  supabaseClient: SupabaseClient | null;
   isLoading: boolean;
-  isAuthenticated: boolean;
-  refreshUser: () => Promise<void>;
-  isAdmin: () => boolean;
-  becomeFournisseur: () => Promise<void>;
+  signUp: (email: string, password?: string) => Promise<void>;
+  signIn: (email: string, password?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  getProfile: () => Promise<void>;
+  isFournisseurFavorite: (supplierId: string) => Promise<boolean>;
+  toggleFavoriteFournisseur: (supplierId: string) => Promise<void>;
+  favoriteSuppliers: Supplier[];
+  isInitialized: boolean;
+  isAdmin: boolean;
+  isFournisseur: boolean;
+  isPendingFournisseur: boolean;
 }
 
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [favoriteSuppliers, setFavoriteSuppliers] = useState<Supplier[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isFournisseur, setIsFournisseur] = useState(false);
+  const [isPendingFournisseur, setIsPendingFournisseur] = useState(false);
+  const navigate = useNavigate();
 
-  // Load user from session
   useEffect(() => {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-
-      if (session?.user) {
-        await loadUserAndProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-
-      supabase.auth.onAuthStateChange(async (_event, session) => {
+      
+      supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
         setSession(session);
-        if (session?.user) {
-          await loadUserAndProfile(session.user);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
+        await getProfile();
       });
     };
 
     loadSession();
   }, []);
 
-  // Helper function to load user and profile
-  const loadUserAndProfile = async (supabaseUser: SupabaseUser) => {
-    setLoading(true);
+  useEffect(() => {
+    const loadUser = async () => {
+      await getProfile();
+      setIsInitialized(true);
+    };
+
+    if (session) {
+      loadUser();
+    } else {
+      setUser(null);
+      setIsLoading(false);
+      setIsInitialized(true);
+    }
+  }, [session]);
+
+  const getProfile = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profile, error, status } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', supabaseUser.id)
+        .select(`
+          id, 
+          email, 
+          display_name, 
+          avatar, 
+          role, 
+          bio, 
+          address, 
+          phone_number, 
+          created_at, 
+          updated_at
+        `)
+        .eq('id', session?.user.id)
         .single();
 
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        throw profileError;
+      if (error && status !== 406) {
+        console.error('Error fetching profile:', error);
+        toast.error('Erreur lors du chargement du profil.');
       }
 
-      const processPreferences = (preferences: any): UserPreferences => {
-        // Default preferences
-        const defaultPreferences: UserPreferences = {
-          language: 'fr',
-          notifications: {
-            email: true,
-            app: true
-          },
-          theme: 'light'
+      if (profile) {
+        const userProfile: User = {
+          id: profile.id,
+          email: profile.email,
+          display_name: profile.display_name,
+          avatar: profile.avatar,
+          role: profile.role,
+          bio: profile.bio,
+          address: profile.address,
+          phone_number: profile.phone_number,
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
         };
-
-        if (!preferences) return defaultPreferences;
-
-        try {
-          // If it's a string, try to parse it
-          if (typeof preferences === 'string') {
-            try {
-              const parsed = JSON.parse(preferences);
-              return {
-                language: parsed.language || defaultPreferences.language,
-                notifications: {
-                  email: parsed.notifications?.email ?? defaultPreferences.notifications.email,
-                  app: parsed.notifications?.app ?? defaultPreferences.notifications.app
-                },
-                theme: parsed.theme || defaultPreferences.theme
-              };
-            } catch (e) {
-              return defaultPreferences;
-            }
-          }
-
-          // If it's already an object
-          return {
-            language: (preferences.language as any) || defaultPreferences.language,
-            notifications: {
-              email: preferences.notifications?.email ?? defaultPreferences.notifications.email,
-              app: preferences.notifications?.app ?? defaultPreferences.notifications.app
-            },
-            theme: (preferences.theme as any) || defaultPreferences.theme
-          };
-        } catch (error) {
-          return defaultPreferences;
-        }
-      };
-
-      const userPreferences = processPreferences(profileData?.preferences);
-
-      const userData: User = {
-        id: profileData?.id || supabaseUser.id,
-        email: profileData?.email || supabaseUser.email || '',
-        name: profileData?.display_name || '',
-        role: (profileData?.role as any) || 'user',
-        avatar: profileData?.avatar,
-        phone_number: profileData?.phone_number,
-        email_verified: supabaseUser.email_confirmed_at ? true : false,
-        address: profileData?.address,
-        bio: profileData?.bio,
-        created_at: profileData?.created_at,
-        updated_at: profileData?.updated_at,
-        preferences: userPreferences,
-        display_name: profileData?.display_name
-      };
-
-      setUser(userData);
-      setProfile(profileData);
+        setUser(userProfile);
+        setIsAdmin(profile.role === 'admin');
+        setIsFournisseur(profile.role === 'fournisseur');
+        setIsPendingFournisseur(profile.role === 'pending_fournisseur');
+        await loadFavoriteSuppliers(userProfile.id);
+      }
     } catch (error) {
-      console.error('Error loading user and profile:', error);
-      toast.error('Erreur lors du chargement du profil');
+      console.error('Unexpected error fetching profile:', error);
+      toast.error('Erreur inattendue lors du chargement du profil.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  }, [session?.user.id]);
+
+  const loadFavoriteSuppliers = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_favorite_suppliers', { p_user_id: userId });
+
+      if (error) {
+        console.error('Error fetching favorite suppliers:', error);
+        toast.error('Failed to load favorite suppliers.');
+      }
+
+      setFavoriteSuppliers(data || []);
+    } catch (error) {
+      console.error('Error loading favorite suppliers:', error);
+      toast.error('Unexpected error loading favorite suppliers.');
     }
   };
 
-  const refreshUser = async () => {
-    const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        await loadUserAndProfile(data.user);
-      }
-  };
-
-  const signUp = async (name: string, email: string, password: string, phone_number?: string) => {
-    setLoading(true);
+  const signUp = async (email: string, password?: string) => {
+    setIsLoading(true);
     try {
-      console.log("Signing up user:", { name, email, phone_number });
-
-      // Step 1: Create the user in auth.users
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: email,
+        password: password || generateRandomPassword(),
         options: {
           data: {
-            name,
-            display_name: name,
-            phone_number,
-            role: 'user'
-          }
+            display_name: email.split('@')[0],
+            avatar: `https://api.dicebear.com/7.x/ лица/svg?seed=${email.split('@')[0]}`
+          },
         }
       });
 
       if (error) {
-        console.error("Signup error details:", error);
-        throw error;
+        console.error('Signup error:', error);
+        toast.error('Erreur lors de l\'inscription: ' + error.message);
+      } else {
+        toast.success('Inscription réussie! Veuillez vérifier votre email.');
+        navigate('/auth/confirm-email');
       }
-
-      console.log("Auth signup successful, user data:", data);
-
-      // Step 2: Ensure the profile exists
-      if (data.user) {
-        try {
-          // First check if profile already exists
-          const { data: existingProfile, error: checkError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', data.user.id)
-            .single();
-
-          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means not found, which is expected
-            console.error("Error checking for existing profile:", checkError);
-          }
-
-          // If profile doesn't exist, create it
-          if (!existingProfile) {
-            console.log("Creating profile for user:", data.user.id);
-
-            // Try using RPC call for more direct database access
-            const { error: rpcError } = await supabase.rpc('create_user_profile', {
-              user_id: data.user.id,
-              user_email: email,
-              user_name: name,
-              user_role: 'user',
-              user_phone: phone_number || null
-            });
-
-            if (rpcError) {
-              console.error("RPC error creating profile:", rpcError);
-
-              // Fallback to regular insert
-              const { error: insertError } = await supabase
-                .from('profiles')
-                .insert({
-                  id: data.user.id,
-                  email: email,
-                  display_name: name,
-                  name: name,
-                  role: 'user',
-                  phone_number: phone_number || null,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                });
-
-              if (insertError) {
-                console.error("Error creating profile via insert:", insertError);
-
-                // Last resort: try a direct SQL query
-                const { error: sqlError } = await supabase.rpc('exec_sql', {
-                  sql: `
-                    INSERT INTO public.profiles (id, email, display_name, name, role, phone_number, created_at, updated_at)
-                    VALUES ('${data.user.id}', '${email}', '${name}', '${name}', 'user', ${phone_number ? `'${phone_number}'` : 'NULL'}, NOW(), NOW())
-                    ON CONFLICT (id) DO NOTHING;
-                  `
-                });
-
-                if (sqlError) {
-                  console.error("SQL error creating profile:", sqlError);
-                  throw new Error(`Failed to create profile: ${sqlError.message}`);
-                }
-              }
-            }
-          }
-        } catch (profileErr) {
-          console.error("Exception creating profile:", profileErr);
-          // Continue anyway - we'll try to fix the profile later if needed
-        }
-      }
-
-      toast.success('Inscription réussie! Veuillez vérifier votre email.');
     } catch (error) {
-      console.error('Signup error:', error);
-      toast.error(`Erreur d'inscription: ${error.message}`);
+      console.error('Unexpected signup error:', error);
+      toast.error('Erreur inattendue lors de l\'inscription.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    setLoading(true);
+  const signIn = async (email: string, password?: string) => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+        email: email,
+        password: password || '',
       });
 
-      if (error) throw error;
-      if (data.user) {
-        await loadUserAndProfile(data.user);
-        toast.success(`Bienvenue, ${user?.name || email}!`);
+      if (error) {
+        console.error('Signin error:', error);
+        toast.error('Erreur lors de la connexion: ' + error.message);
+      } else {
+        toast.success('Connexion réussie!');
+        await getProfile();
+        navigate('/projects');
       }
     } catch (error) {
-      console.error('Sign in error:', error);
-      toast.error(`Erreur de connexion: ${error.message}`);
+      console.error('Unexpected signin error:', error);
+      toast.error('Erreur inattendue lors de la connexion.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
-      toast.success('Déconnexion réussie');
+      if (error) {
+        console.error('Signout error:', error);
+        toast.error('Erreur lors de la déconnexion.');
+      } else {
+        toast.success('Déconnexion réussie!');
+        setUser(null);
+        setSession(null);
+        navigate('/login');
+      }
     } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error(`Erreur de déconnexion: ${error.message}`);
+      console.error('Unexpected signout error:', error);
+      toast.error('Erreur inattendue lors de la déconnexion.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Aliases for signIn and signOut
-  const login = signIn;
-  const logout = signOut;
-
-  const requestPasswordReset = async (email: string) => {
-    setLoading(true);
+  const updateUser = async (data: Partial<User>) => {
+    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', user?.id);
+  
+      if (error) {
+        console.error('Update user error:', error);
+        toast.error('Erreur lors de la mise à jour du profil.');
+      } else {
+        toast.success('Profil mis à jour avec succès!');
+        await getProfile();
+      }
+    } catch (error) {
+      console.error('Unexpected update user error:', error);
+      toast.error('Erreur inattendue lors de la mise à jour du profil.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleFavoriteFournisseur = async (supplierId: string) => {
+    if (!user) {
+      toast.error('Vous devez être connecté pour ajouter un fournisseur aux favoris.');
+      return;
+    }
+
+    try {
+      const isCurrentlyFavorite = favoriteSuppliers.some(supplier => supplier.id === supplierId);
+      const newFavoriteSuppliers = isCurrentlyFavorite
+        ? favoriteSuppliers.filter(supplier => supplier.id !== supplierId)
+        : [...favoriteSuppliers, { id: supplierId } as Supplier];
+
+      setFavoriteSuppliers(newFavoriteSuppliers);
+
+      const { data, error } = await supabase.rpc(
+        isCurrentlyFavorite ? 'remove_favorite_supplier' : 'add_favorite_supplier',
+        {
+          p_user_id: user.id,
+          p_supplier_id: supplierId,
+        }
+      );
+
+      if (error) {
+        console.error('Error toggling favorite supplier:', error);
+        toast.error('Erreur lors de la mise à jour des favoris.');
+        // Revert local state on failure
+        setFavoriteSuppliers(favoriteSuppliers);
+      } else {
+        // Optimistically update the UI
+        if (isCurrentlyFavorite) {
+          setFavoriteSuppliers(favoriteSuppliers.filter(supplier => supplier.id !== supplierId));
+        } else {
+          // Fetch the supplier and add it to the list
+          const { data: supplierData, error: supplierError } = await supabase
+            .from('suppliers')
+            .select('*')
+            .eq('id', supplierId)
+            .single();
+
+          if (supplierError) {
+            console.error('Error fetching supplier:', supplierError);
+            toast.error('Erreur lors de la récupération du fournisseur.');
+          } else if (supplierData) {
+            setFavoriteSuppliers([...favoriteSuppliers, supplierData]);
+          }
+        }
+        toast.success('Favoris mis à jour!');
+      }
+    } catch (error) {
+      console.error('Unexpected error toggling favorite supplier:', error);
+      toast.error('Erreur inattendue lors de la mise à jour des favoris.');
+      // Revert local state on error
+      setFavoriteSuppliers(favoriteSuppliers);
+    }
+  };
+
+  const isFournisseurFavorite = async (supplierId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase.rpc('check_favorite_supplier', {
+        p_user_id: user.id,
+        p_supplier_id: supplierId
       });
-      if (error) throw error;
-      toast.success('Instructions de réinitialisation du mot de passe envoyées à votre email');
-    } catch (error) {
-      console.error('Password reset request error:', error);
-      toast.error(`Erreur de demande de réinitialisation: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const resetPassword = async (password: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      toast.success('Mot de passe réinitialisé avec succès');
-    } catch (error) {
-      console.error('Password reset error:', error);
-      toast.error(`Erreur de réinitialisation: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmPasswordReset = async (token: string, password: string) => {
-    setLoading(true);
-    try {
-      // Use the token in some way if needed
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      toast.success('Mot de passe réinitialisé avec succès');
-    } catch (error) {
-      console.error('Password reset confirmation error:', error);
-      toast.error(`Erreur de réinitialisation: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyEmail = async (email: string, token: string) => {
-    try {
-      // In a real implementation, you would verify the email
-      toast.success('Email vérifié avec succès');
-    } catch (error) {
-      console.error('Email verification error:', error);
-      toast.error(`Erreur de vérification d'email: ${error.message}`);
-    }
-  };
-
-  const updateEmail = async (email: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ email });
-      if (error) throw error;
-      toast.success('Email mis à jour avec succès');
-    } catch (error) {
-      console.error('Update email error:', error);
-      toast.error(`Erreur de mise à jour de l'email: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // When updating a user profile, convert preferences to JSON compatible format
-  const updateProfile = async (userData: Partial<User>) => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-
-      const updates: Record<string, any> = {};
-
-      if (userData.name !== undefined) updates.display_name = userData.name;
-      if (userData.avatar !== undefined) updates.avatar = userData.avatar;
-      if (userData.phone_number !== undefined) updates.phone_number = userData.phone_number;
-      if (userData.address !== undefined) updates.address = userData.address;
-      if (userData.bio !== undefined) updates.bio = userData.bio;
-      if (userData.preferences !== undefined) {
-        updates.preferences = userData.preferences as unknown as Json;
+      if (error) {
+        console.error('Error checking favorite supplier:', error);
+        return false;
       }
 
-      updates.updated_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Update the local user state
-      setUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
-
-      toast.success('Profil mis à jour avec succès');
+      return data;
     } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Erreur lors de la mise à jour du profil');
-    } finally {
-      setLoading(false);
+      console.error('Unexpected error checking favorite supplier:', error);
+      return false;
     }
   };
 
-  // Function to check if the current user is an admin
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
-
-  // Function to become a supplier (fournisseur)
-  const becomeFournisseur = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-
-      const updates = {
-        role: 'pending_fournisseur' as const,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Update the local user state
-      setUser(prevUser => prevUser ? { ...prevUser, role: 'pending_fournisseur' } : null);
-
-      toast.success('Demande envoyée ! Nous examinerons votre profil.');
-    } catch (error) {
-      console.error('Error updating to fournisseur:', error);
-      toast.error('Erreur lors de la demande');
-    } finally {
-      setLoading(false);
+  const generateRandomPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+    for (let i = 0, n = charset.length; i < length; ++i) {
+      password += charset.charAt(Math.floor(Math.random() * n));
     }
+    return password;
   };
 
-  // Check if user is authenticated
-  const isAuthenticated = !!user;
+  const value = {
+    user,
+    session,
+    supabaseClient: supabase,
+    isLoading,
+    signUp,
+    signIn,
+    signOut,
+    updateUser,
+    getProfile,
+    isFournisseurFavorite,
+    toggleFavoriteFournisseur,
+    favoriteSuppliers,
+    isInitialized,
+    isAdmin,
+    isFournisseur,
+    isPendingFournisseur
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        signUp,
-        signIn,
-        signOut,
-        login,
-        logout,
-        requestPasswordReset,
-        resetPassword,
-        confirmPasswordReset,
-        verifyEmail,
-        updateProfile,
-        updateEmail,
-        isLoading: loading,
-        isAuthenticated,
-        refreshUser,
-        isAdmin,
-        becomeFournisseur
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { rateFournisseur } from '@/services/ratingService';
+import { createRating } from '@/services/ratingService'; // Changed function name
 
 interface RatingDialogProps {
   open: boolean;
@@ -37,7 +37,7 @@ const RatingDialog: React.FC<RatingDialogProps> = ({
 
     try {
       setIsSubmitting(true);
-      await rateFournisseur(userId, fournisseurId, rating, comment);
+      await createRating(userId, fournisseurId, rating, comment);
       toast.success('Avis envoyé avec succès!');
       onOpenChange(false);
       if (onRatingSubmitted) onRatingSubmitted();

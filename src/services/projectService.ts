@@ -35,7 +35,8 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
       endDate: project.end_date || '',
       end_date: project.end_date || '',
       is_public: project.is_public || false,
-      user_id: project.owner_id
+      user_id: project.owner_id,
+      isOwnProject: true // Add this property
     }));
   } catch (error) {
     console.error('Error in getUserProjects:', error);
@@ -86,46 +87,54 @@ export const getAllVisibleProjects = async (userId: string): Promise<ProjectData
     }
 
     // Combine the results
+    const ownProjectsWithFlag = ownProjects ? ownProjects.map((project: any) => ({
+      ...project,
+      isOwnProject: true
+    })) : [];
+
+    const publicProjectsWithFlag = publicProjects ? publicProjects.map((project: any) => ({
+      ...project,
+      isOwnProject: false
+    })) : [];
+
     const allProjects = [
-      ...(ownProjects || []).map(project => ({
-        ...project,
-        isOwnProject: true
-      })),
-      ...(publicProjects || []).map(project => ({
-        ...project,
-        isOwnProject: false
-      }))
+      ...ownProjectsWithFlag,
+      ...publicProjectsWithFlag
     ];
 
     console.log('Combined projects:', allProjects.length);
 
     // Transform database results to match ProjectData type
-    return allProjects.map(project => ({
-      id: project.id,
-      title: project.name || '',
-      name: project.name || '',
-      description: project.description || '',
-      status: project.status as 'planning' | 'active' | 'completed',
-      owner_id: project.owner_id,
-      created_at: project.created_at,
-      updated_at: project.updated_at,
-      // Properties that might not exist in the database - provide defaults
-      image: project.image || '',
-      crop: project.crop || '',
-      location: project.location || '',
-      progress: project.progress || 0,
-      startDate: project.start_date || '',
-      start_date: project.start_date || '',
-      endDate: project.end_date || '',
-      end_date: project.end_date || '',
-      is_public: project.is_public || false,
-      user_id: project.owner_id,
-      // Add user information
-      user_name: project.profiles?.display_name || '',
-      user_avatar: project.profiles?.avatar || '',
-      // Flag to indicate if this is the user's own project
-      isOwnProject: project.isOwnProject
-    }));
+    return allProjects.map(project => {
+      const profileObject = project.profiles || {};
+      
+      return {
+        id: project.id,
+        title: project.name || '',
+        name: project.name || '',
+        description: project.description || '',
+        status: project.status as 'planning' | 'active' | 'completed',
+        owner_id: project.owner_id,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        // Properties that might not exist in the database - provide defaults
+        image: project.image || '',
+        crop: project.crop || '',
+        location: project.location || '',
+        progress: project.progress || 0,
+        startDate: project.start_date || '',
+        start_date: project.start_date || '',
+        endDate: project.end_date || '',
+        end_date: project.end_date || '',
+        is_public: project.is_public || false,
+        user_id: project.owner_id,
+        // Add user information safely
+        user_name: typeof profileObject === 'object' && profileObject !== null ? profileObject.display_name || '' : '',
+        user_avatar: typeof profileObject === 'object' && profileObject !== null ? profileObject.avatar || '' : '',
+        // Flag to indicate if this is the user's own project
+        isOwnProject: project.isOwnProject
+      };
+    });
   } catch (error) {
     console.error('Error in getAllVisibleProjects:', error);
     return [];
@@ -159,7 +168,7 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
 
     // Transform database results to match ProjectData type
     return data.map(project => {
-      const profile = project.profiles as any;
+      const profileObject = project.profiles || {};
 
       return {
         id: project.id,
@@ -181,9 +190,9 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
         end_date: project.end_date || '',
         is_public: true,
         user_id: project.owner_id,
-        // Add user information
-        user_name: profile?.display_name || '',
-        user_avatar: profile?.avatar || '',
+        // Add user information safely
+        user_name: typeof profileObject === 'object' && profileObject !== null ? profileObject.display_name || '' : '',
+        user_avatar: typeof profileObject === 'object' && profileObject !== null ? profileObject.avatar || '' : '',
         // This is not the user's own project
         isOwnProject: false
       };
@@ -227,7 +236,8 @@ export const getProjectById = async (id: string): Promise<ProjectData | null> =>
       endDate: data.end_date || '',
       end_date: data.end_date || '',
       is_public: data.is_public || false,
-      user_id: data.owner_id
+      user_id: data.owner_id,
+      isOwnProject: false // Default value, to be updated by the component
     };
   } catch (error) {
     console.error('Error in getProjectById:', error);

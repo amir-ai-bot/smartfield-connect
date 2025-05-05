@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProjectForm from '@/components/projects/ProjectForm';
+import ProjectForm from '@/components/Projects/ProjectForm'; // Corrected casing
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';

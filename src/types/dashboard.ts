@@ -1,4 +1,3 @@
-
 export interface Project {
   id: string;
   name: string;
@@ -79,24 +78,24 @@ export interface DashboardContextType {
 
 export interface ProjectData {
   id: string;
-  title: string;
+  title?: string;
   name?: string;
   description?: string;
   status: 'planning' | 'active' | 'completed';
-  progress: number;
-  crop: string;
-  location: string;
-  startDate?: string;
-  endDate?: string;
   image?: string;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string;
-  owner_id?: string;
-  user_name?: string;
-  user_email?: string;
-  user_avatar?: string;
-  is_public?: boolean;
+  owner_id: string;
+  crop?: string;
+  location?: string;
+  progress?: number;
+  startDate?: string;
   start_date?: string;
   end_date?: string;
+  endDate?: string;
+  is_public?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  user_name?: string;
+  user_avatar?: string;
+  user_id?: string;
+  isOwnProject?: boolean; // Added missing property
 }

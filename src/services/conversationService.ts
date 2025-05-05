@@ -104,15 +104,13 @@ export const getConversations = async (userId: string): Promise<ConversationData
       return [];
     }
 
+    if (!data || data.length === 0) {
+      return [];
+    }
+
     // Map the conversations to get the other participant's profile
     const conversationsWithProfiles: ConversationData[] = await Promise.all(
-      data.map(async (conversation: {
-        id: string;
-        last_message_at?: string;
-        created_at: string;
-        participant1_id: string;
-        participant2_id: string;
-      }) => {
+      data.map(async (conversation: any) => {
         // Determine the other participant
         const otherParticipantId =
           conversation.participant1_id === userId
@@ -166,7 +164,7 @@ export const getMessages = async (conversationId: string): Promise<MessageData[]
     // Cast the data to MessageData with read property
     const messages: MessageData[] = data.map((message: any) => ({
       id: message.id,
-      conversation_id: message.conversation_id,
+      conversation_id: conversationId, // Use the passed conversationId
       sender_id: message.sender_id,
       receiver_id: message.receiver_id,
       content: message.content,
@@ -189,15 +187,19 @@ export const sendMessage = async (
   content: string
 ): Promise<MessageData | null> => {
   try {
+    // Add the read property
+    const newMessage = {
+      conversation_id: conversationId,
+      sender_id: senderId,
+      receiver_id: receiverId,
+      content,
+      read: false
+    };
+
     const { data, error } = await supabase
       .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        receiver_id: receiverId,
-        content,
-      })
-      .select('*')
+      .insert(newMessage)
+      .select()
       .single();
 
     if (error) {
@@ -211,18 +213,16 @@ export const sendMessage = async (
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    // Cast to MessageData with read property
-    const message: MessageData = {
+    // Return the sent message
+    return {
       id: data.id,
-      conversation_id: data.conversation_id,
+      conversation_id: conversationId,
       sender_id: data.sender_id,
       receiver_id: data.receiver_id,
       content: data.content,
       created_at: data.created_at,
       read: false
     };
-
-    return message;
   } catch (error) {
     console.error('Error in sendMessage:', error);
     return null;
@@ -240,7 +240,7 @@ export const markMessagesAsRead = async (
       .update({ read: true })
       .eq('conversation_id', conversationId)
       .eq('receiver_id', userId)
-      .eq('read', false);
+      .is('read', false);
 
     if (error) {
       console.error('Error marking messages as read:', error);
@@ -258,11 +258,16 @@ export const markMessagesAsRead = async (
 export const createConversation = async (userId: string, participantId: string): Promise<string | null> => {
   try {
     // Check if conversation already exists
-    const { data: existingConversation } = await supabase
+    const { data: existingConversation, error: existingError } = await supabase
       .from('conversations')
       .select('id')
       .or(`and(participant1_id.eq.${userId},participant2_id.eq.${participantId}),and(participant1_id.eq.${participantId},participant2_id.eq.${userId})`)
-      .single();
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('Error checking for existing conversation:', existingError);
+      return null;
+    }
 
     if (existingConversation) {
       return existingConversation.id;
@@ -340,3 +345,4 @@ const getUserProfile = async (userId: string): Promise<ParticipantProfile | null
 // Add aliases for backward compatibility
 export const getUserConversations = getConversations;
 export const getConversationMessages = getMessages;
+export const createOrGetConversation = createConversation; // Add alias for backward compatibility

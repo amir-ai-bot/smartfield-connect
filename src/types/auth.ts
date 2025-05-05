@@ -96,10 +96,11 @@ export interface ProjectData {
 }
 
 export interface ProjectFormProps {
-  project?: ProjectData;
-  onSubmit: (data: ProjectData | Partial<ProjectData>) => void;
-  onCancel?: () => void;
+  onSubmit: (formData: Partial<ProjectData>) => void;
+  onCancel: () => void;
+  project?: Partial<ProjectData>;
   onProjectCreated?: (project: ProjectData) => void;
+  isSubmitting?: boolean;
 }
 
 // Conversation types
