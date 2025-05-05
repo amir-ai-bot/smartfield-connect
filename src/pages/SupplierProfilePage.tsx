@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -96,7 +97,7 @@ const SupplierProfilePage = () => {
       const conversationId = await createConversation(user.id, id);
       if (conversationId) {
         // Redirect to the conversation page
-        window.location.href = `/messages/${conversationId}`;
+        window.location.href = `/conversations/${conversationId}`;
       } else {
         toast.error('Impossible de créer la conversation.');
       }
