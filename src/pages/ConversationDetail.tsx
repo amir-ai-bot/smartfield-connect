@@ -1,10 +1,12 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   getConversation, 
   getConversationMessages, 
-  sendMessage 
+  sendMessage,
+  markMessagesAsRead
 } from '@/services/conversationService';
 import { toast } from 'sonner';
 
@@ -32,14 +34,6 @@ interface MessageData {
   created_at: string;
   read?: boolean;
 }
-
-// Function to mark messages as read
-const markMessagesAsRead = async (conversationId: string, userId: string): Promise<boolean> => {
-  // This is a placeholder function since it wasn't defined
-  // In a real implementation, you would make an API call to mark messages as read
-  console.log(`Marking messages as read for conversation ${conversationId} by user ${userId}`);
-  return true;
-};
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();

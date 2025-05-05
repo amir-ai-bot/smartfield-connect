@@ -30,6 +30,59 @@ export interface MessageData {
 export const toggleFavoriteFournisseur = toggleFavSupplier;
 export const isFournisseurFavorite = isSupplierFav;
 
+// Get a specific conversation by ID
+export const getConversation = async (conversationId: string, userId: string): Promise<ConversationData | null> => {
+  try {
+    // Get the conversation by ID
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .select(`
+        id,
+        last_message_at,
+        created_at,
+        participant1_id,
+        participant2_id
+      `)
+      .eq('id', conversationId)
+      .single();
+
+    if (error || !conversation) {
+      console.error('Error fetching conversation:', error);
+      return null;
+    }
+
+    // Determine the other participant
+    const otherParticipantId =
+      conversation.participant1_id === userId
+        ? conversation.participant2_id
+        : conversation.participant1_id;
+
+    // Get the other participant's profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar')
+      .eq('id', otherParticipantId)
+      .single();
+
+    const participant: ParticipantProfile = {
+      id: otherParticipantId,
+      name: profileData?.display_name || 'Utilisateur',
+      avatar: profileData?.avatar || undefined,
+    };
+
+    return {
+      id: conversation.id,
+      participant,
+      lastMessageAt: conversation.last_message_at || conversation.created_at,
+      createdAt: conversation.created_at,
+      userId,
+    };
+  } catch (error) {
+    console.error('Error in getConversation:', error);
+    return null;
+  }
+};
+
 // Get all conversations for a user
 export const getConversations = async (userId: string): Promise<ConversationData[]> => {
   try {
