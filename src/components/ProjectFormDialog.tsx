@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProjectForm from '@/components/Projects/ProjectForm'; // Corrected casing
+import ProjectForm from '@/components/Projects/ProjectForm'; // Fix casing in path
 import { createProject } from '@/services/projectService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -21,9 +21,12 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
   onProjectCreated
 }) => {
   const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleSubmit = async (formData: Partial<ProjectData>) => {
     try {
+      setIsSubmitting(true);
+      
       if (!user) {
         toast.error('Vous devez être connecté pour créer un projet');
         return;
@@ -45,11 +48,18 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
       if (createdProject) {
         onProjectCreated(createdProject);
         toast.success('Projet créé avec succès');
+        onOpenChange(false);
       }
     } catch (error) {
       console.error('Error creating project:', error);
       toast.error('Erreur lors de la création du projet');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   return (
@@ -60,7 +70,8 @@ const ProjectFormDialog: React.FC<ProjectFormDialogProps> = ({
         </DialogHeader>
         <ProjectForm
           onSubmit={handleSubmit}
-          onCancel={() => onOpenChange(false)}
+          onCancel={handleCancel}
+          isSubmitting={isSubmitting}
         />
       </DialogContent>
     </Dialog>

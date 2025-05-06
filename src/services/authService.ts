@@ -123,17 +123,23 @@ export const signUp = async (
               console.error("Error creating profile via insert:", insertError);
 
               // Last resort: try a direct SQL query
-              const { error: sqlError } = await supabase.rpc('exec_sql', {
-                sql: `
-                  INSERT INTO public.profiles (id, email, display_name, name, role, phone_number, created_at, updated_at)
-                  VALUES ('${data.user.id}', '${email}', '${name}', '${name}', 'user', ${phone_number ? `'${phone_number}'` : 'NULL'}, NOW(), NOW())
-                  ON CONFLICT (id) DO NOTHING;
-                `
-              });
+              const sqlError = await supabase
+                .from('profiles')
+                .insert({
+                  id: data.user.id,
+                  email: email,
+                  display_name: name,
+                  name: name,
+                  role: 'user',
+                  phone_number: phone_number || null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select();
 
-              if (sqlError) {
-                console.error("SQL error creating profile:", sqlError);
-                throw new Error(`Failed to create profile: ${sqlError.message}`);
+              if (sqlError.error) {
+                console.error("SQL error creating profile:", sqlError.error);
+                throw new Error(`Failed to create profile: ${sqlError.error.message}`);
               }
             }
           }

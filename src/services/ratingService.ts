@@ -56,10 +56,47 @@ export const getRatings = async (supplierId: string): Promise<Rating[]> => {
       return [];
     }
 
-    return data as Rating[];
+    // Map the response to match our Rating type
+    const mappedRatings = data.map(rating => ({
+      ...rating,
+      user: rating.user ? {
+        id: rating.user.id,
+        name: rating.user.display_name || '',
+        avatar: rating.user.avatar
+      } : undefined
+    })) as Rating[];
+
+    return mappedRatings;
   } catch (error) {
     console.error('Error in getRatings:', error);
     return [];
+  }
+};
+
+// Get user rating for a specific supplier
+export const getUserRatingForFournisseur = async (
+  userId: string,
+  supplierId: string
+): Promise<Rating | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplier_ratings')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('supplier_id', supplierId)
+      .single();
+
+    if (error) {
+      if (error.code !== 'PGRST116') { // PGRST116 means not found, which is expected
+        console.error('Error fetching user rating:', error);
+      }
+      return null;
+    }
+
+    return data as Rating;
+  } catch (error) {
+    console.error('Error in getUserRatingForFournisseur:', error);
+    return null;
   }
 };
 
@@ -93,6 +130,15 @@ const updateSupplierAverageRating = async (supplierId: string): Promise<void> =>
   }
 };
 
+// Function to accept object parameter for backward compatibility
+export const rateFournisseur = async (params: {
+  user_id: string;
+  fournisseur_id: string;
+  rating: number;
+  comment?: string;
+}): Promise<Rating | null> => {
+  return createRating(params.user_id, params.fournisseur_id, params.rating, params.comment);
+};
+
 // Alias for backward compatibility
-export const rateFournisseur = createRating;
 export const getFournisseurRatings = getRatings;

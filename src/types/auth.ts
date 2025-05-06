@@ -85,6 +85,7 @@ export interface ProjectData {
   updated_at?: string;
   is_public?: boolean;
   isPublic?: boolean;
+  isOwnProject?: boolean;
   // Added extra fields for compatibility with APIs
   creator_name?: string;
   creator_email?: string;

@@ -1,11 +1,15 @@
 
-// Update the suppliers state handling to fix the type issues
-// Find the relevant code that sets suppliers state and update it:
+// Update the specific code mentioned in the error
+// This replaces lines 9-13 in the file
 
 // Instead of:
-// setSuppliers(data);
+// const mappedSuppliers = data.map(supplier => ({
+//   ...supplier,
+//   products: supplier.products || [] // Ensure products is always an array
+// }));
+// setSuppliers(mappedSuppliers);
 
-// Use:
+// Use this:
 const mappedSuppliers = data.map(supplier => ({
   ...supplier,
   products: supplier.products || [] // Ensure products is always an array

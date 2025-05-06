@@ -1,3 +1,4 @@
+
 import React, { 
   createContext, 
   useState, 
@@ -6,24 +7,35 @@ import React, {
   ReactNode,
   useCallback 
 } from 'react';
-import { 
-  supabase, 
-  Session, 
-  AuthChangeEvent, 
-  SupabaseClient 
-} from '@/integrations/supabase/client';
-import { 
-  User as SupabaseUser,
-  User,
-  Supplier
-} from '@/types/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Supplier } from '@/types/supabase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+
+// Define Session type since it's not exported from the client
+type Session = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  user: {
+    id: string;
+    email?: string;
+  };
+};
+
+// Define AuthChangeEvent type since it's not exported from the client
+type AuthChangeEvent = 
+  | 'INITIAL_SESSION'
+  | 'SIGNED_IN'
+  | 'SIGNED_OUT'
+  | 'TOKEN_REFRESHED'
+  | 'USER_UPDATED'
+  | 'PASSWORD_RECOVERY';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  supabaseClient: SupabaseClient | null;
+  supabaseClient: typeof supabase;
   isLoading: boolean;
   signUp: (email: string, password?: string) => Promise<void>;
   signIn: (email: string, password?: string) => Promise<void>;
@@ -34,9 +46,12 @@ interface AuthContextType {
   toggleFavoriteFournisseur: (supplierId: string) => Promise<void>;
   favoriteSuppliers: Supplier[];
   isInitialized: boolean;
-  isAdmin: boolean;
-  isFournisseur: boolean;
-  isPendingFournisseur: boolean;
+  isAdmin: () => boolean;
+  isFournisseur: () => boolean;
+  isPendingFournisseur: () => boolean;
+  isAuthenticated: boolean;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,15 +69,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isFournisseur, setIsFournisseur] = useState(false);
   const [isPendingFournisseur, setIsPendingFournisseur] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+      setSession(session as Session | null);
+      setIsAuthenticated(!!session);
       
       supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
         setSession(session);
+        setIsAuthenticated(!!session);
         await getProfile();
       });
     };
@@ -88,6 +106,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const getProfile = useCallback(async () => {
     setIsLoading(true);
     try {
+      if (!session?.user.id) {
+        setIsLoading(false);
+        return;
+      }
+      
       const { data: profile, error, status } = await supabase
         .from('profiles')
         .select(`
@@ -113,10 +136,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (profile) {
         const userProfile: User = {
           id: profile.id,
-          email: profile.email,
-          display_name: profile.display_name,
+          email: profile.email || '',
+          display_name: profile.display_name || '',
           avatar: profile.avatar,
-          role: profile.role,
+          role: profile.role as User['role'],
           bio: profile.bio,
           address: profile.address,
           phone_number: profile.phone_number,
@@ -136,6 +159,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   }, [session?.user.id]);
+
+  const refreshUser = async () => {
+    await getProfile();
+  };
 
   const loadFavoriteSuppliers = async (userId: string) => {
     try {
@@ -196,6 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         toast.error('Erreur lors de la connexion: ' + error.message);
       } else {
         toast.success('Connexion réussie!');
+        setIsAuthenticated(true);
         await getProfile();
         navigate('/projects');
       }
@@ -218,6 +246,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         toast.success('Déconnexion réussie!');
         setUser(null);
         setSession(null);
+        setIsAuthenticated(false);
         navigate('/login');
       }
     } catch (error) {
@@ -227,6 +256,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
+
+  const logout = signOut; // Alias for signOut
 
   const updateUser = async (data: Partial<User>) => {
     setIsLoading(true);
@@ -338,6 +369,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return password;
   };
 
+  const isAdminCheck = () => {
+    return user?.role === 'admin';
+  };
+
+  const isFournisseurCheck = () => {
+    return user?.role === 'fournisseur';
+  };
+
+  const isPendingFournisseurCheck = () => {
+    return user?.role === 'pending_fournisseur';
+  };
+
   const value = {
     user,
     session,
@@ -352,9 +395,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     toggleFavoriteFournisseur,
     favoriteSuppliers,
     isInitialized,
-    isAdmin,
-    isFournisseur,
-    isPendingFournisseur
+    isAdmin: isAdminCheck,
+    isFournisseur: isFournisseurCheck,
+    isPendingFournisseur: isPendingFournisseurCheck,
+    isAuthenticated,
+    logout,
+    refreshUser
   };
 
   return (

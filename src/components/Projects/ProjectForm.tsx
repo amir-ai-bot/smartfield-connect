@@ -1,246 +1,160 @@
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectData, ProjectFormProps } from '@/types/auth';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ onSubmit, onCancel, project, onProjectCreated, isSubmitting: externalSubmitting }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting: formSubmitting }, setValue, watch } = useForm<Partial<ProjectData>>({
-    defaultValues: project || {
-      title: '',
-      description: '',
-      crop: '',
-      location: '',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'planning',
-      progress: 0,
-      is_public: false
-    }
+interface EnhancedProjectFormProps extends ProjectFormProps {
+  isSubmitting?: boolean;
+}
+
+const ProjectForm: React.FC<EnhancedProjectFormProps> = ({ onSubmit, onCancel, project, onProjectCreated, isSubmitting = false }) => {
+  const [formData, setFormData] = useState({
+    title: project?.title || '',
+    description: project?.description || '',
+    status: project?.status || 'planning',
+    location: project?.location || '',
+    crop: project?.crop || '',
+    startDate: project?.startDate || project?.start_date || '',
+    endDate: project?.endDate || project?.end_date || '',
+    is_public: project?.is_public || project?.isPublic || false
   });
 
-  React.useEffect(() => {
-    if (project) {
-      Object.entries(project).forEach(([key, value]) => {
-        if (key === 'startDate' && project.startDate) {
-          setValue(key as any, project.startDate.split('T')[0]);
-        } else if (key === 'endDate' && project.endDate) {
-          setValue(key as any, project.endDate.split('T')[0]);
-        } else if (key === 'start_date' && project.start_date) {
-          setValue('startDate' as any, project.start_date.split('T')[0]);
-        } else if (key === 'end_date' && project.end_date) {
-          setValue('endDate' as any, project.end_date.split('T')[0]);
-        } else if (key === 'is_public' && project.is_public !== undefined) {
-          setValue(key as any, project.is_public);
-        } else if (key === 'isPublic' && project.isPublic !== undefined) {
-          setValue('is_public' as any, project.isPublic);
-        } else if (value !== undefined) {
-          setValue(key as any, value);
-        }
-      });
-    }
-  }, [project, setValue]);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
 
-  const handleFormSubmit = async (data: Partial<ProjectData>) => {
-    try {
-      console.log('Form data before submission:', data);
+  const handleStatusChange = (value: string) => {
+    setFormData({ ...formData, status: value as 'planning' | 'active' | 'completed' });
+  };
 
-      // Validate required fields
-      if (!data.title) {
-        toast.error('Le titre du projet est requis');
-        return;
-      }
+  const handleIsPublicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, is_public: e.target.checked });
+  };
 
-      if (!data.crop) {
-        toast.error('Le type de culture est requis');
-        return;
-      }
-
-      if (!data.location) {
-        toast.error('La localisation est requise');
-        return;
-      }
-
-      // Ensure dates are properly formatted
-      if (data.startDate && typeof data.startDate === 'string') {
-        try {
-          // Make sure it's a valid date
-          new Date(data.startDate).toISOString();
-        } catch (e) {
-          data.startDate = new Date().toISOString().split('T')[0];
-        }
-      }
-
-      if (data.endDate && typeof data.endDate === 'string') {
-        try {
-          // Make sure it's a valid date
-          new Date(data.endDate).toISOString();
-        } catch (e) {
-          const endDate = new Date();
-          endDate.setDate(endDate.getDate() + 30);
-          data.endDate = endDate.toISOString().split('T')[0];
-        }
-      }
-
-      // Set default values for required fields
-      data.status = data.status || 'planning';
-      data.progress = data.progress !== undefined ? data.progress : 0;
-
-      // Make sure is_public is a boolean
-      data.is_public = !!data.is_public;
-
-      console.log('Processed form data:', data);
-
-      await onSubmit(data);
-
-      // Don't show success toast here, let the parent component handle it
-      if (onProjectCreated && !project) {
-        onProjectCreated(data as ProjectData);
-      }
-    } catch (error) {
-      console.error('Project form error:', error);
-      toast.error('Erreur lors de la soumission du projet');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const projectData: Partial<ProjectData> = {
+      ...formData,
+      // Ensure backward compatibility
+      isPublic: formData.is_public
+    };
+    onSubmit(projectData);
+    if (onProjectCreated && project?.id) {
+      onProjectCreated(project);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Titre du projet</Label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="title">Titre</Label>
         <Input
           id="title"
-          type="text"
+          name="title"
+          value={formData.title}
+          onChange={handleInputChange}
           placeholder="Titre du projet"
-          {...register('title', { required: 'Le titre est requis' })}
+          required
         />
-        {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
       </div>
 
-      <div className="space-y-2">
+      <div>
         <Label htmlFor="description">Description</Label>
         <Textarea
           id="description"
+          name="description"
+          value={formData.description}
+          onChange={handleInputChange}
           placeholder="Description du projet"
           rows={4}
-          {...register('description')}
         />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="crop">Type de culture</Label>
-          <Input
-            id="crop"
-            type="text"
-            placeholder="Ex: Oliviers, Tomates"
-            {...register('crop', { required: 'Le type de culture est requis' })}
-          />
-          {errors.crop && <p className="text-destructive text-sm">{errors.crop.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="location">Localisation</Label>
-          <Input
-            id="location"
-            type="text"
-            placeholder="Ex: Casablanca, Marrakech"
-            {...register('location', { required: 'La localisation est requise' })}
-          />
-          {errors.location && <p className="text-destructive text-sm">{errors.location.message}</p>}
-        </div>
+      
+      <div>
+        <Label htmlFor="location">Emplacement</Label>
+        <Input
+          id="location"
+          name="location"
+          value={formData.location}
+          onChange={handleInputChange}
+          placeholder="Emplacement du projet"
+        />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
+      
+      <div>
+        <Label htmlFor="crop">Culture</Label>
+        <Input
+          id="crop"
+          name="crop"
+          value={formData.crop}
+          onChange={handleInputChange}
+          placeholder="Type de culture"
+        />
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
           <Label htmlFor="startDate">Date de début</Label>
           <Input
             id="startDate"
+            name="startDate"
             type="date"
-            {...register('startDate', { required: 'La date de début est requise' })}
+            value={formData.startDate}
+            onChange={handleInputChange}
           />
-          {errors.startDate && <p className="text-destructive text-sm">{errors.startDate.message}</p>}
         </div>
-
-        <div className="space-y-2">
+        
+        <div>
           <Label htmlFor="endDate">Date de fin</Label>
           <Input
             id="endDate"
+            name="endDate"
             type="date"
-            {...register('endDate', { required: 'La date de fin est requise' })}
+            value={formData.endDate}
+            onChange={handleInputChange}
           />
-          {errors.endDate && <p className="text-destructive text-sm">{errors.endDate.message}</p>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="status">Statut</Label>
-          <Select
-            defaultValue={project?.status || 'planning'}
-            onValueChange={(value) => setValue('status', value as 'planning' | 'active' | 'completed')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Sélectionner un statut" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="planning">Planification</SelectItem>
-              <SelectItem value="active">Actif</SelectItem>
-              <SelectItem value="completed">Complété</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="progress">Progression (%)</Label>
-          <Input
-            id="progress"
-            type="number"
-            min="0"
-            max="100"
-            {...register('progress', {
-              valueAsNumber: true,
-              min: { value: 0, message: 'La progression minimale est 0%' },
-              max: { value: 100, message: 'La progression maximale est 100%' }
-            })}
-          />
-          {errors.progress && <p className="text-destructive text-sm">{errors.progress.message}</p>}
-        </div>
+      <div>
+        <Label htmlFor="status">Statut</Label>
+        <Select 
+          value={formData.status} 
+          onValueChange={handleStatusChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionnez un statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="planning">En planification</SelectItem>
+            <SelectItem value="active">Actif</SelectItem>
+            <SelectItem value="completed">Terminé</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="is_public"
+          checked={formData.is_public}
+          onChange={handleIsPublicChange}
+          className="rounded border-gray-300"
+        />
+        <Label htmlFor="is_public">Projet public</Label>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="is_public"
-            className="h-4 w-4 rounded border-gray-300 text-agri-green-600 focus:ring-agri-green-500"
-            {...register('is_public')}
-          />
-          <Label htmlFor="is_public">Rendre ce projet public</Label>
-        </div>
-        <p className="text-sm text-gray-500">
-          Les projets publics sont visibles par tous les utilisateurs et peuvent apparaître sur la page d'accueil.
-        </p>
-      </div>
-
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={formSubmitting || externalSubmitting}>
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Annuler
         </Button>
-        <Button type="submit" disabled={formSubmitting || externalSubmitting}>
-          {(formSubmitting || externalSubmitting) ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {project ? 'Mise à jour...' : 'Création...'}
-            </>
-          ) : (
-            project ? 'Mettre à jour' : 'Créer le projet'
-          )}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Chargement...' : (project ? 'Mettre à jour' : 'Créer')}
         </Button>
       </div>
     </form>
