@@ -1,6 +1,7 @@
+
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface UserLocation {
   latitude: number;
@@ -13,11 +14,8 @@ export const getCurrentLocation = async (): Promise<UserLocation | null> => {
     const permissions = await Geolocation.checkPermissions();
     
     if (permissions.location !== 'granted') {
-      toast.info('Autorisation de localisation requise. Veuillez autoriser l\'accès à votre position.');
-      
       const request = await Geolocation.requestPermissions();
       if (request.location !== 'granted') {
-        toast.error('Autorisation de localisation refusée. Certaines fonctionnalités ne seront pas disponibles.');
         console.error('Location permission not granted');
         return null;
       }
@@ -34,7 +32,6 @@ export const getCurrentLocation = async (): Promise<UserLocation | null> => {
     };
   } catch (error) {
     console.error('Error getting current location:', error);
-    toast.error('Impossible d\'accéder à votre position. Veuillez vérifier vos paramètres de localisation.');
     return null;
   }
 };
@@ -71,6 +68,7 @@ export const saveUserLocation = async (userId: string, location: UserLocation): 
 export const getLocationFromAddress = async (address: string): Promise<UserLocation | null> => {
   try {
     // This is a placeholder. In a real app, you would use a geocoding service
+    // like Google Maps Geocoding API or Mapbox Geocoding API
     console.log('Getting location for address:', address);
     
     // For now, return a dummy location for demo purposes

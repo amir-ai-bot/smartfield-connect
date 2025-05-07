@@ -1,219 +1,225 @@
 
-import { useState } from 'react';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+import React from 'react';
 import { User } from '@/types/auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Loader2, Save } from 'lucide-react';
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
 import AvatarSelector from './AvatarSelector';
-
-const formSchema = z.object({
-  display_name: z.string().min(2, {
-    message: "Le nom doit contenir au moins 2 caractères.",
-  }),
-  email: z.string().email({
-    message: "Email invalide",
-  }),
-  phone_number: z.string().optional(),
-  address: z.string().optional(),
-  bio: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { uploadAvatar } from '@/services/storageService';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileInfoProps {
   user: User;
+  onUpdate?: (updatedUser: User) => void;
+  onBack?: () => void;
 }
 
-const ProfileInfo = ({ user }: ProfileInfoProps) => {
+const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
   const { updateProfile } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
+  const [name, setName] = React.useState(user.name || '');
+  const [email, setEmail] = React.useState(user.email || '');
+  const [phone, setPhone] = React.useState(user.phone_number || '');
+  const [address, setAddress] = React.useState(user.address || '');
+  const [bio, setBio] = React.useState(user.bio || '');
+  const [avatar, setAvatar] = React.useState(user.avatar || '');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [hasChanges, setHasChanges] = React.useState(false);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      display_name: user.display_name || '',
-      email: user.email || '',
-      phone_number: user.phone_number || '',
-      address: user.address || '',
-      bio: user.bio || '',
-    },
-  });
+  // Track changes
+  React.useEffect(() => {
+    const changes = 
+      name !== user.name || 
+      email !== user.email || 
+      phone !== (user.phone_number || '') || 
+      address !== (user.address || '') || 
+      bio !== (user.bio || '') || 
+      avatar !== (user.avatar || '');
+    
+    setHasChanges(changes);
+  }, [name, email, phone, address, bio, avatar, user]);
 
-  const onSubmit = async (data: FormValues) => {
-    setIsSubmitting(true);
+  // Reset form when user changes
+  React.useEffect(() => {
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setPhone(user.phone_number || '');
+    setAddress(user.address || '');
+    setBio(user.bio || '');
+    setAvatar(user.avatar || '');
+  }, [user]);
+
+  const handleSelectAvatar = (newAvatar: string) => {
+    setAvatar(newAvatar);
+  };
+
+  const handleAvatarUpload = async (file: File) => {
     try {
-      // Prepare the updates object
-      const updates: Partial<User> = {
-        display_name: data.display_name,
-        email: data.email,
-        phone_number: data.phone_number || null,
-        address: data.address || null,
-        bio: data.bio || null,
-      };
-
-      if (selectedAvatar) {
-        // Handle avatar upload
-        const formData = new FormData();
-        formData.append('avatar', selectedAvatar);
-        
-        // Note: In a real implementation, you would upload the avatar to a storage service
-        // and get a URL back to store in the user profile
-        // For now, we'll just use the avatarPreview as a temporary solution
-        updates.avatar = avatarPreview;
-      }
-
-      await updateProfile(updates);
-      toast.success('Profil mis à jour avec succès');
-      
+      setIsLoading(true);
+      const avatarUrl = await uploadAvatar(file, user.id);
+      setAvatar(avatarUrl);
+      toast.success('Photo de profil téléchargée avec succès');
     } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Erreur lors de la mise à jour du profil');
+      toast.error('Erreur lors du téléchargement de la photo');
+      console.error(error);
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  const handleAvatarChange = (file: File | null, preview: string | null) => {
-    setSelectedAvatar(file);
-    setAvatarPreview(preview);
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      const updatedUser = await updateProfile({
+        name,
+        email,
+        phone_number: phone,
+        address,
+        bio,
+        avatar
+      });
+      
+      toast.success('Profil mis à jour avec succès');
+      
+      // Call onUpdate if provided
+      if (onUpdate) {
+        onUpdate(updatedUser);
+      }
+      
+      setHasChanges(false);
+    } catch (error) {
+      let errorMessage = 'Erreur lors de la mise à jour du profil';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset to original values
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setPhone(user.phone_number || '');
+    setAddress(user.address || '');
+    setBio(user.bio || '');
+    setAvatar(user.avatar || '');
+    setHasChanges(false);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Informations du profil</h2>
-        <p className="text-muted-foreground">
-          Mettez à jour vos informations personnelles et votre photo de profil.
-        </p>
-      </div>
-      
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="space-y-6">
-            <AvatarSelector 
-              currentAvatar={user.avatar || ''} 
-              initialName={user.display_name}
-              onChange={handleAvatarChange}
-            />
-
-            <FormField
-              control={form.control}
-              name="display_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nom complet</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Votre nom" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Adresse email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="Votre email" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {!user.email_verified && "Votre adresse email n'est pas encore vérifiée."}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="phone_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Numéro de téléphone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Votre numéro" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Adresse</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Votre adresse" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+    <Card className="shadow-card mb-6">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
+          <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+        </div>
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Retour
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          <AvatarSelector 
+            currentAvatar={avatar} 
+            onSelect={handleSelectAvatar} 
+            onUpload={handleAvatarUpload} 
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="name">
+                Nom complet
+              </label>
+              <Input 
+                id="name" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="bio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Biographie</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Parlez un peu de vous..." 
-                      className="min-h-[100px]"
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="email">
+                Adresse e-mail
+              </label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="phone">
+              Téléphone
+            </label>
+            <Input 
+              id="phone" 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              placeholder="+216 XX XXX XXX"
             />
           </div>
           
-          <Button 
-            type="submit" 
-            className="w-full md:w-auto"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enregistrement...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Enregistrer les modifications
-              </>
-            )}
-          </Button>
-        </form>
-      </Form>
-    </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="address">
+              Adresse
+            </label>
+            <Input 
+              id="address" 
+              value={address} 
+              onChange={(e) => setAddress(e.target.value)} 
+              placeholder="Votre adresse"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="bio">
+              Bio
+            </label>
+            <Textarea 
+              id="bio" 
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Parlez-nous de vous..."
+            />
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        <Button 
+          variant="outline" 
+          onClick={handleCancel}
+          disabled={isLoading || !hasChanges}
+        >
+          Annuler
+        </Button>
+        <Button 
+          className="bg-agri-green-500 hover:bg-agri-green-600"
+          onClick={handleSave}
+          disabled={isLoading || !hasChanges}
+        >
+          {isLoading ? 'Enregistrement...' : 'Enregistrer'}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 

@@ -1,104 +1,135 @@
 
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  User, 
-  LogOut, 
-  Settings, 
-  ShieldCheck, 
-  Heart 
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LogOut, User, Settings, MessageSquare, HelpCircle, Heart } from 'lucide-react';
+import AuthDialog from './AuthDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-interface UserProfileButtonProps {
-  mobile?: boolean;
-}
-
-const UserProfileButton = ({ mobile = false }: UserProfileButtonProps) => {
-  const { user, isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  if (!isAuthenticated || !user) return null;
-
-  const getInitials = (name: string) => {
-    if (!name) return 'U';
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
-  };
-
-  const userInitials = getInitials(user.display_name);
-
-  if (mobile) {
+const UserProfileButton = () => {
+  const { user, logout, isAdmin } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  if (!user) {
     return (
-      <div className="flex items-center justify-between w-full p-3 hover:bg-gray-100 rounded-lg cursor-pointer" onClick={() => navigate('/profile')}>
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar || ''} />
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{user.display_name}</span>
-            <span className="text-xs text-gray-500">{user.email}</span>
-          </div>
-        </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size={isMobile ? "sm" : "default"}
+          onClick={() => setShowAuthDialog(true)}
+          className="whitespace-nowrap"
+        >
+          Se connecter
+        </Button>
+        <AuthDialog
+          open={showAuthDialog}
+          onOpenChange={setShowAuthDialog}
+          initialView="login"
+        />
       </div>
     );
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="flex items-center space-x-2 outline-none">
-          <Avatar className="h-8 w-8 cursor-pointer">
-            <AvatarImage src={user.avatar || ''} />
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-          <span className="text-sm font-medium hidden md:inline">{user.display_name}</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end">
-        <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => navigate('/profile')}>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profil</span>
+    <div ref={dropdownRef}>
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+            <Avatar>
+              <AvatarImage src={user.avatar || undefined} alt={user.name} />
+              <AvatarFallback>{user.name?.charAt(0) || "?"}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 z-50">
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user.name}</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/profile" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Mon profil</span>
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/favorites')}>
-            <Heart className="mr-2 h-4 w-4" />
-            <span>Favoris</span>
+          <DropdownMenuItem asChild>
+            <Link to="/conversations" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span>Mes conversations</span>
+            </Link>
           </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        {user.role === 'admin' && (
-          <>
-            <DropdownMenuItem onClick={() => navigate('/admin')}>
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              <span>Administration</span>
+          
+          <DropdownMenuItem asChild>
+            <Link to="/favorites" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <Heart className="mr-2 h-4 w-4" />
+              <span>Fournisseurs favoris</span>
+            </Link>
+          </DropdownMenuItem>
+          
+          {isAdmin() && (
+            <DropdownMenuItem asChild>
+              <Link to="/admin" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Administration</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Déconnexion</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          )}
+          
+          <DropdownMenuItem asChild>
+            <a 
+              href="mailto:yassindhibi100@gmail.com" 
+              className="cursor-pointer"
+              onClick={() => setDropdownOpen(false)}
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Support</span>
+            </a>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={() => {
+              logout();
+              setDropdownOpen(false);
+            }}
+            className="cursor-pointer text-red-600 focus:text-red-600"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Se déconnecter</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 

@@ -1,170 +1,170 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import UserProfileButton from './auth/UserProfileButton';
-import { Button } from '@/components/ui/button';
-import {
-  Menu,
-  X,
-  Home,
-  Bookmark,
-  Users,
-  LayoutDashboard,
-  Book,
-  ShieldCheck,
-  CloudSun
-} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { LogOut, Settings } from 'lucide-react';
+import logo from '@/assets/logo.png';
+import BottomNavbar from './BottomNavbar';
 import LanguageSwitcher from './LanguageSwitcher';
+import AuthDialog from '@/components/auth/AuthDialog';
 
 const Navbar = () => {
-  const { isAuthenticated, logout, user } = useAuth();
-  const location = useLocation();
+  const { isAuthenticated, logout, isAdmin } = useAuth();
   const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+  const isMobile = useIsMobile();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
-  // Hydration check to avoid SSR mismatch
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      setIsScrolled(window.scrollY > 50);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close menu when location changes
-  useEffect(() => {
-    setIsOpen(false);
-  }, [location]);
-
-  const isActive = (path: string) => {
-    return location.pathname === path;
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
-  if (!isHydrated) {
-    return null; // Return null on first render to avoid hydration mismatch
-  }
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
 
-  const menuItems = [
-    { path: '/', label: t('home'), icon: <Home size={16} className="mr-2" /> },
-    // Only show Dashboard to authenticated users
-    ...(isAuthenticated ? [
-      { path: '/dashboard', label: t('dashboard'), icon: <LayoutDashboard size={16} className="mr-2" /> }
-    ] : []),
-    { path: '/projects', label: t('projects'), icon: <Book size={16} className="mr-2" /> },
-    { path: '/suppliers', label: t('suppliers'), icon: <Users size={16} className="mr-2" /> },
-    { path: '/weather', label: t('weather'), icon: <CloudSun size={16} className="mr-2" /> },
-    
-    // Only show admin link to admin users
-    ...(isAuthenticated && user?.role === 'admin' ? [
-      { path: '/admin', label: t('admin'), icon: <ShieldCheck size={16} className="mr-2" /> }
-    ] : [])
-  ];
+  const handleLogout = async () => {
+    try {
+      await logout();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path ? 'text-agri-green-500' : 'text-gray-500';
+  };
+
+  const openAuthDialog = () => {
+    setShowAuthDialog(true);
+  };
 
   return (
-    <header
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-200",
-        isScrolled ? "shadow-md" : ""
-      )}
-    >
-      <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center">
-          <img src="/agri-logo.png" alt="AgriSmart Logo" className="h-10" />
-          <span className="ml-2 font-semibold text-xl text-emerald-800">AgriSmart</span>
-        </Link>
-        
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-1">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive(item.path)
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "text-gray-700 hover:bg-gray-100"
+    <header className={isScrolled ? "fixed w-full z-50 bg-white shadow-md animate-in fade-in slide-in-from-top-2 transition-all duration-300" : "fixed w-full z-50 bg-white shadow-sm transition-all duration-300"}>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <Link to="/" className="flex items-center">
+            <div className="h-10 w-10 bg-agri-green-500 rounded-full overflow-hidden flex-shrink-0">
+              <img 
+                src={logo} 
+                alt="AgriTech Logo" 
+                className="w-full h-full object-cover" 
+              />
+            </div>
+            <span className="ml-2 text-xl font-display font-bold text-gray-900">AgriTech</span>
+          </Link>
+          
+          {!isMobile ? (
+            <nav className="hidden md:flex items-center space-x-6">
+              <Link to="/" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>{t('home')}</Link>
+              <Link to="/projects" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>{t('projects')}</Link>
+              <Link to="/suppliers" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>{t('suppliers')}</Link>
+              <Link to="/weather" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>{t('weather')}</Link>
+              
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
+                  {isAdmin() && (
+                    <Link to="/admin" className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
+                      <Settings className="inline-block h-5 w-5 mr-1 align-text-top" />
+                      <span>{t('admin')}</span>
+                    </Link>
+                  )}
+                  <button onClick={handleLogout} className="hover:text-agri-green-500 transition duration-300 flex items-center">
+                    <LogOut className="inline-block h-5 w-5 mr-1 align-text-top" />
+                    <span>{t('logout')}</span>
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={openAuthDialog} 
+                  className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300"
+                >
+                  {t('login')}
+                </button>
               )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-        
-        {/* Right side - User actions */}
-        <div className="hidden md:flex items-center space-x-2">
-          <LanguageSwitcher />
-          {isAuthenticated ? (
-            <UserProfileButton />
+              <LanguageSwitcher />
+            </nav>
           ) : (
-            <div className="flex space-x-2">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/login">{t('login')}</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link to="/signup">{t('signup')}</Link>
-              </Button>
+            <div className="md:hidden">
+              <button onClick={toggleMenu} className="text-gray-500 hover:text-gray-700 focus:outline-none">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
             </div>
           )}
         </div>
-        
-        {/* Mobile menu button */}
-        <div className="flex md:hidden items-center space-x-2">
-          <LanguageSwitcher />
-          <UserProfileButton />
-          <Button
-            variant="ghost"
-            className="p-1"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </Button>
-        </div>
-      </nav>
-      
-      {/* Mobile menu */}
-      {isOpen && (
-        <div className="md:hidden bg-white shadow-lg">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "block px-3 py-2 rounded-md text-base font-medium flex items-center",
-                  isActive(item.path)
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
-            {isAuthenticated && (
-              <Button
-                variant="ghost"
-                onClick={() => logout()}
-                className="w-full justify-start text-red-500 hover:bg-red-50 hover:text-red-700"
-              >
-                {t('logout')}
-              </Button>
-            )}
+      </div>
+
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-white md:hidden">
+          <div className="flex flex-col h-full">
+            <div className="p-4 flex justify-end">
+              <button onClick={closeMenu} className="text-gray-500 hover:text-gray-700 focus:outline-none">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <nav className="flex flex-col items-center space-y-4 p-4">
+              <Link to="/" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/')}`}>{t('home')}</Link>
+              <Link to="/projects" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/projects')}`}>{t('projects')}</Link>
+              <Link to="/suppliers" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/suppliers')}`}>{t('suppliers')}</Link>
+              <Link to="/weather" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/weather')}`}>{t('weather')}</Link>
+              
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/profile')}`}>{t('profile')}</Link>
+                  {isAdmin() && (
+                    <Link to="/admin" onClick={closeMenu} className={`hover:text-agri-green-500 transition duration-300 ${isActive('/admin')}`}>
+                      <Settings className="inline-block h-5 w-5 mr-1 align-text-top" />
+                      <span>{t('admin')}</span>
+                    </Link>
+                  )}
+                  <button 
+                    onClick={() => { closeMenu(); handleLogout(); }} 
+                    className="hover:text-agri-green-500 transition duration-300 w-full text-center"
+                  >
+                    {t('logout')}
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => { closeMenu(); openAuthDialog(); }} 
+                  className="bg-agri-green-500 hover:bg-agri-green-600 text-white py-2 px-4 rounded-full transition duration-300 w-full"
+                >
+                  {t('login')}
+                </button>
+              )}
+            </nav>
           </div>
         </div>
       )}
+      
+      {/* Add AuthDialog component */}
+      <AuthDialog 
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        initialView="login"
+      />
+      
+      {isMobile && <BottomNavbar />}
     </header>
   );
 };

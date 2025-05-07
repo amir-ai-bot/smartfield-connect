@@ -1,51 +1,69 @@
 
-import { Database } from '@/integrations/supabase/types';
-
-// Extend the Supabase types with our custom table
-export interface ConversationMedia {
+// Media item type for messages
+export interface MediaItem {
   id: string;
   message_id: string;
-  media_type: string;
+  media_type: "image" | "document" | "audio";
   media_url: string;
   created_at: string;
 }
 
-export interface Rating {
+// User profile type
+export interface Profile {
   id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-  user: {
-    id: string;
-    display_name: string;
-    avatar: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  created_at?: string;
+  updated_at?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
   };
 }
 
-export type Profile = Database['public']['Tables']['profiles']['Row'];
-export type Message = Database['public']['Tables']['messages']['Row'];
-export type Conversation = Database['public']['Tables']['conversations']['Row'];
-export type Project = Database['public']['Tables']['projects']['Row'];
-
-// Define ProjectWithUser type that matches the projects_with_users view
-export interface ProjectWithUser {
+// User type
+export interface User {
   id: string;
-  owner_id: string;
   name: string;
-  crop: string;
+  email: string;
+  avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
+}
+
+// Supplier type
+export interface Supplier {
+  id: string;
+  user_id?: string;
+  name: string;
+  category: string;
   location: string;
-  start_date: string;
-  end_date: string;
-  description: string;
-  image: string;
-  is_public: boolean;
-  status: string;
-  progress: number;
-  created_at: string;
-  updated_at: string;
-  user_display_name: string;
-  user_email: string;
-  user_avatar: string;
-  // Compatibility field
-  user_name?: string;
+  phone: string;
+  products: string[];
+  rating: number;
+  avatar?: string;
+  email?: string;
+  image?: string;
+  isFavorite?: boolean;
 }

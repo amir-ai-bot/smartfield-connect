@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  display_name: string;
+  name: string;
   email: string;
   avatar?: string;
   role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
@@ -37,7 +37,6 @@ export interface AuthContextType extends AuthState {
   requestPasswordReset: (email: string) => Promise<void>;
   confirmPasswordReset: (code: string, password: string) => Promise<void>;
   becomeFournisseur: () => Promise<void>;
-  refreshUser: () => Promise<void>;
 }
 
 export interface LoginFormData {
@@ -68,7 +67,7 @@ export interface VerifyEmailFormData {
 }
 
 export interface ProfileUpdateFormData {
-  display_name?: string;
+  name?: string;
   email?: string;
   phone_number?: string;
   address?: string;
@@ -87,26 +86,19 @@ export interface UserPreferences {
 
 export interface ProjectData {
   id: string;
-  name: string;
+  title: string;
   crop: string;
   location: string;
-  start_date: string;
-  end_date: string;
+  startDate: string;
+  endDate: string;
   progress: number;
   status: 'active' | 'planning' | 'completed';
   image?: string;
   description?: string;
-  owner_id: string;
-  is_public?: boolean;
-  user_display_name?: string;
-  user_avatar?: string;
-  // For compatibility with existing code
-  title?: string;
-  startDate?: string;
-  endDate?: string;
-  user_id?: string;
+  user_id: string;
+  isPublic?: boolean;
   user_name?: string;
-  isOwnProject?: boolean;
+  user_avatar?: string;
 }
 
 export const CROP_TYPES = [
@@ -190,4 +182,26 @@ export interface FournisseurData {
   location: string;
   category: string;
   products: string[];
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  created_at?: string;
+  updated_at?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
 }

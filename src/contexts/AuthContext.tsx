@@ -1,379 +1,455 @@
-
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AuthContextType, User } from '@/types/auth';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Session } from '@supabase/supabase-js';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { User, Profile } from '@/types/supabase';
 
-// Create context with a default value
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+interface AuthContextProps {
+  user: User | null;
+  session: Session | null;
+  profile: Profile | null;
+  signUp: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+  isLoading: boolean; // Aliased for backward compatibility
+  isAuthenticated: boolean;
+  isAdmin: () => boolean;
+  isFournisseur: () => boolean;
+  isPendingFournisseur: () => boolean;
+  updateProfile: (updates: Partial<User>) => Promise<User>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  confirmPasswordReset: (code: string, password: string) => Promise<void>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  becomeFournisseur: () => Promise<void>;
+  
+  // Aliases for backward compatibility
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  signup: (name: string, email: string, password: string, phone_number?: string) => Promise<void>;
+}
 
-// Hook for using the auth context
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load user from session
+  useEffect(() => {
+    const getSession = async () => {
+      setLoading(true);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
+        setSession(session);
+        
+        if (session?.user) {
+          await loadUserAndProfile(session.user);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Error loading user session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          await loadUserAndProfile(session.user);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Load user profile data
+  const loadUserAndProfile = async (supabaseUser: SupabaseUser) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      // Ensure role is one of the allowed types
+      const safeRole = validateRole(data?.role);
+      
+      // Process preferences to ensure they match the expected type
+      const safePreferences = processPreferences(data?.preferences);
+
+      // Create the profile object with safe types
+      const profileData: Profile = {
+        ...data,
+        role: safeRole,
+        preferences: safePreferences
+      };
+
+      // Combine Supabase user with profile data
+      const enhancedUser: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        name: data?.name || supabaseUser.user_metadata?.name || '',
+        role: safeRole,
+        avatar: data?.avatar || '',
+        phone_number: data?.phone_number || '',
+        email_verified: !!supabaseUser.email_confirmed_at,
+        address: data?.address || '',
+        bio: data?.bio || '',
+        preferences: safePreferences
+      };
+
+      setUser(enhancedUser);
+      setProfile(profileData);
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      // Use basic Supabase user if profile fetch fails
+      setUser({
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        name: supabaseUser.user_metadata?.name || '',
+        role: 'user', // Default to user role
+        avatar: '',
+        email_verified: !!supabaseUser.email_confirmed_at
+      });
+      setProfile(null);
+    }
+  };
+
+  // Helper to ensure role is one of the allowed values
+  const validateRole = (role: any): 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur' => {
+    const validRoles = ['admin', 'user', 'fournisseur', 'pending_fournisseur'];
+    return validRoles.includes(role) ? (role as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur') : 'user';
+  };
+
+  // Helper to process preferences into the expected format
+  const processPreferences = (prefs: any) => {
+    if (!prefs) return {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+    
+    if (typeof prefs === 'object') {
+      return {
+        language: ['fr', 'en', 'ar'].includes(prefs.language) ? prefs.language : 'fr',
+        notifications: {
+          email: Boolean(prefs.notifications?.email),
+          app: Boolean(prefs.notifications?.app)
+        },
+        theme: ['light', 'dark', 'system'].includes(prefs.theme) ? prefs.theme : 'light'
+      };
+    }
+    
+    return {
+      language: 'fr',
+      notifications: { email: true, app: true },
+      theme: 'light'
+    };
+  };
+
+  // Sign up a new user
+  const signUp = async (name: string, email: string, password: string, phone_number?: string) => {
+    setLoading(true);
+    try {
+      // First check if email already exists
+      const { data: existingUsers, error: emailCheckError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+      
+      if (emailCheckError) {
+        console.error('Error checking existing email:', emailCheckError);
+      }
+      
+      if (existingUsers) {
+        toast.error('Cette adresse email est déjà utilisée');
+        return;
+      }
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            phone_number: phone_number || '',
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          toast.error('Cette adresse email est déjà utilisée');
+        } else {
+          toast.error(error.message || 'Une erreur est survenue lors de l\'inscription');
+        }
+        throw error;
+      }
+
+      // If signUp is successful, show a toast
+      toast.success('Compte créé avec succès!');
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign in a user
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        if (error.message.includes('Invalid login')) {
+          toast.error('Email ou mot de passe incorrect');
+        } else {
+          toast.error(error.message || 'Une erreur est survenue lors de la connexion');
+        }
+        throw error;
+      }
+
+      toast.success('Connexion réussie!');
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign out a user
+  const signOut = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      toast.success('Déconnexion réussie');
+    } catch (error: any) {
+      toast.error(error.message || 'Une erreur est survenue lors de la déconnexion');
+      console.error('Sign out error:', error);
+    } finally {
+      setLoading(false);
+      setProfile(null);
+      setUser(null);
+    }
+  };
+
+  // Update user profile
+  const updateProfile = async (updates: Partial<User>): Promise<User> => {
+    if (!user) throw new Error('User not authenticated');
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: updates.name,
+          phone_number: updates.phone_number,
+          address: updates.address,
+          bio: updates.bio,
+          avatar: updates.avatar,
+          updated_at: new Date().toISOString(),
+          ...(updates.preferences && { preferences: updates.preferences })
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Update local user state with new values
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      
+      toast.success('Profil mis à jour avec succès');
+      return updatedUser;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Erreur lors de la mise à jour du profil');
+      throw error;
+    }
+  };
+
+  // Request password reset
+  const requestPasswordReset = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Instructions de réinitialisation envoyées à votre email');
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      toast.error('Erreur lors de la demande de réinitialisation');
+      throw error;
+    }
+  };
+
+  // Confirm password reset
+  const confirmPasswordReset = async (code: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: code,
+        type: 'recovery',
+      });
+      
+      if (error) throw error;
+      
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+      
+      if (updateError) throw updateError;
+      
+      toast.success('Mot de passe réinitialisé avec succès');
+    } catch (error: any) {
+      console.error('Confirm reset error:', error);
+      toast.error('Erreur lors de la réinitialisation du mot de passe');
+      throw error;
+    }
+  };
+
+  // Verify email
+  const verifyEmail = async (email: string, code: string) => {
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Email vérifié avec succès');
+      
+      // Refresh user data to update email_verified status
+      if (user) {
+        const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+        if (refreshedUser) {
+          await loadUserAndProfile(refreshedUser);
+        }
+      }
+    } catch (error: any) {
+      console.error('Email verification error:', error);
+      toast.error('Erreur lors de la vérification de l\'email');
+      throw error;
+    }
+  };
+
+  // Become a supplier
+  const becomeFournisseur = async () => {
+    if (!user) throw new Error('User not authenticated');
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: 'pending_fournisseur',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Update local user state
+      const updatedUser: User = { 
+        ...user, 
+        role: 'pending_fournisseur' 
+      };
+      setUser(updatedUser);
+      
+      toast.success('Demande pour devenir fournisseur envoyée');
+    } catch (error) {
+      console.error('Error becoming supplier:', error);
+      toast.error('Erreur lors de la demande pour devenir fournisseur');
+      throw error;
+    }
+  };
+
+  // Role check helpers
+  const isAdmin = () => {
+    return user?.role === 'admin';
+  };
+
+  const isFournisseur = () => {
+    return user?.role === 'fournisseur';
+  };
+
+  const isPendingFournisseur = () => {
+    return user?.role === 'pending_fournisseur';
+  };
+
+  // Derived isAuthenticated value
+  const isAuthenticated = !!user;
+
+  // Backward compatibility aliases
+  const login = signIn;
+  const logout = signOut;
+  const signup = signUp;
+
+  const value = {
+    user,
+    session,
+    profile,
+    signUp,
+    signIn,
+    signOut,
+    loading,
+    isLoading: loading, // Alias for backward compatibility
+    isAuthenticated,
+    isAdmin,
+    isFournisseur,
+    isPendingFournisseur,
+    updateProfile,
+    requestPasswordReset,
+    confirmPasswordReset,
+    verifyEmail,
+    becomeFournisseur,
+    
+    // Aliases for backward compatibility
+    login,
+    logout,
+    signup
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// Hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-// Convert Supabase user to our User type
-const mapUser = (user: any, profile?: any): User => {
-  let result: User = {
-    id: user.id,
-    display_name: profile?.display_name || user?.user_metadata?.name || 'User',
-    email: user.email ?? '',
-    role: (profile?.role || user?.user_metadata?.role || 'user') as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
-    avatar: profile?.avatar || null,
-    phone_number: profile?.phone_number || null,
-    address: profile?.address || null,
-    bio: profile?.bio || null,
-    preferences: profile?.preferences || {
-      language: 'fr',
-      notifications: {
-        email: true,
-        app: true
-      },
-      theme: 'light'
-    },
-    email_verified: user.email_confirmed_at ? true : false
-  };
-  return result;
-};
-
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-        
-      if (error) throw error;
-      
-      return profile;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-  };
-  
-  // Initialize auth state
-  useEffect(() => {
-    // Check if there's already a session
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      
-      // Set up auth state listener FIRST
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, currentSession) => {
-          if (currentSession?.user) {
-            // Only update synchronized auth state
-            setSession(currentSession);
-            setIsAuthenticated(true);
-            
-            // Defer profile fetch
-            setTimeout(async () => {
-              const profile = await fetchUserProfile(currentSession.user.id);
-              const mappedUser = mapUser(currentSession.user, profile);
-              setUser(mappedUser);
-            }, 0);
-            
-          } else {
-            // User is not authenticated
-            setSession(null);
-            setIsAuthenticated(false);
-            setUser(null);
-          }
-        }
-      );
-      
-      // THEN check for existing session
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      
-      if (initialSession?.user) {
-        setSession(initialSession);
-        setIsAuthenticated(true);
-        
-        const profile = await fetchUserProfile(initialSession.user.id);
-        const mappedUser = mapUser(initialSession.user, profile);
-        setUser(mappedUser);
-      }
-      
-      setIsLoading(false);
-      
-      return () => {
-        subscription.unsubscribe();
-      };
-    };
-    
-    initializeAuth();
-  }, []);
-  
-  // Function to login
-  const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          toast.error('Veuillez confirmer votre email avant de vous connecter');
-        } else {
-          toast.error('Erreur de connexion: ' + error.message);
-        }
-        throw error;
-      }
-      
-      // The session will be handled by the onAuthStateChange listener
-      toast.success('Connexion réussie');
-      
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
-
-  // Function to logout
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      // State will be updated by the auth state listener
-      toast.info('Déconnexion réussie');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Erreur lors de la déconnexion');
-    }
-  };
-
-  // Function to signup
-  const signup = async (name: string, email: string, password: string, phone_number?: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            phone_number,
-            role: 'user'
-          },
-          // Automatically confirm email in development
-          emailRedirectTo: window.location.origin
-        }
-      });
-      
-      if (error) {
-        toast.error('Erreur d\'inscription: ' + error.message);
-        throw error;
-      }
-      
-      toast.success('Inscription réussie! Veuillez vérifier votre email pour confirmer votre compte.');
-      
-    } catch (error) {
-      console.error('Signup error:', error);
-      throw error;
-    }
-  };
-  
-  // Check if user is admin
-  const isAdmin = (): boolean => {
-    return user?.role === 'admin';
-  };
-  
-  // Check if user is fournisseur
-  const isFournisseur = (): boolean => {
-    return user?.role === 'fournisseur';
-  };
-  
-  // Check if user is pending fournisseur
-  const isPendingFournisseur = (): boolean => {
-    return user?.role === 'pending_fournisseur';
-  };
-  
-  // Update user profile
-  const updateProfile = async (updates: Partial<User>): Promise<User> => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          display_name: updates.display_name,
-          phone_number: updates.phone_number,
-          address: updates.address,
-          bio: updates.bio,
-          avatar: updates.avatar,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-        .select('*')
-        .single();
-        
-      if (error) {
-        toast.error('Erreur lors de la mise à jour du profil: ' + error.message);
-        throw error;
-      }
-      
-      // Update email if provided and different
-      if (updates.email && updates.email !== user.email) {
-        const { error: updateEmailError } = await supabase.auth.updateUser({ email: updates.email });
-        
-        if (updateEmailError) {
-          toast.error('Erreur lors de la mise à jour de l\'email: ' + updateEmailError.message);
-          throw updateEmailError;
-        }
-        
-        toast.info('Un email de vérification a été envoyé à votre nouvelle adresse email');
-      }
-      
-      // Update local state
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      
-      toast.success('Profil mis à jour avec succès');
-      
-      return updatedUser;
-      
-    } catch (error) {
-      console.error('Update profile error:', error);
-      throw error;
-    }
-  };
-  
-  // Reset password request
-  const requestPasswordReset = async (email: string): Promise<void> => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-      
-      if (error) {
-        toast.error('Erreur lors de la demande de réinitialisation: ' + error.message);
-        throw error;
-      }
-      
-      toast.success('Un email de réinitialisation a été envoyé à votre adresse email');
-      
-    } catch (error) {
-      console.error('Password reset request error:', error);
-      throw error;
-    }
-  };
-  
-  // Confirm password reset
-  const confirmPasswordReset = async (code: string, password: string): Promise<void> => {
-    try {
-      const { error } = await supabase.auth.updateUser({ 
-        password: password 
-      });
-      
-      if (error) {
-        toast.error('Erreur lors de la réinitialisation du mot de passe: ' + error.message);
-        throw error;
-      }
-      
-      toast.success('Mot de passe réinitialisé avec succès');
-      
-    } catch (error) {
-      console.error('Password reset confirmation error:', error);
-      throw error;
-    }
-  };
-  
-  // Verify email
-  const verifyEmail = async (email: string, code: string): Promise<void> => {
-    try {
-      // TODO: Implement email verification with Supabase
-      toast.success('Email vérifié avec succès');
-    } catch (error) {
-      console.error('Email verification error:', error);
-      throw error;
-    }
-  };
-  
-  // Become a supplier
-  const becomeFournisseur = async (): Promise<void> => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          role: 'pending_fournisseur' as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-        .select('*')
-        .single();
-        
-      if (error) {
-        toast.error('Erreur lors de la demande: ' + error.message);
-        throw error;
-      }
-      
-      // Update local state
-      const updatedUser = { ...user, role: 'pending_fournisseur' as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur' };
-      setUser(updatedUser);
-      
-      toast.success('Votre demande pour devenir fournisseur a été envoyée avec succès');
-      
-    } catch (error) {
-      console.error('Become supplier error:', error);
-      throw error;
-    }
-  };
-  
-  // Refresh user data
-  const refreshUser = async (): Promise<void> => {
-    if (!user) {
-      return;
-    }
-    
-    try {
-      const profile = await fetchUserProfile(user.id);
-      
-      if (profile) {
-        const { data: userAuth } = await supabase.auth.getUser();
-        const updatedUser = mapUser(userAuth.user, profile);
-        setUser(updatedUser);
-      }
-    } catch (error) {
-      console.error('Refresh user error:', error);
-    }
-  };
-  
-  const value = {
-    user,
-    isAuthenticated,
-    isLoading,
-    login,
-    logout,
-    signup,
-    isAdmin,
-    isFournisseur,
-    isPendingFournisseur,
-    updateProfile,
-    resetPassword: requestPasswordReset,
-    verifyEmail,
-    requestPasswordReset,
-    confirmPasswordReset,
-    becomeFournisseur,
-    refreshUser
-  };
-  
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
 };

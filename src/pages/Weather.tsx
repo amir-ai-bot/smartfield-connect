@@ -1,323 +1,316 @@
-import { useEffect, useState } from 'react';
-import { MapPin, Thermometer, Wind, Droplets } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { 
+  SearchIcon, 
+  MapPin, 
+  Droplets, 
+  Wind, 
+  Thermometer, 
+  Sun, 
+  Cloud, 
+  CloudRain, 
+  CloudSnow,
+  CloudSun,
+  Cloudy,
+  Navigation,
+  Sunrise,
+  Sunset,
+  Umbrella
+} from 'lucide-react';
+import { fetchWeatherData } from '@/services/weatherService';
 import { locationService } from '@/services/locationService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Geolocation } from '@capacitor/geolocation';
+import { WeatherData } from '@/types/dashboard';
+import { motion, AnimatePresence } from 'framer-motion';
 
-interface WeatherData {
-  location: string;
-  temperature: number;
-  feelsLike: number;
-  condition: string;
-  humidity: number;
-  windSpeed: number;
-  forecast: Array<{
-    day: string;
-    temperature: number;
-    condition: string;
-  }>;
-}
+const getWeatherIcon = (condition: string) => {
+  const conditionLower = condition.toLowerCase();
+  if (conditionLower.includes('rain')) return <CloudRain className="w-8 h-8" />;
+  if (conditionLower.includes('snow')) return <CloudSnow className="w-8 h-8" />;
+  if (conditionLower.includes('cloud')) return <Cloudy className="w-8 h-8" />;
+  if (conditionLower.includes('sun') || conditionLower.includes('clear')) return <Sun className="w-8 h-8" />;
+  if (conditionLower.includes('partly')) return <CloudSun className="w-8 h-8" />;
+  return <Cloud className="w-8 h-8" />;
+};
 
 const Weather = () => {
-  const { user } = useAuth();
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  
-  useEffect(() => {
-    checkLocationPermission();
-    fetchWeatherData();
-  }, []);
-  
-  const checkLocationPermission = async () => {
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const getCurrentLocation = async () => {
     try {
-      const permissions = await Geolocation.checkPermissions();
-      setLocationPermission(permissions.location);
-    } catch (error) {
-      console.error('Error checking location permissions:', error);
-      setLocationPermission('prompt');
+      setIsLoading(true);
+      setError(null);
+      setLocationError(null);
+      
+      const location = await locationService.getCurrentLocation();
+      if (!location) {
+        setLocationError("Impossible d'accéder à votre position. Veuillez autoriser l'accès à votre position dans les paramètres de votre appareil.");
+        return;
+      }
+      
+      setUserLocation({ latitude: location.latitude, longitude: location.longitude });
+      
+      const data = await fetchWeatherData(null, { 
+        lat: location.latitude, 
+        lon: location.longitude 
+      });
+      setWeatherData(data);
+    } catch (error: any) {
+      console.error('Error getting location:', error);
+      setLocationError(error.message || "Impossible d'accéder à votre position");
+      toast.error("Veuillez autoriser l'accès à votre position");
+    } finally {
+      setIsLoading(false);
     }
   };
-  
-  const fetchWeatherData = async () => {
-    setIsLoading(true);
-    
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
+
+  const loadDefaultWeather = async () => {
     try {
-      let userLocation = null;
-      
-      // First try to get the user's saved location if they're logged in
-      if (user) {
-        userLocation = await locationService.getSavedLocation(user.id);
-      }
-      
-      // If no saved location, try to get current location
-      if (!userLocation) {
-        userLocation = await locationService.getCurrentLocation();
-      }
-      
-      // If we have a location, get weather data
-      if (userLocation) {
-        const weatherData = await locationService.getWeatherForLocation(userLocation);
-        
-        // Save the user's location if they're logged in
-        if (user) {
-          await locationService.saveUserLocation(user.id, userLocation);
-        }
-        
-        // Create proper weather data object
-        setWeather({
-          location: 'Votre position',
-          temperature: weatherData.temperature,
-          feelsLike: Math.round(weatherData.temperature * 0.9),
-          condition: weatherData.condition,
-          humidity: weatherData.humidity,
-          windSpeed: weatherData.windSpeed,
-          forecast: [
-            { day: 'Lun', temperature: Math.round(Math.random() * 10 + 15), condition: 'sunny' },
-            { day: 'Mar', temperature: Math.round(Math.random() * 10 + 15), condition: 'partly-cloudy' },
-            { day: 'Mer', temperature: Math.round(Math.random() * 10 + 15), condition: 'cloudy' },
-            { day: 'Jeu', temperature: Math.round(Math.random() * 10 + 15), condition: 'rainy' },
-            { day: 'Ven', temperature: Math.round(Math.random() * 10 + 15), condition: 'sunny' },
-          ]
-        });
-      } else {
-        toast.error('Impossible de déterminer votre position');
-      }
-    } catch (error) {
-      console.error('Error fetching weather data:', error);
+      setIsLoading(true);
+      setError(null);
+      setWeatherData(null);
+      setError("Veuillez rechercher une localisation ou autoriser l'accès à votre position");
+      toast.info("Veuillez rechercher une localisation");
+    } catch (error: any) {
+      console.error('Error handling default weather:', error);
+      setError(error.message || 'Une erreur est survenue');
       toast.error('Impossible de charger les données météo');
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const requestLocationPermission = async () => {
-    try {
-      const { location } = await Geolocation.requestPermissions();
-      setLocationPermission(location);
-      
-      if (location === 'granted') {
-        fetchWeatherData();
-      }
-    } catch (error) {
-      console.error('Error requesting location permission:', error);
-      toast.error('Erreur lors de la demande de permission de localisation');
-    }
-  };
-  
-  const renderWeatherIcon = () => {
-    if (!weather) return null;
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
     
-    switch (weather.condition) {
-      case 'sunny':
-        return (
-          <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center">
-            <div className="w-16 h-16 bg-yellow-400 rounded-full"></div>
-          </div>
-        );
-      case 'cloudy':
-        return (
-          <div className="w-24 h-24 flex items-center justify-center">
-            <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
-          </div>
-        );
-      case 'rainy':
-        return (
-          <div className="w-24 h-24 flex items-center justify-center">
-            <div className="w-16 h-16 bg-blue-200 rounded-full flex items-center justify-center">
-              <div className="w-10 h-10 bg-blue-300 rounded-full"></div>
-            </div>
-          </div>
-        );
-      case 'partly-cloudy':
-        return (
-          <div className="w-24 h-24 flex items-center justify-center relative">
-            <div className="w-12 h-12 bg-yellow-400 rounded-full absolute bottom-4 left-4"></div>
-            <div className="w-14 h-14 bg-gray-200 rounded-full absolute top-4 right-4"></div>
-          </div>
-        );
-      default:
-        return (
-          <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center">
-            <div className="w-16 h-16 bg-yellow-400 rounded-full"></div>
-          </div>
-        );
+    try {
+      setIsSearching(true);
+      setError(null);
+      const data = await fetchWeatherData(searchTerm);
+      setWeatherData(data);
+    } catch (error: any) {
+      console.error('Error searching weather:', error);
+      setError(error.message || 'Une erreur est survenue');
+      toast.error('Impossible de trouver cette localisation');
+    } finally {
+      setIsSearching(false);
     }
   };
-  
-  const renderDayIcon = (condition: string) => {
-    switch (condition) {
-      case 'sunny':
-        return <div className="w-8 h-8 bg-yellow-400 rounded-full mx-auto"></div>;
-      case 'cloudy':
-        return <div className="w-8 h-8 bg-gray-200 rounded-full mx-auto"></div>;
-      case 'rainy':
-        return <div className="w-8 h-8 bg-blue-200 rounded-full mx-auto"></div>;
-      case 'partly-cloudy':
-        return (
-          <div className="w-8 h-8 relative mx-auto">
-            <div className="w-5 h-5 bg-yellow-400 rounded-full absolute bottom-0 left-0"></div>
-            <div className="w-5 h-5 bg-gray-200 rounded-full absolute top-0 right-0"></div>
-          </div>
-        );
-      default:
-        return <div className="w-8 h-8 bg-yellow-400 rounded-full mx-auto"></div>;
-    }
-  };
-  
-  if (locationPermission !== 'granted' && !isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-20 pb-8 px-4">
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow-md p-6 text-center">
-          <MapPin className="w-12 h-12 text-agri-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Accès à la localisation nécessaire</h2>
-          <p className="text-gray-600 mb-6">
-            Pour afficher les informations météo pour votre région, nous avons besoin de votre permission pour accéder à votre localisation.
-          </p>
-          <Button onClick={requestLocationPermission} className="bg-agri-green-500 hover:bg-agri-green-600">
-            Autoriser l'accès à ma position
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Météo agricole</h1>
-        
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          <Card className="bg-white shadow-md">
-            <CardContent className="p-6">
-              {isLoading ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-2">
-                      <div className="h-10 bg-gray-200 rounded w-24"></div>
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    </div>
-                    <div className="h-24 w-24 bg-gray-200 rounded-full"></div>
-                  </div>
-                </div>
-              ) : weather ? (
-                <>
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h2 className="text-3xl font-bold">{weather.temperature}°C</h2>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span>{weather.location}</span>
-                      </div>
-                    </div>
-                    {renderWeatherIcon()}
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg text-center">
-                      <Thermometer className="h-6 w-6 mx-auto text-orange-500 mb-1" />
-                      <p className="text-sm text-gray-500">Ressenti</p>
-                      <p className="font-bold">{weather.feelsLike}°C</p>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-4 rounded-lg text-center">
-                      <Wind className="h-6 w-6 mx-auto text-blue-500 mb-1" />
-                      <p className="text-sm text-gray-500">Vent</p>
-                      <p className="font-bold">{weather.windSpeed} km/h</p>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-4 rounded-lg text-center">
-                      <Droplets className="h-6 w-6 mx-auto text-blue-500 mb-1" />
-                      <p className="text-sm text-gray-500">Humidité</p>
-                      <p className="font-bold">{weather.humidity}%</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">Aucune donnée météo disponible</p>
-                  <Button 
-                    onClick={fetchWeatherData} 
-                    className="mt-4 bg-agri-green-500 hover:bg-agri-green-600"
-                  >
-                    Réessayer
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
+      <div className="container mx-auto px-4 py-8">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Météo</h1>
+            <p className="text-gray-600">Obtenez les prévisions météo en temps réel</p>
+          </div>
           
-          <Card className="bg-white shadow-md">
-            <CardContent className="p-6">
-              <h3 className="font-bold mb-4">Prévisions sur 5 jours</h3>
-              
-              {isLoading ? (
-                <div className="animate-pulse grid grid-cols-5 gap-2">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="space-y-2 text-center">
-                      <div className="h-4 bg-gray-200 rounded w-8 mx-auto"></div>
-                      <div className="h-8 w-8 bg-gray-200 rounded-full mx-auto"></div>
-                      <div className="h-4 bg-gray-200 rounded w-10 mx-auto"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : weather ? (
-                <div className="grid grid-cols-5 gap-2">
-                  {weather.forecast.map((day, index) => (
-                    <div key={index} className="text-center">
-                      <p className="font-medium mb-1">{day.day}</p>
-                      {renderDayIcon(day.condition)}
-                      <p className="mt-1 font-bold">{day.temperature}°C</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">Aucune prévision disponible</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        
-        <Card className="bg-white shadow-md mt-6">
-          <CardContent className="p-6">
-            <h3 className="font-bold mb-4">Conseils agricoles</h3>
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <div className="flex items-center gap-2 max-w-md w-full">
+              <Input
+                placeholder="Rechercher une localisation..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-500"
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <Button 
+                onClick={handleSearch} 
+                disabled={isLoading || !searchTerm.trim()}
+                className="bg-blue-500 hover:bg-blue-600 shadow-lg"
+              >
+                <SearchIcon className="h-4 w-4" />
+              </Button>
+            </div>
             
-            {!isLoading && weather && (
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">Gestion de l'irrigation</h4>
-                  <p className="text-gray-700">
-                    {weather.humidity > 70 
-                      ? "L'humidité élevée suggère de réduire l'irrigation pour éviter les maladies fongiques."
-                      : weather.humidity < 40
-                      ? "Faible humidité détectée. Augmentez l'irrigation pour éviter le stress hydrique des cultures."
-                      : "Conditions d'humidité optimales. Maintenez le régime d'irrigation habituel."}
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-medium mb-2">Protection des cultures</h4>
-                  <p className="text-gray-700">
-                    {weather.windSpeed > 25
-                      ? "Vents forts attendus. Retardez la pulvérisation de pesticides pour éviter la dérive."
-                      : weather.condition === 'rainy'
-                      ? "Conditions pluvieuses. Utilisez des produits résistants au lessivage si une pulvérisation est nécessaire."
-                      : "Conditions favorables pour les traitements phytosanitaires."}
-                  </p>
+            <Button
+              onClick={getCurrentLocation}
+              disabled={isLoading}
+              className="bg-green-500 hover:bg-green-600 shadow-lg"
+            >
+              <Navigation className="h-4 w-4 mr-2" />
+              Utiliser ma position
+            </Button>
+            
+            {locationError && (
+              <div className="text-center mt-2">
+                <p className="text-sm text-red-500">{locationError}</p>
+                <div className="flex flex-col gap-2 mt-2">
+                  <Button 
+                    onClick={getCurrentLocation} 
+                    variant="outline" 
+                    className="text-sm"
+                  >
+                    Réessayer avec ma position
+                  </Button>
+                  <p className="text-sm text-gray-500">ou</p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Rechercher une localisation..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-1 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-500"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                    <Button 
+                      onClick={handleSearch} 
+                      disabled={isLoading || !searchTerm.trim()}
+                      className="bg-blue-500 hover:bg-blue-600 shadow-lg"
+                    >
+                      <SearchIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <WeatherCardSkeleton />
+            ) : error ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="text-center py-8">
+                      <p className="text-red-500 mb-2">{error}</p>
+                      <p className="text-sm text-gray-500">Veuillez réessayer avec une autre localisation</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : weatherData ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-2xl mb-1">
+                          <MapPin className="h-6 w-6" />
+                          {weatherData.location}
+                        </CardTitle>
+                        <CardDescription className="text-blue-100 text-lg">Aujourd'hui</CardDescription>
+                      </div>
+                      <div className="text-5xl font-bold">{weatherData.temperature}°C</div>
+                    </div>
+                    <div className="mt-6 flex justify-center">
+                      <div className="text-center">
+                        {getWeatherIcon(weatherData.condition)}
+                        <p className="mt-2 text-xl font-medium">{weatherData.condition}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <CardContent className="p-8">
+                    <div className="grid grid-cols-3 gap-6 mb-8">
+                      <div className="bg-blue-50 p-6 rounded-xl text-center transform hover:scale-105 transition-transform">
+                        <Thermometer className="h-8 w-8 mx-auto mb-3 text-blue-500" />
+                        <p className="text-sm text-gray-500 mb-1">Ressenti</p>
+                        <p className="text-2xl font-bold text-gray-900">{weatherData.feelsLike}°C</p>
+                      </div>
+                      
+                      <div className="bg-blue-50 p-6 rounded-xl text-center transform hover:scale-105 transition-transform">
+                        <Wind className="h-8 w-8 mx-auto mb-3 text-blue-500" />
+                        <p className="text-sm text-gray-500 mb-1">Vent</p>
+                        <p className="text-2xl font-bold text-gray-900">{weatherData.windSpeed} km/h</p>
+                      </div>
+                      
+                      <div className="bg-blue-50 p-6 rounded-xl text-center transform hover:scale-105 transition-transform">
+                        <Droplets className="h-8 w-8 mx-auto mb-3 text-blue-500" />
+                        <p className="text-sm text-gray-500 mb-1">Humidité</p>
+                        <p className="text-2xl font-bold text-gray-900">{weatherData.humidity}%</p>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-6 border-t border-gray-100">
+                      <p className="text-lg font-semibold text-gray-700 mb-6">Prévisions pour la semaine</p>
+                      <div className="grid grid-cols-5 gap-4">
+                        {weatherData.forecast.map((day) => (
+                          <div key={day.day} className="text-center bg-blue-50 p-4 rounded-xl transform hover:scale-105 transition-transform">
+                            <p className="text-sm font-medium text-gray-500 mb-2">{day.day}</p>
+                            <div className="mb-3">{getWeatherIcon(day.condition)}</div>
+                            <p className="text-xl font-bold text-gray-900">{day.temperature}°</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );
 };
+
+const WeatherCardSkeleton = () => (
+  <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+    <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8">
+      <div className="flex justify-between items-start">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-12 w-20 rounded" />
+      </div>
+      <div className="mt-6 flex justify-center">
+        <Skeleton className="h-12 w-12 rounded-full" />
+      </div>
+    </div>
+    <CardContent className="p-8">
+      <div className="grid grid-cols-3 gap-6 mb-8">
+        {Array(3).fill(0).map((_, i) => (
+          <div key={i} className="bg-blue-50 p-6 rounded-xl">
+            <Skeleton className="h-8 w-8 mx-auto mb-3 rounded-full" />
+            <Skeleton className="h-4 w-24 mx-auto mb-1" />
+            <Skeleton className="h-8 w-16 mx-auto" />
+          </div>
+        ))}
+      </div>
+      
+      <div className="pt-6 border-t border-gray-100">
+        <Skeleton className="h-6 w-48 mb-6" />
+        <div className="grid grid-cols-5 gap-4">
+          {Array(5).fill(0).map((_, i) => (
+            <div key={i} className="text-center bg-blue-50 p-4 rounded-xl">
+              <Skeleton className="h-4 w-16 mx-auto mb-2" />
+              <Skeleton className="h-8 w-8 mx-auto mb-3 rounded-full" />
+              <Skeleton className="h-6 w-12 mx-auto" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export default Weather;

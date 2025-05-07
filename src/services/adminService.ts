@@ -374,20 +374,7 @@ export const getAllProjects = async () => {
 // Approve a fournisseur request
 export const approveFournisseurRequest = async (userId: string): Promise<boolean> => {
   try {
-    // Use a regular RPC call instead of a function that doesn't exist
-    const { error } = await supabase
-      .rpc('admin_update_user_password', { 
-        user_id: userId, 
-        new_password: 'temporary_password'  // Just a placeholder - this function exists and we're repurposing it
-      });
-
-    // If there's an error, log it and return false
-    if (error) {
-      console.error('Error approving fournisseur request:', error);
-      return false;
-    }
-
-    // Update the user's role in profiles table
+    // First, update the user's role to 'fournisseur'
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ role: 'fournisseur' })
@@ -395,12 +382,48 @@ export const approveFournisseurRequest = async (userId: string): Promise<boolean
 
     if (updateError) {
       console.error('Error updating user role:', updateError);
+      toast.error('Erreur lors de la mise à jour du rôle');
       return false;
     }
 
+    // Get user's profile data to create supplier entry
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      toast.error('Erreur lors de la récupération du profil');
+      return false;
+    }
+
+    // Create supplier entry
+    const { error: supplierError } = await supabase
+      .from('suppliers')
+      .insert({
+        user_id: userId,
+        name: profile?.name || 'Fournisseur',
+        category: 'Autre',
+        location: 'Non spécifié',
+        products: [],
+        rating: 0
+      })
+      .select()
+      .single();
+
+    if (supplierError) {
+      console.error('Error creating supplier entry:', supplierError);
+      toast.error('Erreur lors de la création du profil fournisseur');
+      return false;
+    }
+
+    toast.success('Demande de fournisseur approuvée avec succès');
     return true;
   } catch (error) {
     console.error('Error in approveFournisseurRequest:', error);
+    toast.error('Erreur lors de l\'approbation de la demande');
     return false;
   }
 };
