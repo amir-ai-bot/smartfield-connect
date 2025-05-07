@@ -1,289 +1,266 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { getSupplierById } from '@/services/supplierService';
-import { getFournisseurRatings } from '@/services/conversationService';
-import { Supplier } from '@/services/supplierService';
+
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupplierById, createSupplierConversation, Supplier } from '@/services/supplierService';
+import { getFournisseurRatings } from '@/services/ratingService';
+import { Rating } from '@/types/supabase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { createSupplierConversation } from '@/services/supplierService';
-import { Phone, Mail, MapPin, MessageSquare, Star, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Separator } from '@/components/ui/separator';
+import { MapPin, Star, Phone, MessageCircle, Mail, ChevronLeft, Calendar, Star as StarIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import AuthDialog from '@/components/auth/AuthDialog';
-import RatingDialog from '@/components/conversation/RatingDialog';
-import { timeAgo } from '@/lib/utils';
-
-interface Rating {
-  id: string;
-  rating: number;
-  comment?: string;
-  created_at: string;
-  profiles: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-}
+import RatingComponent from '@/components/RatingComponent';
 
 const SupplierProfilePage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [ratings, setRatings] = useState<Rating[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   
   useEffect(() => {
-    const loadData = async () => {
-      if (id) {
-        try {
-          setIsLoading(true);
-          
-          const supplierData = await getSupplierById(id);
-          setSupplier(supplierData);
-          
-          if (supplierData) {
-            const ratingsData = await getFournisseurRatings(supplierData.user_id);
-            setRatings(ratingsData);
-          }
-        } catch (error) {
-          console.error('Error loading supplier profile:', error);
-          toast.error('Erreur lors du chargement du profil du fournisseur');
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    loadData();
+    if (id) {
+      fetchSupplierData(id);
+    }
   }, [id]);
   
-  const handleContact = async () => {
-    if (!isAuthenticated || !user) {
-      setShowAuthDialog(true);
-      return;
-    }
-    
-    if (!supplier) return;
-    
+  const fetchSupplierData = async (supplierId: string) => {
     try {
       setIsLoading(true);
-      const conversationId = await createSupplierConversation(user.id, supplier.id);
-      navigate(`/conversations/${conversationId}`);
+      const supplierData = await getSupplierById(supplierId);
+      if (supplierData) {
+        setSupplier(supplierData);
+        
+        // Also fetch ratings
+        const ratingsData = await getFournisseurRatings(supplierId);
+        setRatings(ratingsData || []);
+      } else {
+        toast.error("Fournisseur non trouvé");
+      }
     } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast.error('Erreur lors de la création de la conversation');
+      console.error('Error fetching supplier:', error);
+      toast.error("Erreur lors du chargement des données du fournisseur");
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleRateSupplier = () => {
-    if (!isAuthenticated || !user) {
-      setShowAuthDialog(true);
+  const handleCreateConversation = async () => {
+    if (!isAuthenticated || !user || !supplier) {
+      toast.error("Vous devez être connecté pour contacter ce fournisseur");
       return;
     }
     
-    setShowRatingDialog(true);
-  };
-  
-  const refreshRatings = async () => {
-    if (!supplier) return;
-    
     try {
-      const ratingsData = await getFournisseurRatings(supplier.user_id);
-      setRatings(ratingsData);
+      setIsCreatingConversation(true);
+      const conversationId = await createSupplierConversation(user.id, supplier.id);
+      toast.success("Conversation créée avec succès");
+      window.location.href = `/messages/${conversationId}`;
     } catch (error) {
-      console.error('Error refreshing ratings:', error);
+      console.error('Error creating conversation:', error);
+      toast.error("Erreur lors de la création de la conversation");
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
   
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Chargement...</div>;
+    return (
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
   
   if (!supplier) {
-    return <div className="text-center py-10">Fournisseur non trouvé.</div>;
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-2xl font-bold mb-4">Fournisseur non trouvé</h1>
+        <p className="text-gray-600 mb-6">Le fournisseur que vous recherchez n'existe pas ou a été supprimé.</p>
+        <Link to="/suppliers">
+          <Button>Retour à la liste des fournisseurs</Button>
+        </Link>
+      </div>
+    );
   }
   
+  // Calculate average rating
+  const avgRating = ratings.length > 0 
+    ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+    : 0;
+  
   return (
-    <div className="container mx-auto py-8 px-4 md:px-0">
+    <div className="container mx-auto px-4 py-8">
+      <Link to="/suppliers" className="inline-flex items-center text-blue-600 hover:underline mb-6">
+        <ChevronLeft size={16} className="mr-1" /> Retour aux fournisseurs
+      </Link>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <Avatar className="h-32 w-32 mb-4">
-                  <AvatarImage src={supplier?.avatar || supplier?.image} alt={supplier?.name} />
-                  <AvatarFallback className="text-2xl">{supplier?.name?.charAt(0) || '?'}</AvatarFallback>
-                </Avatar>
+        {/* Main content - Supplier info and contact */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Supplier header card */}
+          <Card className="p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={supplier.avatar || undefined} alt={supplier.name} />
+                <AvatarFallback className="text-2xl">{supplier.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 text-center sm:text-left">
+                <h1 className="text-2xl font-bold mb-2">{supplier.name}</h1>
                 
-                <h1 className="text-2xl font-bold mb-1">{supplier?.name || 'Fournisseur'}</h1>
-                
-                <div className="flex items-center mb-4">
-                  <Badge className="mr-2">{supplier?.category || 'Non spécifié'}</Badge>
-                  <div className="flex items-center text-yellow-500">
-                    <Star className="h-4 w-4 fill-current" />
-                    <span className="ml-1">{supplier?.rating?.toFixed(1) || '0.0'}</span>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start mb-3">
+                  <Badge variant="secondary">{supplier.category}</Badge>
+                  <div className="flex items-center text-amber-500">
+                    <Star className="h-4 w-4 fill-current mr-1" />
+                    <span>{avgRating.toFixed(1)}</span>
+                    <span className="text-gray-500 ml-1">({ratings.length})</span>
                   </div>
                 </div>
                 
-                <Button 
-                  className="w-full bg-agri-green-500 hover:bg-agri-green-600 mb-4"
-                  onClick={handleContact}
-                  disabled={isLoading}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Contacter
-                </Button>
+                <div className="flex items-center justify-center sm:justify-start text-gray-600 mb-2">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  <span>{supplier.location}</span>
+                </div>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleRateSupplier}
-                >
-                  <Star className="mr-2 h-4 w-4" />
-                  Évaluer
-                </Button>
+                {supplier.phone && (
+                  <div className="flex items-center justify-center sm:justify-start text-gray-600">
+                    <Phone className="h-4 w-4 mr-1" />
+                    <a href={`tel:${supplier.phone}`} className="hover:underline">
+                      {supplier.phone}
+                    </a>
+                  </div>
+                )}
+                
+                {supplier.email && (
+                  <div className="flex items-center justify-center sm:justify-start text-gray-600">
+                    <Mail className="h-4 w-4 mr-1" />
+                    <a href={`mailto:${supplier.email}`} className="hover:underline">
+                      {supplier.email}
+                    </a>
+                  </div>
+                )}
               </div>
               
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center text-sm">
-                  <MapPin className="h-4 w-4 mr-3 text-gray-500" />
-                  <span>{supplier?.location || 'Non spécifié'}</span>
-                </div>
-                
-                {supplier?.phone && (
-                  <div className="flex items-center text-sm">
-                    <Phone className="h-4 w-4 mr-3 text-gray-500" />
-                    <span>{supplier.phone}</span>
-                  </div>
-                )}
-                
-                {supplier?.email && (
-                  <div className="flex items-center text-sm">
-                    <Mail className="h-4 w-4 mr-3 text-gray-500" />
-                    <span>{supplier.email}</span>
-                  </div>
-                )}
+              <div className="sm:self-start">
+                <Button 
+                  onClick={handleCreateConversation}
+                  disabled={isCreatingConversation || !isAuthenticated}
+                  className="w-full sm:w-auto"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Contacter
+                </Button>
               </div>
-            </CardContent>
+            </div>
+          </Card>
+          
+          {/* Products section */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Produits et Services</h2>
+            
+            {supplier.products && supplier.products.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {supplier.products.map(product => (
+                  <Badge key={product} variant="outline" className="bg-gray-50">
+                    {product}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">Aucun produit ou service répertorié.</p>
+            )}
+          </Card>
+          
+          {/* Ratings section */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Évaluations et Commentaires</h2>
+            
+            <div className="mb-6">
+              <RatingComponent 
+                supplierId={supplier.id} 
+                onRatingSubmitted={() => fetchSupplierData(supplier.id)}
+              />
+            </div>
+            
+            <Separator className="my-6" />
+            
+            {ratings.length > 0 ? (
+              <div className="space-y-6">
+                {ratings.map(rating => (
+                  <div key={rating.id} className="p-4 border rounded-lg bg-gray-50">
+                    <div className="flex justify-between mb-2">
+                      <div className="flex items-center">
+                        <Avatar className="h-8 w-8 mr-2">
+                          <AvatarImage src={rating.user.avatar || undefined} />
+                          <AvatarFallback>{rating.user.display_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{rating.user.display_name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <StarIcon
+                            key={i}
+                            size={16}
+                            className={i < rating.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {rating.comment && <p className="text-gray-700">{rating.comment}</p>}
+                    <div className="flex items-center mt-2 text-xs text-gray-500">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date(rating.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-4">Aucune évaluation pour ce fournisseur.</p>
+            )}
           </Card>
         </div>
         
-        <div className="md:col-span-2">
-          <Tabs defaultValue="products">
-            <TabsList className="w-full">
-              <TabsTrigger value="products" className="flex-1">Produits et Services</TabsTrigger>
-              <TabsTrigger value="ratings" className="flex-1">Évaluations</TabsTrigger>
-            </TabsList>
+        {/* Sidebar - Additional info */}
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">À propos</h2>
+            <p className="text-gray-600 mb-4">
+              {supplier.name} est un fournisseur spécialisé dans {supplier.category}.
+              Basé à {supplier.location}, ils offrent une variété de produits et services
+              pour répondre à vos besoins agricoles.
+            </p>
             
-            <TabsContent value="products" className="mt-4">
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Produits et Services</h2>
-                  
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {supplier?.products && supplier.products.length > 0 ? (
-                      supplier.products.map((product, index) => (
-                        <Badge key={index} variant="secondary" className="text-sm">
-                          {product}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-gray-500">Aucun produit listé</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <Separator className="my-4" />
             
-            <TabsContent value="ratings" className="mt-4">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Évaluations</h2>
-                    <Button variant="outline" size="sm" onClick={handleRateSupplier}>
-                      Ajouter une évaluation
-                    </Button>
-                  </div>
-                  
-                  {ratings.length > 0 ? (
-                    <div className="space-y-4">
-                      {ratings.map((rating) => (
-                        <div key={rating.id} className="border-b pb-4 last:border-0">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center">
-                              <Avatar className="h-8 w-8 mr-3">
-                                <AvatarImage src={rating.profiles?.avatar} alt={rating.profiles?.name} />
-                                <AvatarFallback>{rating.profiles?.name?.charAt(0) || '?'}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{rating.profiles?.name || 'Anonyme'}</p>
-                                <div className="flex items-center text-yellow-500 text-sm">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star 
-                                      key={i} 
-                                      className={`h-3 w-3 ${i < rating.rating ? 'fill-current' : 'text-gray-300'}`} 
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center text-xs text-gray-500">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {timeAgo(rating.created_at)}
-                            </div>
-                          </div>
-                          
-                          {rating.comment && (
-                            <p className="mt-2 text-gray-600">{rating.comment}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-10 text-gray-500">
-                      <Star className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                      <p>Aucune évaluation pour le moment</p>
-                      <Button 
-                        variant="ghost" 
-                        className="mt-2 text-agri-green-500"
-                        onClick={handleRateSupplier}
-                      >
-                        Soyez le premier à évaluer
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Catégorie:</span>
+                <span className="font-medium">{supplier.category}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Lieu:</span>
+                <span className="font-medium">{supplier.location}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Note moyenne:</span>
+                <div className="flex items-center">
+                  <Star className="h-4 w-4 fill-amber-500 text-amber-500 mr-1" />
+                  <span>{avgRating.toFixed(1)}/5</span>
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Évaluations:</span>
+                <span className="font-medium">{ratings.length}</span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
-      
-      <AuthDialog
-        open={showAuthDialog}
-        onOpenChange={setShowAuthDialog}
-        initialView="login"
-      />
-      
-      {user && supplier && (
-        <RatingDialog
-          open={showRatingDialog}
-          onOpenChange={setShowRatingDialog}
-          userId={user.id}
-          fournisseurId={supplier.user_id}
-          fournisseurName={supplier.name}
-          onRatingSubmitted={refreshRatings}
-        />
-      )}
     </div>
   );
 };

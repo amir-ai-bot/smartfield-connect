@@ -1,7 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Message, Conversation, Rating } from '@/types/supabase';
 import { toast } from 'sonner';
-import { Json } from '@/integrations/supabase/types';
 
 // Get all conversations for a user
 export const getUserConversations = async (userId: string) => {
@@ -10,17 +9,37 @@ export const getUserConversations = async (userId: string) => {
       .from('conversations')
       .select(`
         *,
-        user:user_id (id, name, email, avatar, role),
-        fournisseur:fournisseur_id (id, name, email, avatar, role)
+        user:participant1_id (id, display_name, email, avatar, role),
+        fournisseur:participant2_id (id, display_name, email, avatar, role)
       `)
-      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`)
-      .order('updated_at', { ascending: false });
+      .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
+      .order('last_message_at', { ascending: false });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return data || [];
+    // Process the data to ensure each conversation has the correct user and fournisseur
+    const processedData = (data || []).map(conv => {
+      // If current user is participant1, then participant2 is the other party
+      if (conv.participant1_id === userId) {
+        return {
+          ...conv,
+          user: conv.user,
+          fournisseur: conv.fournisseur
+        };
+      } 
+      // If current user is participant2, swap the user and fournisseur
+      else {
+        return {
+          ...conv,
+          user: conv.fournisseur,
+          fournisseur: conv.user
+        };
+      }
+    });
+
+    return processedData;
   } catch (error) {
     console.error('Error fetching conversations:', error);
     toast.error('Erreur lors du chargement des conversations');
@@ -35,8 +54,8 @@ export const getConversation = async (conversationId: string) => {
       .from('conversations')
       .select(`
         *,
-        user:user_id (id, name, email, avatar, role),
-        fournisseur:fournisseur_id (id, name, email, avatar, role)
+        user:participant1_id (id, display_name, email, avatar, role),
+        fournisseur:participant2_id (id, display_name, email, avatar, role)
       `)
       .eq('id', conversationId)
       .single();
@@ -60,8 +79,8 @@ export const getConversationMessages = async (conversationId: string) => {
       .from('messages')
       .select(`
         *,
-        profiles:sender_id (name, avatar),
-        media:message_id (id, media_type, media_url)
+        profiles:sender_id (display_name, avatar),
+        media:id (id, media_type, media_url)
       `)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
@@ -83,15 +102,15 @@ export const getConversationMessages = async (conversationId: string) => {
 export const getMessages = getConversationMessages;
 
 // Send a message in a conversation
-export const sendMessage = async (conversationId: string, content: string, senderId: string) => {
+export const sendMessage = async (conversationId: string, content: string, senderId: string, receiverId: string) => {
   try {
     const { data, error } = await supabase
       .from('messages')
       .insert({
         conversation_id: conversationId,
         sender_id: senderId,
-        content: content,
-        read: false
+        receiver_id: receiverId,
+        content: content
       })
       .select('*')
       .single();
@@ -100,10 +119,10 @@ export const sendMessage = async (conversationId: string, content: string, sende
       throw new Error(error.message);
     }
 
-    // Update the conversation's updated_at timestamp
+    // Update the conversation's last_message_at timestamp
     await supabase
       .from('conversations')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
     return data;
@@ -118,12 +137,13 @@ export const sendMessage = async (conversationId: string, content: string, sende
 export const sendMessageWithFiles = async (
   conversationId: string, 
   content: string, 
-  senderId: string, 
+  senderId: string,
+  receiverId: string,
   files: File[]
 ) => {
   try {
     // First send the message
-    const message = await sendMessage(conversationId, content, senderId);
+    const message = await sendMessage(conversationId, content, senderId, receiverId);
     
     // TODO: Handle file uploads and associate with message
     // This would involve uploading files to storage and storing references
@@ -137,7 +157,12 @@ export const sendMessageWithFiles = async (
 };
 
 // Send a voice message
-export const sendVoiceMessage = async (conversationId: string, senderId: string, audioBlob: Blob) => {
+export const sendVoiceMessage = async (
+  conversationId: string, 
+  senderId: string,
+  receiverId: string,
+  audioBlob: Blob
+) => {
   try {
     // Create a message for the voice
     const { data: message, error: messageError } = await supabase
@@ -145,8 +170,8 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
       .insert({
         conversation_id: conversationId,
         sender_id: senderId,
-        content: 'Message vocal',
-        read: false
+        receiver_id: receiverId,
+        content: 'Message vocal'
       })
       .select('*')
       .single();
@@ -158,7 +183,7 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
     // Update conversation timestamp
     await supabase
       .from('conversations')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
     
     // TODO: Handle uploading the audio blob to storage in a future implementation
@@ -174,17 +199,9 @@ export const sendVoiceMessage = async (conversationId: string, senderId: string,
 // Mark messages as read
 export const markMessagesAsRead = async (conversationId: string, userId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', userId)
-      .eq('read', false);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
+    // Since messages don't have a 'read' field in the current database structure,
+    // we'd need to implement this differently or add a 'read' field to the messages table
+    // For now, just return true to not break existing functionality
     return true;
   } catch (error) {
     console.error('Error marking messages as read:', error);
@@ -195,34 +212,10 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
 // Get unread message count for a user
 export const getUnreadMessageCount = async (userId: string) => {
   try {
-    // Get all conversations for the user
-    const { data: conversations, error: conversationsError } = await supabase
-      .from('conversations')
-      .select('id')
-      .or(`user_id.eq.${userId},fournisseur_id.eq.${userId}`);
-
-    if (conversationsError) {
-      throw new Error(conversationsError.message);
-    }
-
-    if (!conversations || conversations.length === 0) {
-      return 0;
-    }
-
-    // Get count of unread messages across all conversations
-    const conversationIds = conversations.map(conv => conv.id);
-    const { count, error: countError } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .in('conversation_id', conversationIds)
-      .neq('sender_id', userId)
-      .eq('read', false);
-
-    if (countError) {
-      throw new Error(countError.message);
-    }
-
-    return count || 0;
+    // Since messages don't have a 'read' field in the current database structure,
+    // we'd need to implement this differently or add a 'read' field to the messages table
+    // For now, return 0 to not break existing functionality
+    return 0;
   } catch (error) {
     console.error('Error getting unread message count:', error);
     return 0;
@@ -247,7 +240,7 @@ export const createConversation = async (userId: string, fournisseurId: string) 
     const { data: existingConversation } = await supabase
       .from('conversations')
       .select('id')
-      .match({ user_id: userId, fournisseur_id: fournisseurId })
+      .or(`and(participant1_id.eq.${userId},participant2_id.eq.${fournisseurId}),and(participant1_id.eq.${fournisseurId},participant2_id.eq.${userId})`)
       .maybeSingle();
       
     if (existingConversation) {
@@ -258,8 +251,8 @@ export const createConversation = async (userId: string, fournisseurId: string) 
     const { data, error } = await supabase
       .from('conversations')
       .insert({
-        user_id: userId,
-        fournisseur_id: fournisseurId
+        participant1_id: userId,
+        participant2_id: fournisseurId
       })
       .select('id')
       .single();
@@ -281,10 +274,10 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
   try {
     // Check if rating already exists
     const { data: existingRatings, error: checkError } = await supabase
-      .from('fournisseur_ratings')
+      .from('supplier_ratings')
       .select('*')
       .eq('user_id', userId)
-      .eq('fournisseur_id', fournisseurId);
+      .eq('supplier_id', fournisseurId);
 
     if (checkError) {
       throw new Error(checkError.message);
@@ -294,7 +287,7 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
     if (existingRatings && existingRatings.length > 0) {
       // Update existing rating
       const { data: updatedRating, error } = await supabase
-        .from('fournisseur_ratings')
+        .from('supplier_ratings')
         .update({ rating, comment })
         .eq('id', existingRatings[0].id)
         .select('*')
@@ -307,10 +300,10 @@ export const rateFournisseur = async (userId: string, fournisseurId: string, rat
     } else {
       // Create new rating
       const { data: newRating, error } = await supabase
-        .from('fournisseur_ratings')
+        .from('supplier_ratings')
         .insert({
           user_id: userId,
-          fournisseur_id: fournisseurId,
+          supplier_id: fournisseurId,
           rating,
           comment
         })
@@ -336,7 +329,7 @@ export const getFournisseurRatings = async (fournisseurId: string): Promise<Rati
   try {
     // Use the RPC function that's already defined in the database
     const { data, error } = await supabase
-      .rpc('get_fournisseur_ratings', { fournisseur_id: fournisseurId });
+      .rpc('get_supplier_ratings', { p_supplier_id: fournisseurId });
     
     if (error) {
       console.error('Error fetching fournisseur ratings:', error);
@@ -344,23 +337,18 @@ export const getFournisseurRatings = async (fournisseurId: string): Promise<Rati
       return [];
     }
     
-    // Safely transform the data with proper type checking
-    const ratings: Rating[] = (data || []).map((rating: any) => {
-      // Safely extract profile data, handling all possible formats
-      const profilesData = rating.profiles && typeof rating.profiles === 'object' ? rating.profiles : {};
-      
-      return {
-        id: String(rating.id || ''),
-        rating: typeof rating.rating === 'number' ? rating.rating : 0,
-        comment: rating.comment?.toString() || '',
-        created_at: rating.created_at?.toString() || '',
-        profiles: {
-          id: String(profilesData.id || ''),
-          name: String(profilesData.name || 'Anonymous'),
-          avatar: String(profilesData.avatar || '')
-        }
-      };
-    });
+    // Map to the expected Rating format
+    const ratings: Rating[] = (data || []).map((rating: any) => ({
+      id: String(rating.id || ''),
+      rating: typeof rating.rating === 'number' ? rating.rating : 0,
+      comment: rating.comment?.toString() || '',
+      created_at: rating.created_at?.toString() || '',
+      user: {
+        id: String(rating.user_id || ''),
+        display_name: String(rating.user_name || 'Anonymous'),
+        avatar: String(rating.user_avatar || '')
+      }
+    }));
     
     return ratings;
   } catch (error) {
@@ -374,9 +362,9 @@ export const getFournisseurRatings = async (fournisseurId: string): Promise<Rati
 export const getFournisseurAverageRating = async (fournisseurId: string) => {
   try {
     const { data, error } = await supabase
-      .from('fournisseur_ratings')
+      .from('supplier_ratings')
       .select('rating')
-      .eq('fournisseur_id', fournisseurId);
+      .eq('supplier_id', fournisseurId);
 
     if (error) {
       throw new Error(error.message);

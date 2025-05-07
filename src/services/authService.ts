@@ -1,581 +1,283 @@
-import { User } from '@/types/auth';
+
 import { supabase } from '@/integrations/supabase/client';
-import { generateRandomCode } from '@/lib/utils';
-import { fetchUserProfile, updateUserProfile } from './userService';
-import { toast } from 'sonner';
 
-// Function to login a user
-export const login = async (email: string, password: string): Promise<User> => {
+export const signUp = async (email: string, password: string, name: string) => {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      console.error('Login error from Supabase:', error);
-      throw new Error(error.message);
-    }
-
-    if (!data?.user) {
-      throw new Error('User not found');
-    }
-
-    // Fetch profile data
-    const profile = await fetchUserProfile(data.user.id);
-    
-    if (!profile) {
-      throw new Error('Profile not found');
-    }
-
-    return profile;
-  } catch (error: any) {
-    console.error('Error in login function:', error);
-    
-    // Check if the user exists by email
-    try {
-      const { data: userByEmail } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', email)
-        .maybeSingle();
-        
-      if (userByEmail) {
-        throw new Error('Mot de passe incorrect. Veuillez réessayer.');
-      } else {
-        throw new Error('Aucun compte trouvé avec cet email. Veuillez vous inscrire.');
-      }
-    } catch (innerError) {
-      console.error('Error checking user email:', innerError);
-      // If there's an error checking the email, throw the original error
-      throw error;
-    }
-  }
-};
-
-// Function to signup a new user
-export const signup = async (
-  name: string, 
-  email: string, 
-  password: string,
-  phone_number?: string
-): Promise<User> => {
-  try {
-    // First register the user with Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name,
-          phone_number
-        },
-        emailRedirectTo: `${window.location.origin}/verify-email`
-      },
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!data?.user) {
-      throw new Error('Failed to create user');
-    }
-
-    // Wait for the trigger to create a profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check if profile was created successfully
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('Error fetching profile after signup:', profileError);
-    }
-
-    // If profile wasn't created by trigger, create it manually
-    if (!profileData) {
-      console.log('Profile not created by trigger, creating manually');
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          name,
-          email,
-          phone_number,
           role: 'user'
-        });
-
-      if (insertError) {
-        console.error('Error creating profile manually:', insertError);
-      }
-    }
-
-    // Now fetch the profile safely
-    const profile = await fetchUserProfile(data.user.id);
-    
-    if (!profile) {
-      throw new Error('Failed to create or fetch profile');
-    }
-
-    // Send the verification email
-    const { error: emailError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/verify-email`
-      }
-    });
-
-    if (emailError) {
-      console.error('Error sending verification email:', emailError);
-      throw new Error('Failed to send verification email');
-    }
-
-    return profile;
-  } catch (error: any) {
-    console.error('Error in signup function:', error);
-    throw error;
-  }
-};
-
-// Function to logout a user
-export const logout = async (): Promise<void> => {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-// Helper function to generate and store email verification code
-export const generateEmailVerificationCode = async (userId: string): Promise<string> => {
-  try {
-    // Generate a random code
-    const code = generateRandomCode(6);
-    console.log('Generated verification code:', code);
-    
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
-
-    // Get user's email
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userData) {
-      console.error('User not found:', userError);
-      throw new Error('User not found');
-    }
-
-    console.log('Found user email:', userData.email);
-
-    // Store the verification code
-    const { data: insertData, error: insertError } = await supabase
-      .from('verification_codes')
-      .insert({
-        user_id: userId,
-        code,
-        type: 'email_verification',
-        expires_at: expiresAt.toISOString(),
-      })
-      .select();
-
-    if (insertError) {
-      console.error('Error storing verification code:', insertError);
-      throw new Error('Failed to store verification code');
-    }
-
-    console.log('Stored verification code in database:', insertData);
-
-    // Send the verification email using signInWithOtp with a custom email template
-    const { error: emailError } = await supabase.auth.signInWithOtp({
-      email: userData.email,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/verify-email?code=${code}`,
-        data: {
-          code,
-          verification_code: code
         }
       }
     });
 
-    if (emailError) {
-      console.error('Error sending verification email:', emailError);
-      throw new Error('Failed to send verification email');
-    }
-
-    console.log('Verification email sent successfully with code:', code);
-    
-    toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
-      duration: 6000
-    });
-    
-    return code;
-  } catch (error: any) {
-    console.error('Error in generateEmailVerificationCode:', error);
-    throw error;
-  }
-};
-
-// Function to verify email
-export const verifyEmail = async (email: string, code: string): Promise<void> => {
-  try {
-    console.log('Verifying email:', email, 'with code:', code);
-
-    // Get user by email
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      console.error('User not found:', userError);
-      throw new Error('User not found');
-    }
-
-    console.log('Found user:', userData.id);
-
-    // Verify the code
-    const { data: codeData, error: codeError } = await supabase
-      .from('verification_codes')
-      .select('*')
-      .eq('user_id', userData.id)
-      .eq('code', code)
-      .eq('type', 'email_verification')
-      .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (codeError) {
-      console.error('Error verifying code:', codeError);
-      throw new Error('Error verifying code');
-    }
-
-    if (!codeData) {
-      console.error('Invalid or expired code');
-      throw new Error('Code invalide ou expiré');
-    }
-
-    console.log('Code verified successfully:', codeData);
-
-    // Mark the code as used
-    const { error: updateError } = await supabase
-      .from('verification_codes')
-      .update({ used: true })
-      .eq('id', codeData.id);
-
-    if (updateError) {
-      console.error('Error marking code as used:', updateError);
-      throw new Error('Error marking code as used');
-    }
-
-    // Mark email as verified in auth
-    const { error: authError } = await supabase.auth.updateUser({
-      data: { email_verified: true }
-    });
-
-    if (authError) {
-      console.error('Error updating auth user:', authError);
-      throw new Error('Error updating auth user');
-    }
-
-    console.log('Email verified successfully');
-    toast.success('Email vérifié avec succès!');
-  } catch (error: any) {
-    console.error('Error in verifyEmail:', error);
-    toast.error(error.message || 'Erreur lors de la vérification de l\'email');
-    throw error;
-  }
-};
-
-// Function to request password reset
-export const requestPasswordReset = async (email: string): Promise<void> => {
-  try {
-    // Generate a 6-digit code for password reset
-    const code = generateRandomCode(6);
-    console.log('Generated password reset code:', code);
-    
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
-    
-    // Get user by email
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      console.error('User not found:', userError);
-      throw new Error('User not found');
-    }
-    
-    console.log('Found user for password reset:', userData.id);
-    
-    // Store the verification code
-    const { data: insertData, error: insertError } = await supabase
-      .from('verification_codes')
-      .insert({
-        user_id: userData.id,
-        code,
-        type: 'password_reset',
-        expires_at: expiresAt.toISOString(),
-      })
-      .select();
-
-    if (insertError) {
-      console.error('Error storing reset code:', insertError);
-      throw new Error('Failed to store reset code');
-    }
-
-    console.log('Stored reset code in database:', insertData);
-
-    // Send the password reset email using Supabase's built-in method with updated options
-    const resetLink = `${window.location.origin}/reset-password?code=${code}&email=${encodeURIComponent(email)}`;
-    
-    console.log('Reset link generated:', resetLink);
-    
-    const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: resetLink
-    });
-
-    if (emailError) {
-      console.error('Error sending password reset email:', emailError);
-      throw new Error('Failed to send password reset email');
-    }
-
-    console.log('Password reset email sent successfully with code:', code);
-    
-    toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
-      duration: 6000
-    });
-  } catch (error: any) {
-    console.error('Error in requestPasswordReset:', error);
-    throw error;
-  }
-};
-
-// Function to confirm password reset
-export const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
-  try {
-    console.log('Confirming password reset with code:', code);
-    
-    // Verify the code
-    const { data: codeData, error: codeError } = await supabase
-      .from('verification_codes')
-      .select('*')
-      .eq('code', code)
-      .eq('type', 'password_reset')
-      .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (codeError) {
-      console.error('Error verifying reset code:', codeError);
-      throw new Error('Error verifying reset code');
-    }
-
-    if (!codeData) {
-      console.error('Invalid or expired reset code');
-      throw new Error('Code invalide ou expiré');
-    }
-
-    console.log('Reset code verified successfully:', codeData);
-
-    // Mark the code as used
-    const { error: updateError } = await supabase
-      .from('verification_codes')
-      .update({ used: true })
-      .eq('id', codeData.id);
-
-    if (updateError) {
-      console.error('Error marking code as used:', updateError);
-      throw new Error('Error marking code as used');
-    }
-
-    // Get the user's email from the profile
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('id', codeData.user_id)
-      .maybeSingle();
-
-    if (userError || !userData || !userData.email) {
-      throw new Error('User not found');
-    }
-
-    console.log('Found user for password reset:', userData.email);
-
-    // Update the password
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
     if (error) {
-      console.error('Error updating password:', error);
-      throw new Error(error.message);
+      throw error;
     }
-    
-    console.log('Password reset successfully');
-    toast.success('Mot de passe réinitialisé avec succès');
-  } catch (error: any) {
-    console.error('Error in confirmPasswordReset:', error);
+
+    return data;
+  } catch (error) {
+    console.error('Error signing up:', error);
     throw error;
   }
 };
 
-// Function to create an admin account
-export const createAdminAccount = async (
-  name: string,
-  email: string,
-  password: string
-): Promise<User> => {
+export const signIn = async (email: string, password: string) => {
   try {
-    // Create user with Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password,
-      options: {
-        data: {
-          name,
-          role: 'admin'
-        },
-      },
+      password
     });
 
     if (error) {
-      throw new Error(error.message);
+      throw error;
     }
 
-    if (!data?.user) {
-      throw new Error('Failed to create admin user');
+    return data;
+  } catch (error) {
+    console.error('Error signing in:', error);
+    throw error;
+  }
+};
+
+export const signOut = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
+};
+
+export const resetPassword = async (email: string) => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password'
+    });
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    throw error;
+  }
+};
+
+export const updatePassword = async (password: string) => {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      password
+    });
+
+    if (error) {
+      throw error;
     }
 
-    // Wait for the trigger to create a profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    return data;
+  } catch (error) {
+    console.error('Error updating password:', error);
+    throw error;
+  }
+};
 
-    // Update the user's role to admin
-    const { error: updateError } = await supabase
+export const updateEmail = async (email: string) => {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      email
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating email:', error);
+    throw error;
+  }
+};
+
+export const getUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error) {
+      throw error;
+    }
+
+    return data.user;
+  } catch (error) {
+    console.error('Error getting user:', error);
+    throw error;
+  }
+};
+
+export const getSession = async () => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) {
+      throw error;
+    }
+
+    return data.session;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    throw error;
+  }
+};
+
+export const getUserProfile = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
       .from('profiles')
-      .update({ role: 'admin' })
-      .eq('id', data.user.id);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
-    // Fetch the updated profile
-    const profile = await fetchUserProfile(data.user.id);
-    
-    return profile;
-  } catch (error: any) {
-    console.error('Error creating admin account:', error);
-    throw error;
-  }
-};
-
-// Re-export functions from userService, projectService, conversationService
-export { 
-  fetchUserProfile, 
-  updateUserProfile, 
-  becomeFournisseur 
-} from './userService';
-
-export { 
-  createProject,
-  getUserProjects,
-  getPublicProjects,
-  updateProject,
-  deleteProject
-} from './projectService';
-
-export {
-  createConversation,
-  sendMessage,
-  getConversationMessages,
-  getUserConversations,
-  markMessagesAsRead,
-  toggleFavoriteFournisseur,
-  rateFournisseur,
-  isFournisseurFavorite,
-  getFavoriteFournisseurs
-} from './conversationService';
-
-// Function to verify the verification_codes table structure
-export const verifyTableStructure = async () => {
-  try {
-    // Check if the table exists
-    const { data, error } = await supabase
-      .from('verification_codes')
       .select('*')
-      .limit(1);
+      .eq('id', userId)
+      .single();
 
     if (error) {
-      console.error('Error checking table structure:', error);
-      throw new Error('Verification codes table does not exist. Please create it using the SQL editor.');
+      throw error;
     }
-    
-    console.log('Table structure verified:', data);
+
+    return data;
   } catch (error) {
-    console.error('Error in verifyTableStructure:', error);
+    console.error('Error getting user profile:', error);
     throw error;
   }
 };
 
-// Call this function when the app starts
-verifyTableStructure().catch(console.error);
-
-// Function to delete expired verification codes
-export const deleteExpiredCodes = async (): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('verification_codes')
-      .delete()
-      .lt('expires_at', new Date().toISOString());
-
-    if (error) {
-      console.error('Error deleting expired codes:', error);
-      throw new Error('Failed to delete expired codes');
-    }
-
-    console.log('Successfully deleted expired verification codes');
-  } catch (error) {
-    console.error('Error in deleteExpiredCodes:', error);
-    throw error;
-  }
-};
-
-// Call this function periodically to clean up expired codes
-setInterval(deleteExpiredCodes, 1000 * 60 * 60); // Run every hour
-
-// Debug function to show all verification codes
-export const debugShowAllCodes = async (): Promise<void> => {
+export const updateUserProfile = async (userId: string, updates: Record<string, any>) => {
   try {
     const { data, error } = await supabase
-      .from('verification_codes')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
 
     if (error) {
-      console.error('Error fetching codes:', error);
-      return;
+      throw error;
     }
-    
-    console.log('All verification codes in database:', data);
+
+    return data;
   } catch (error) {
-    console.error('Error in debugShowAllCodes:', error);
+    console.error('Error updating user profile:', error);
+    throw error;
   }
 };
 
-// Call this immediately for debugging
-debugShowAllCodes().catch(console.error);
+export const getAllUsers = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_get_all_users');
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error getting all users:', error);
+    throw error;
+  }
+};
+
+export const verifyUserByAdmin = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_verify_user', { user_id: userId });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error verifying user:', error);
+    throw error;
+  }
+};
+
+export const deleteUserByAdmin = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_delete_user', { user_id: userId });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+export const createUserByAdmin = async (name: string, email: string, password: string, role: string = 'user') => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_create_user', { 
+        user_name: name, 
+        user_email: email, 
+        user_password: password, 
+        user_role: role 
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+};
+
+export const updateUserPasswordByAdmin = async (userId: string, newPassword: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_update_user_password', { 
+        user_id: userId, 
+        new_password: newPassword 
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating user password:', error);
+    throw error;
+  }
+};
+
+export const updateUserRole = async (userId: string, role: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+};

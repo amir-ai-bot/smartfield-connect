@@ -1,10 +1,11 @@
+
 import { ProjectData } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 // Function to create a project
 export const createProject = async (
   userId: string,
-  title: string,
+  name: string,
   crop: string,
   location: string,
   startDate: string,
@@ -17,8 +18,8 @@ export const createProject = async (
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        user_id: userId,
-        title,
+        owner_id: userId,
+        name,
         crop,
         location,
         start_date: startDate,
@@ -40,17 +41,21 @@ export const createProject = async (
     // Transform response to match ProjectData type
     return {
       id: data.id,
-      title: data.title,
+      name: data.name,
+      title: data.name, // For compatibility
       crop: data.crop,
       location: data.location,
-      startDate: data.start_date,
-      endDate: data.end_date,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      startDate: data.start_date, // For compatibility
+      endDate: data.end_date, // For compatibility
       progress: data.progress,
       status: data.status as 'planning' | 'active' | 'completed',
       image: data.image,
       description: data.description,
-      user_id: data.user_id,
-      isPublic: data.is_public
+      owner_id: data.owner_id,
+      user_id: data.owner_id, // For compatibility
+      is_public: data.is_public
     };
   } catch (error) {
     console.error('Error in createProject:', error);
@@ -62,8 +67,14 @@ export const createProject = async (
 export const getUserProjects = async (userId: string): Promise<ProjectData[]> => {
   const { data, error } = await supabase
     .from('projects')
-    .select('*')
-    .eq('user_id', userId);
+    .select(`
+      *,
+      profiles:owner_id (
+        display_name,
+        avatar
+      )
+    `)
+    .eq('owner_id', userId);
 
   if (error) {
     throw new Error(error.message);
@@ -72,17 +83,25 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
   // Transform data to match ProjectData type
   return (data || []).map(item => ({
     id: item.id,
-    title: item.title,
+    name: item.name,
+    title: item.name, // For compatibility
     crop: item.crop,
     location: item.location,
-    startDate: item.start_date,
-    endDate: item.end_date,
+    start_date: item.start_date,
+    end_date: item.end_date,
+    startDate: item.start_date, // For compatibility
+    endDate: item.end_date, // For compatibility
     progress: item.progress,
     status: item.status as 'planning' | 'active' | 'completed',
     image: item.image,
     description: item.description,
-    user_id: item.user_id,
-    isPublic: item.is_public
+    owner_id: item.owner_id,
+    user_id: item.owner_id, // For compatibility
+    is_public: item.is_public,
+    user_display_name: item.profiles?.display_name,
+    user_avatar: item.profiles?.avatar,
+    user_name: item.profiles?.display_name, // For compatibility
+    isOwnProject: true // Mark as own project
   }));
 };
 
@@ -90,7 +109,13 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
 export const getPublicProjects = async (): Promise<ProjectData[]> => {
   const { data, error } = await supabase
     .from('projects')
-    .select('*')
+    .select(`
+      *,
+      profiles:owner_id (
+        display_name,
+        avatar
+      )
+    `)
     .eq('is_public', true);
 
   if (error) {
@@ -100,17 +125,24 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
   // Transform data to match ProjectData type
   return (data || []).map(item => ({
     id: item.id,
-    title: item.title,
+    name: item.name,
+    title: item.name, // For compatibility
     crop: item.crop,
     location: item.location,
-    startDate: item.start_date,
-    endDate: item.end_date,
+    start_date: item.start_date,
+    end_date: item.end_date,
+    startDate: item.start_date, // For compatibility
+    endDate: item.end_date, // For compatibility
     progress: item.progress,
     status: item.status as 'planning' | 'active' | 'completed',
     image: item.image,
     description: item.description,
-    user_id: item.user_id,
-    isPublic: item.is_public
+    owner_id: item.owner_id,
+    user_id: item.owner_id, // For compatibility
+    is_public: item.is_public,
+    user_display_name: item.profiles?.display_name,
+    user_avatar: item.profiles?.avatar,
+    user_name: item.profiles?.display_name // For compatibility
   }));
 };
 
@@ -118,28 +150,31 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
 export const updateProject = async (
   projectId: string,
   updates: {
-    title?: string;
+    name?: string;
+    title?: string; // For compatibility
     crop?: string;
     location?: string;
-    startDate?: string;
-    endDate?: string;
+    start_date?: string;
+    end_date?: string;
+    startDate?: string; // For compatibility
+    endDate?: string; // For compatibility
     description?: string;
     image?: string;
-    isPublic?: boolean;
+    is_public?: boolean;
     status?: 'active' | 'planning' | 'completed';
     progress?: number;
   }
 ): Promise<ProjectData> => {
   // Prepare updates with Supabase column names
   const projectUpdates: any = {
-    title: updates.title,
+    name: updates.name || updates.title, // Support both name and title
     crop: updates.crop,
     location: updates.location,
-    start_date: updates.startDate,
-    end_date: updates.endDate,
+    start_date: updates.start_date || updates.startDate, // Support both formats
+    end_date: updates.end_date || updates.endDate, // Support both formats
     description: updates.description,
     image: updates.image,
-    is_public: updates.isPublic,
+    is_public: updates.is_public,
     status: updates.status,
     progress: updates.progress
   };
@@ -153,7 +188,13 @@ export const updateProject = async (
     .from('projects')
     .update(projectUpdates)
     .eq('id', projectId)
-    .select()
+    .select(`
+      *,
+      profiles:owner_id (
+        display_name,
+        avatar
+      )
+    `)
     .single();
 
   if (error) {
@@ -163,17 +204,24 @@ export const updateProject = async (
   // Transform to match ProjectData type
   return {
     id: data.id,
-    title: data.title,
+    name: data.name,
+    title: data.name, // For compatibility
     crop: data.crop,
     location: data.location,
-    startDate: data.start_date,
-    endDate: data.end_date,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    startDate: data.start_date, // For compatibility
+    endDate: data.end_date, // For compatibility
     progress: data.progress,
     status: data.status as 'planning' | 'active' | 'completed',
     image: data.image,
     description: data.description,
-    user_id: data.user_id,
-    isPublic: data.is_public
+    owner_id: data.owner_id,
+    user_id: data.owner_id, // For compatibility
+    is_public: data.is_public,
+    user_display_name: data.profiles?.display_name,
+    user_avatar: data.profiles?.avatar,
+    user_name: data.profiles?.display_name // For compatibility
   };
 };
 
@@ -187,4 +235,47 @@ export const deleteProject = async (projectId: string): Promise<void> => {
   if (error) {
     throw new Error(error.message);
   }
+};
+
+// Function to get a project by ID
+export const getProjectById = async (projectId: string, userId?: string): Promise<ProjectData> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      profiles:owner_id (
+        display_name,
+        avatar
+      )
+    `)
+    .eq('id', projectId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  // Transform to match ProjectData type
+  return {
+    id: data.id,
+    name: data.name,
+    title: data.name, // For compatibility
+    crop: data.crop,
+    location: data.location,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    startDate: data.start_date, // For compatibility
+    endDate: data.end_date, // For compatibility
+    progress: data.progress,
+    status: data.status as 'planning' | 'active' | 'completed',
+    image: data.image,
+    description: data.description,
+    owner_id: data.owner_id,
+    user_id: data.owner_id, // For compatibility
+    is_public: data.is_public,
+    user_display_name: data.profiles?.display_name,
+    user_avatar: data.profiles?.avatar,
+    user_name: data.profiles?.display_name, // For compatibility
+    isOwnProject: userId && data.owner_id === userId
+  };
 };

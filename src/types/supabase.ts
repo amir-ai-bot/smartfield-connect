@@ -15,9 +15,9 @@ export interface Rating {
   rating: number;
   comment: string;
   created_at: string;
-  profiles: {
+  user: {
     id: string;
-    name: string;
+    display_name: string;
     avatar: string;
   };
 }
@@ -30,8 +30,8 @@ export type Project = Database['public']['Tables']['projects']['Row'];
 // Define ProjectWithUser type that matches the projects_with_users view
 export interface ProjectWithUser {
   id: string;
-  user_id: string;
-  title: string;
+  owner_id: string;
+  name: string;
   crop: string;
   location: string;
   start_date: string;
@@ -43,9 +43,9 @@ export interface ProjectWithUser {
   progress: number;
   created_at: string;
   updated_at: string;
-  creator_name: string;
-  creator_email: string;
-  creator_avatar: string;
-  // Compatibility field to match the Admin component's expected structure
+  user_display_name: string;
+  user_email: string;
+  user_avatar: string;
+  // Compatibility field
   user_name?: string;
 }
