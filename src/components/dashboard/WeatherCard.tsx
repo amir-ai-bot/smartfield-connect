@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CloudRain, Loader2, Sun, Thermometer, Wind } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WeatherData } from '@/types/dashboard';
+import { WeatherData } from '@/contexts/DashboardContext';
 
 type WeatherCardProps = {
   weatherData: WeatherData | null;
@@ -58,8 +58,8 @@ const WeatherCard = ({ weatherData, isLoading }: WeatherCardProps) => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-3xl font-semibold">{weatherData?.temperature || weatherData?.temp || 0}°C</h3>
-                <p className="text-gray-600">{weatherData?.location || 'Location unavailable'}</p>
+                <h3 className="text-3xl font-semibold">{weatherData?.temperature}°C</h3>
+                <p className="text-gray-600">{weatherData?.location}</p>
               </div>
               
               <div className="h-16 w-16 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -71,27 +71,27 @@ const WeatherCard = ({ weatherData, isLoading }: WeatherCardProps) => {
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <Thermometer className="h-5 w-5 mx-auto mb-1 text-agri-terra-500" />
                 <p className="text-xs text-gray-500">Ressenti</p>
-                <p className="text-sm font-medium">{weatherData?.feelsLike || (weatherData?.temp ? (weatherData.temp - 2) : 0)}°C</p>
+                <p className="text-sm font-medium">{weatherData?.feelsLike}°C</p>
               </div>
               
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <Wind className="h-5 w-5 mx-auto mb-1 text-agri-blue-500" />
                 <p className="text-xs text-gray-500">Vent</p>
-                <p className="text-sm font-medium">{weatherData?.windSpeed || 0} km/h</p>
+                <p className="text-sm font-medium">{weatherData?.windSpeed} km/h</p>
               </div>
               
               <div className="bg-gray-50 p-3 rounded-lg text-center">
                 <CloudRain className="h-5 w-5 mx-auto mb-1 text-agri-blue-500" />
                 <p className="text-xs text-gray-500">Humidité</p>
-                <p className="text-sm font-medium">{weatherData?.humidity || 0}%</p>
+                <p className="text-sm font-medium">{weatherData?.humidity}%</p>
               </div>
             </div>
             
             <div className="pt-2 border-t">
               <p className="text-xs text-gray-500 mb-2">Prévisions pour la semaine</p>
               <div className="flex justify-between">
-                {(weatherData?.forecast || []).map((day, i) => (
-                  <div key={i} className="text-center">
+                {weatherData?.forecast.map((day, i) => (
+                  <div key={day.day} className="text-center">
                     <p className="text-xs mb-1">{day.day}</p>
                     <Sun className={`h-5 w-5 mx-auto ${day.condition === 'cloudy' ? 'text-gray-400' : 'text-yellow-500'}`} />
                     <p className="text-xs font-medium mt-1">{day.temperature}°</p>

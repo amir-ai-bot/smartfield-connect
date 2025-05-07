@@ -1,44 +1,23 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { createAdminAccount } from '@/services/authService';
+import { toast } from 'sonner';
 
-// This function will create an admin account
-// Note: This is just a placeholder and should be implemented with proper security measures
-async function createAdminAccount() {
+export const setupAdminAccount = async () => {
   try {
-    // This is just a placeholder script
-    // Admin account creation would typically be handled by a serverless function
-    // or directly in the Supabase dashboard
-    console.log("This script needs to be implemented with proper administrative functions");
-
-    // Example implementation (commented out for security):
-    /*
-    // 1. Create a user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: 'admin@example.com',
-      password: 'securePassword123',
-      email_confirm: true
-    });
+    // Use these hardcoded values for admin account creation from the Index page
+    const adminName = "Admin";
+    const adminEmail = "yassindhibi100@gmail.com";
+    const adminPassword = "yassin11yassin";
     
-    if (authError) {
-      throw authError;
-    }
+    const user = await createAdminAccount(adminName, adminEmail, adminPassword);
     
-    // 2. Update the user's role to admin
-    const { error: roleError } = await supabase
-      .from('profiles')
-      .update({ role: 'admin' })
-      .eq('id', authData.user.id);
-      
-    if (roleError) {
-      throw roleError;
-    }
+    toast.success('Compte administrateur créé avec succès!');
+    console.log('Admin account created:', user);
     
-    console.log('Admin account created successfully');
-    */
+    return user;
   } catch (error) {
-    console.error("Error creating admin account:", error);
+    console.error('Failed to create admin account:', error);
+    toast.error('Échec de la création du compte administrateur. Vérifiez la console pour plus de détails.');
+    throw error;
   }
-}
-
-// Execute the function
-createAdminAccount();
+};

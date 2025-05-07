@@ -20,13 +20,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
   onSwitchToSignup,
   onSwitchToForgotPassword
 }) => {
-  const { signIn } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await signIn(data.email, data.password);
+      await login(data.email, data.password);
       if (onSuccess) onSuccess();
       navigate('/dashboard');
     } catch (error) {
@@ -95,7 +95,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connexion en cours...
+              Connexion...
             </>
           ) : (
             'Se connecter'

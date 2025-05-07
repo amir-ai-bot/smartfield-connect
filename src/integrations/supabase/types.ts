@@ -9,45 +9,77 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      conversations: {
+      conversation_media: {
         Row: {
           created_at: string | null
           id: string
-          last_message_at: string | null
-          participant1_id: string | null
-          participant2_id: string | null
+          media_type: string
+          media_url: string
+          message_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          last_message_at?: string | null
-          participant1_id?: string | null
-          participant2_id?: string | null
+          media_type: string
+          media_url: string
+          message_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          last_message_at?: string | null
-          participant1_id?: string | null
-          participant2_id?: string | null
+          media_type?: string
+          media_url?: string
+          message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_media_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          fournisseur_id: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fournisseur_id: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fournisseur_id?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
       favorite_suppliers: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
           supplier_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           supplier_id: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           supplier_id?: string
           user_id?: string
@@ -62,94 +94,67 @@ export type Database = {
           },
         ]
       }
-      media_items: {
+      fournisseur_ratings: {
         Row: {
+          comment: string | null
           created_at: string | null
+          fournisseur_id: string
           id: string
-          media_type: string | null
-          media_url: string
-          message_id: string | null
+          rating: number
+          user_id: string
         }
         Insert: {
+          comment?: string | null
           created_at?: string | null
+          fournisseur_id: string
           id?: string
-          media_type?: string | null
-          media_url: string
-          message_id?: string | null
+          rating: number
+          user_id: string
         }
         Update: {
+          comment?: string | null
           created_at?: string | null
+          fournisseur_id?: string
           id?: string
-          media_type?: string | null
-          media_url?: string
-          message_id?: string | null
+          rating?: number
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "media_items_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
-          content: string | null
+          content: string
+          conversation_id: string | null
           created_at: string | null
           id: string
-          receiver_id: string | null
-          sender_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string | null
-          id?: string
-          receiver_id?: string | null
-          sender_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          content?: string | null
-          created_at?: string | null
-          id?: string
-          receiver_id?: string | null
-          sender_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          created_at: string | null
-          id: string
-          message: string
           read: boolean | null
-          title: string
-          type: string
-          user_id: string | null
+          sender_id: string | null
         }
         Insert: {
+          content: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          message: string
           read?: boolean | null
-          title: string
-          type: string
-          user_id?: string | null
+          sender_id?: string | null
         }
         Update: {
+          content?: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          message?: string
           read?: boolean | null
-          title?: string
-          type?: string
-          user_id?: string | null
+          sender_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -157,9 +162,10 @@ export type Database = {
           avatar: string | null
           bio: string | null
           created_at: string | null
-          display_name: string | null
           email: string | null
+          email_verified: boolean | null
           id: string
+          name: string | null
           phone_number: string | null
           preferences: Json | null
           role: string | null
@@ -170,9 +176,10 @@ export type Database = {
           avatar?: string | null
           bio?: string | null
           created_at?: string | null
-          display_name?: string | null
           email?: string | null
+          email_verified?: boolean | null
           id: string
+          name?: string | null
           phone_number?: string | null
           preferences?: Json | null
           role?: string | null
@@ -183,9 +190,10 @@ export type Database = {
           avatar?: string | null
           bio?: string | null
           created_at?: string | null
-          display_name?: string | null
           email?: string | null
+          email_verified?: boolean | null
           id?: string
+          name?: string | null
           phone_number?: string | null
           preferences?: Json | null
           role?: string | null
@@ -203,133 +211,168 @@ export type Database = {
           image: string | null
           is_public: boolean | null
           location: string | null
-          name: string
-          owner_id: string | null
           progress: number | null
           start_date: string | null
-          status: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          crop?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          crop?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          progress?: number | null
+          start_date?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          created_at: string | null
+          id: string
+          price: number | null
+          project_id: string | null
+          quantity: number | null
+          service_id: string | null
+          status: string | null
+          supplier_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          crop?: string | null
-          description?: string | null
-          end_date?: string | null
           id?: string
-          image?: string | null
-          is_public?: boolean | null
-          location?: string | null
-          name: string
-          owner_id?: string | null
-          progress?: number | null
-          start_date?: string | null
-          status: string
+          price?: number | null
+          project_id?: string | null
+          quantity?: number | null
+          service_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          crop?: string | null
-          description?: string | null
-          end_date?: string | null
           id?: string
-          image?: string | null
-          is_public?: boolean | null
-          location?: string | null
-          name?: string
-          owner_id?: string | null
-          progress?: number | null
-          start_date?: string | null
-          status?: string
+          price?: number | null
+          project_id?: string | null
+          quantity?: number | null
+          service_id?: string | null
+          status?: string | null
+          supplier_id?: string | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      supplier_ratings: {
-        Row: {
-          comment: string | null
-          created_at: string
-          id: string
-          rating: number
-          supplier_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          comment?: string | null
-          created_at?: string
-          id?: string
-          rating: number
-          supplier_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          comment?: string | null
-          created_at?: string
-          id?: string
-          rating?: number
-          supplier_id?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "supplier_ratings_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: "quotes_service_id_fkey"
+            columns: ["service_id"]
             isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "supplier_ratings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
       }
+      services: {
+        Row: {
+          availability: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: number | null
+          supplier_id: string | null
+          type: Database["public"]["Enums"]["service_type"] | null
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          availability?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: number | null
+          supplier_id?: string | null
+          type?: Database["public"]["Enums"]["service_type"] | null
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          availability?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number | null
+          supplier_id?: string | null
+          type?: Database["public"]["Enums"]["service_type"] | null
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
-          avatar: string | null
-          category: string
+          category: string | null
+          contact_info: string | null
           created_at: string | null
-          email: string | null
           id: string
           image: string | null
-          location: string
+          location: string | null
           name: string
-          phone: string
+          phone: string | null
           products: string[] | null
           rating: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          avatar?: string | null
-          category: string
+          category?: string | null
+          contact_info?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string
           image?: string | null
-          location: string
+          location?: string | null
           name: string
-          phone: string
+          phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          avatar?: string | null
-          category?: string
+          category?: string | null
+          contact_info?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string
           image?: string | null
-          location?: string
+          location?: string | null
           name?: string
-          phone?: string
+          phone?: string | null
           products?: string[] | null
           rating?: number | null
           updated_at?: string | null
@@ -337,18 +380,149 @@ export type Database = {
         }
         Relationships: []
       }
+      training_materials: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
+      verification_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          type: string
+          used: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          type: string
+          used?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          type?: string
+          used?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      weather_alerts: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          message: string | null
+          project_id: string | null
+          severity: string | null
+          start_date: string | null
+          type: Database["public"]["Enums"]["weather_alert_type"] | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          severity?: string | null
+          start_date?: string | null
+          type?: Database["public"]["Enums"]["weather_alert_type"] | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          severity?: string | null
+          start_date?: string | null
+          type?: Database["public"]["Enums"]["weather_alert_type"] | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      projects_with_users: {
+        Row: {
+          created_at: string | null
+          creator_avatar: string | null
+          creator_email: string | null
+          creator_name: string | null
+          crop: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          image: string | null
+          is_public: boolean | null
+          location: string | null
+          progress: number | null
+          start_date: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      public_projects_view: {
+        Row: {
+          created_at: string | null
+          creator: string | null
+          creator_avatar: string | null
+          description: string | null
+          id: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_favorite_supplier: {
-        Args: { p_user_id: string; p_supplier_id: string }
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
         Returns: boolean
       }
-      add_missing_columns_to_projects: {
+      admin_cleanup_orphaned_auth: {
         Args: Record<PropertyKey, never>
-        Returns: undefined
+        Returns: {
+          deleted_count: number
+          deleted_emails: string[]
+        }[]
       }
       admin_create_user: {
         Args: {
@@ -359,179 +533,140 @@ export type Database = {
         }
         Returns: undefined
       }
-      admin_delete_user: {
-        Args: { user_id: string }
+      admin_delete_auth_user: {
+        Args: {
+          target_user_id: string
+        }
         Returns: undefined
       }
-      admin_get_all_projects: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          name: string
-          description: string
-          status: string
-          owner_id: string
-          image: string
-          crop: string
-          location: string
-          progress: number
-          start_date: string
-          end_date: string
-          is_public: boolean
-          created_at: string
-          updated_at: string
-          user_name: string
-          user_email: string
-          user_avatar: string
-        }[]
-      }
-      admin_get_all_suppliers: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          name: string
-          description: string
-          category: string
-          products: string[]
-          location: string
-          phone: string
-          email: string
-          website: string
-          avatar: string
-          rating: number
+      admin_delete_user: {
+        Args: {
           user_id: string
-          created_at: string
-          updated_at: string
-          user_name: string
-          user_email: string
-          user_avatar: string
-        }[]
-      }
-      admin_get_all_users: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          address: string | null
-          avatar: string | null
-          bio: string | null
-          created_at: string | null
-          display_name: string | null
-          email: string | null
-          id: string
-          phone_number: string | null
-          preferences: Json | null
-          role: string | null
-          updated_at: string | null
-        }[]
+        }
+        Returns: undefined
       }
       admin_update_user_password: {
-        Args: { user_id: string; new_password: string }
+        Args: {
+          user_id: string
+          new_password: string
+        }
         Returns: undefined
       }
       admin_verify_user: {
-        Args: { user_id: string }
+        Args: {
+          user_id: string
+        }
         Returns: undefined
       }
       check_favorite_supplier: {
-        Args: { p_user_id: string; p_supplier_id: string }
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
         Returns: boolean
       }
-      create_project: {
+      create_verification_code: {
         Args: {
-          p_name: string
-          p_description: string
-          p_status: string
-          p_owner_id: string
-          p_image: string
-          p_crop: string
-          p_location: string
-          p_progress: number
-          p_start_date: string
-          p_end_date: string
-          p_is_public: boolean
+          p_user_id: string
+          p_type?: string
         }
-        Returns: Json
-      }
-      create_projects_table_if_not_exists: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      create_test_user: {
-        Args: Record<PropertyKey, never>
         Returns: string
       }
-      create_user_profile: {
+      exec_sql: {
         Args: {
-          user_id: string
-          user_email: string
-          user_name: string
-          user_role?: string
-          user_phone?: string
+          sql: string
         }
         Returns: undefined
       }
-      execute_sql: {
-        Args: { sql_query: string }
-        Returns: Json
+      force_delete_user: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: undefined
       }
-      get_favorite_suppliers: {
-        Args: { p_user_id: string }
+      get_all_suppliers: {
+        Args: Record<PropertyKey, never>
         Returns: {
-          avatar: string | null
-          category: string
-          created_at: string | null
-          email: string | null
           id: string
-          image: string | null
-          location: string
+          user_id: string
           name: string
+          category: string
+          rating: number
+          location: string
           phone: string
-          products: string[] | null
-          rating: number | null
-          updated_at: string | null
-          user_id: string | null
+          email: string
+          products: string[]
+          avatar: string
         }[]
       }
-      get_supplier_ratings: {
-        Args: { p_supplier_id: string }
+      get_favorite_suppliers: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json[]
+      }
+      get_fournisseur_ratings: {
+        Args: {
+          fournisseur_id: string
+        }
         Returns: {
           id: string
           rating: number
           comment: string
-          user_id: string
-          supplier_id: string
           created_at: string
-          updated_at: string
-          user_name: string
-          user_avatar: string
+          profiles: Json
         }[]
       }
-      insert_project: {
+      get_message_media: {
         Args: {
-          p_name: string
-          p_description: string
-          p_status: string
-          p_owner_id: string
-          p_image?: string
-          p_crop?: string
-          p_location?: string
-          p_progress?: number
-          p_start_date?: string
-          p_end_date?: string
-          p_is_public?: boolean
+          p_message_id: string
         }
-        Returns: Json
+        Returns: {
+          id: string
+          message_id: string
+          media_type: string
+          media_url: string
+          created_at: string
+        }[]
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
+      insert_conversation_media: {
+        Args: {
+          p_message_id: string
+          p_media_type: string
+          p_media_url: string
+        }
+        Returns: string
+      }
+      insert_verification_code: {
+        Args: {
+          p_user_id: string
+          p_code: string
+          p_type: string
+          p_expires_at: string
+        }
+        Returns: string
       }
       remove_favorite_supplier: {
-        Args: { p_user_id: string; p_supplier_id: string }
+        Args: {
+          p_user_id: string
+          p_supplier_id: string
+        }
+        Returns: boolean
+      }
+      verify_code: {
+        Args: {
+          p_user_id: string
+          p_code: string
+          p_type?: string
+        }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      project_status: "draft" | "active" | "completed" | "cancelled"
+      service_type: "equipment" | "seeds" | "fertilizers" | "consulting"
+      user_role: "admin" | "farmer" | "supplier"
+      weather_alert_type: "rain" | "drought" | "frost" | "heat_wave"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -539,29 +674,27 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -569,22 +702,20 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -592,22 +723,20 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -615,23 +744,21 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof PublicSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof Database
@@ -640,12 +767,6 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

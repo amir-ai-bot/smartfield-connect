@@ -1,88 +1,124 @@
 
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getUserConversations } from '@/services/conversationService';
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { formatDistanceToNow } from 'date-fns';
-
-interface Conversation {
-  id: string;
-  participant: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  lastMessageAt: string;
-}
+import { Link, useNavigate } from 'react-router-dom';
+import ConversationList from '@/components/conversation/ConversationList';
+import { MessageSquare, Users } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const Conversations = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      if (user) {
-        try {
-          const data = await getUserConversations(user.id);
-          setConversations(data);
-        } catch (error) {
-          console.error('Error fetching conversations:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
+    document.title = 'Conversations | AgriSmart';
+  }, []);
 
-    fetchConversations();
-  }, [user]);
-
-  if (loading) {
-    return <div>Loading conversations...</div>;
-  }
-
-  if (conversations.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <h2 className="text-xl font-semibold mb-2">No conversations yet</h2>
-        <p className="text-gray-500 mb-4">Start chatting with suppliers to see conversations here.</p>
-        <Link to="/suppliers" className="text-blue-500 hover:underline">
-          Browse Suppliers
-        </Link>
-      </div>
-    );
+  if (!user) {
+    return null;
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Conversations</h1>
-      <div className="space-y-3">
-        {conversations.map((conversation) => (
-          <Link key={conversation.id} to={`/messages/${conversation.id}`}>
-            <Card className="hover:bg-gray-50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <Avatar className="h-10 w-10 mr-3">
-                    <AvatarImage src={conversation.participant.avatar || ''} />
-                    <AvatarFallback>
-                      {conversation.participant.name?.charAt(0) || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">{conversation.participant.name || 'Unknown'}</p>
-                    <p className="text-sm text-gray-500">
-                      {conversation.lastMessageAt
-                        ? formatDistanceToNow(new Date(conversation.lastMessageAt), { addSuffix: true })
-                        : 'No messages yet'}
-                    </p>
-                  </div>
-                </div>
+    <div className="container mx-auto px-4 py-8 pb-20 md:pb-8 mt-16">
+      <div className="flex flex-col space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">Mes conversations</h1>
+          <Button 
+            onClick={() => navigate('/suppliers')}
+            className="bg-agri-green-500 hover:bg-agri-green-600"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Fournisseurs
+          </Button>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="all">Toutes les conversations</TabsTrigger>
+            <TabsTrigger value="unread">Non lues</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Conversations</CardTitle>
+                <CardDescription>
+                  Vos échanges avec les fournisseurs et autres utilisateurs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ConversationList currentUser={user} />
               </CardContent>
             </Card>
-          </Link>
-        ))}
+          </TabsContent>
+          
+          <TabsContent value="unread" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Messages non lus</CardTitle>
+                <CardDescription>
+                  Conversations avec des messages non lus
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ConversationList currentUser={user} filterUnread={true} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+        
+        <Separator />
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Guide d'utilisation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2 flex items-center">
+                    <MessageSquare className="h-4 w-4 mr-2 text-agri-green-500" />
+                    Comment démarrer une conversation
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Accédez à la page des fournisseurs, choisissez un fournisseur 
+                    qui correspond à vos besoins et cliquez sur "Contacter". 
+                    Vous pouvez ensuite échanger directement avec eux.
+                  </p>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2 flex items-center">
+                    <MessageSquare className="h-4 w-4 mr-2 text-agri-green-500" />
+                    Messages multimédia
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    La messagerie vous permet d'envoyer des photos, documents et 
+                    messages vocaux pour faciliter vos échanges avec les fournisseurs.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-sm text-gray-600 border-t pt-4">
+                <p>
+                  Besoin d'aide supplémentaire ? Contactez notre support à{' '}
+                  <a 
+                    href="mailto:yassindhibi100@gmail.com" 
+                    className="text-agri-green-600 hover:underline"
+                  >
+                    yassindhibi100@gmail.com
+                  </a>
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

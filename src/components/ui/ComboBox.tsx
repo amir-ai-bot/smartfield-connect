@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,52 +16,28 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-export interface ComboBoxProps {
-  options?: {
-    value: string;
-    label: string;
-  }[];
-  items?: {
-    value: string;
-    label: string;
-  }[];
-  value?: string;
-  onValueChange?: (value: string) => void;
+interface Item {
+  value: string;
+  label: string;
+}
+
+interface ComboBoxProps {
+  items: Item[];
   placeholder?: string;
-  searchPlaceholder?: string;
-  emptyMessage?: string;
+  onValueChange: (value: string) => void;
   className?: string;
+  defaultValue?: string;
 }
 
 export function ComboBox({
-  options,
   items,
-  value,
+  placeholder = "Select item...",
   onValueChange,
-  placeholder = "Sélectionner une option",
-  searchPlaceholder = "Rechercher...",
-  emptyMessage = "Aucun résultat trouvé.",
   className,
+  defaultValue,
 }: ComboBoxProps) {
   const [open, setOpen] = React.useState(false);
-  const [selectedValue, setSelectedValue] = React.useState(value || "");
-  const itemsToUse = options || items || [];
-
-  React.useEffect(() => {
-    if (value !== undefined) {
-      setSelectedValue(value);
-    }
-  }, [value]);
-
-  const handleSelect = (currentValue: string) => {
-    setSelectedValue(currentValue);
-    setOpen(false);
-    if (onValueChange) {
-      onValueChange(currentValue);
-    }
-  };
-
-  const selectedOption = itemsToUse.find(option => option.value === selectedValue);
+  const [value, setValue] = React.useState(defaultValue || "");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -70,30 +46,37 @@ export function ComboBox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", className)}
+          className={cn("justify-between", className)}
         >
-          {selectedValue ? selectedOption?.label : placeholder}
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          {value
+            ? items.find((item) => item.value === value)?.label
+            : placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="p-0">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandEmpty>{emptyMessage}</CommandEmpty>
+          <CommandInput placeholder={placeholder} />
+          <CommandEmpty>No item found.</CommandEmpty>
           <CommandGroup>
-            {itemsToUse.map((option) => (
+            {items.map((item) => (
               <CommandItem
-                key={option.value}
-                value={option.value}
-                onSelect={() => handleSelect(option.value)}
+                key={item.value}
+                value={item.value}
+                onSelect={(currentValue) => {
+                  const newValue = currentValue === value ? "" : currentValue;
+                  setValue(newValue);
+                  onValueChange(newValue);
+                  setOpen(false);
+                }}
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    selectedValue === option.value ? "opacity-100" : "opacity-0"
+                    value === item.value ? "opacity-100" : "opacity-0"
                   )}
                 />
-                {option.label}
+                {item.label}
               </CommandItem>
             ))}
           </CommandGroup>
@@ -102,5 +85,3 @@ export function ComboBox({
     </Popover>
   );
 }
-
-export default ComboBox;

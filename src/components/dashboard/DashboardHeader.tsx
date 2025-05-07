@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthDialog from '@/components/auth/AuthDialog';
+import { useState } from 'react';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { ProjectData } from '@/types/dashboard';
 
@@ -17,14 +18,14 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
   const { isAuthenticated } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-
+  
   // Format relative time
   const getRelativeTimeString = (date: Date | null): string => {
     if (!date) return '';
-
+    
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
+    
     if (diffInSeconds < 60) return 'À l\'instant';
     if (diffInSeconds < 3600) return `Il y a ${Math.floor(diffInSeconds / 60)} min`;
     if (diffInSeconds < 86400) return `Il y a ${Math.floor(diffInSeconds / 3600)} h`;
@@ -39,8 +40,8 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
     }
   };
 
-  // Handle project creation success
-  const handleProjectCreated = async (project: any) => {
+  // Handle project creation success - make this return a Promise
+  const handleProjectCreated = async (projectData: Omit<ProjectData, "id" | "created_at" | "updated_at" | "user_id">) => {
     await refreshData();
     return Promise.resolve();
   };
@@ -59,11 +60,11 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
             )}
           </p>
         </div>
-
+        
         <div className="flex space-x-3 mt-4 md:mt-0">
-          <Button
-            variant="outline"
-            size="sm"
+          <Button 
+            variant="outline" 
+            size="sm" 
             className="flex items-center"
             onClick={() => refreshData()}
             disabled={isLoading}
@@ -75,9 +76,9 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
             )}
             Actualiser
           </Button>
-
-          <Button
-            size="sm"
+          
+          <Button 
+            size="sm" 
             className="bg-agri-green-500 hover:bg-agri-green-600 text-white flex items-center"
             onClick={handleNewProject}
           >
@@ -87,13 +88,12 @@ const DashboardHeader = ({ isLoading, lastUpdated, refreshData }: DashboardHeade
         </div>
       </div>
 
-      <AuthDialog
+      <AuthDialog 
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
-        defaultTab="login"
       />
 
-      <CreateProjectDialog
+      <CreateProjectDialog 
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onProjectCreated={handleProjectCreated}

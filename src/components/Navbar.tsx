@@ -161,7 +161,7 @@ const Navbar = () => {
       <AuthDialog 
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
-        defaultTab="login"
+        initialView="login"
       />
       
       {isMobile && <BottomNavbar />}

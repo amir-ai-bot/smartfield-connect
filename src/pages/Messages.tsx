@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -73,7 +74,7 @@ const Messages = () => {
               <AuthDialog 
                 open={showAuthDialog}
                 onOpenChange={setShowAuthDialog}
-                defaultTab="login"
+                initialView="login"
               />
             </CardContent>
           </Card>

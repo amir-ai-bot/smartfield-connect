@@ -1,227 +1,229 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, Mail, MapPin, Heart, Star } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Phone, Mail, MapPin, Star, MessageSquare, Heart } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  toggleFavoriteFournisseur, 
-  isFournisseurFavorite 
-} from '@/services/supplierService';
+import { toggleFavoriteFournisseur, isFournisseurFavorite, rateFournisseur } from '@/services/conversationService';
+import { createSupplierConversation } from '@/services/supplierService';
 import { toast } from 'sonner';
+import AuthDialog from './auth/AuthDialog';
+import RatingDialog from './conversation/RatingDialog';
 
-interface Supplier {
+interface SupplierCardEnhancedProps {
   id: string;
+  user_id: string;
   name: string;
-  category?: string;
-  location?: string;
-  phone?: string;
-  products?: string[];
-  rating?: number;
-  avatar?: string;
+  category: string;
+  rating: number;
+  location: string;
+  phone: string; // Required in props but might be empty
   email?: string;
-  user_id?: string;
+  products?: string[];
+  image?: string;
+  avatar?: string;
+  isFavorite?: boolean;
 }
 
-interface SupplierCardProps {
-  supplier: Supplier;
-  onFavoriteToggle?: () => void;
-}
-
-const StarRating: React.FC<{ rating?: number }> = ({ rating = 0 }) => {
-  return (
-    <div className="flex items-center">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star 
-          key={star}
-          className={`h-4 w-4 ${
-            star <= Math.round(rating)
-              ? 'text-yellow-400 fill-yellow-400'
-              : 'text-gray-300'
-          }`}
-        />
-      ))}
-      {rating > 0 && (
-        <span className="ml-1 text-sm text-gray-600">{rating.toFixed(1)}</span>
-      )}
-    </div>
-  );
-};
-
-const SupplierCardEnhanced: React.FC<SupplierCardProps> = ({ supplier, onFavoriteToggle }) => {
+const SupplierCardEnhanced = ({
+  id,
+  user_id,
+  name,
+  category,
+  rating,
+  location,
+  phone,
+  email,
+  products = [], // Provide default empty array
+  image,
+  avatar,
+  isFavorite: initialIsFavorite
+}: SupplierCardEnhancedProps) => {
   const { user, isAuthenticated } = useAuth();
-  const [favorite, setFavorite] = useState(false);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(initialIsFavorite || false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Check if supplier is in favorites when component mounts
   useEffect(() => {
-    const checkIfFavorite = async () => {
-      if (isAuthenticated && user && supplier.id) {
+    if (user && id) {
+      const checkFavoriteStatus = async () => {
         try {
-          const isFavorite = await isFournisseurFavorite(user.id, supplier.id);
-          setFavorite(isFavorite);
+          const status = await isFournisseurFavorite(user.id, id);
+          setIsFavorite(status);
         } catch (error) {
           console.error('Error checking favorite status:', error);
         }
-      }
-    };
-    
-    checkIfFavorite();
-  }, [user, supplier.id, isAuthenticated]);
-
-  const handleFavoriteToggle = async () => {
-    if (!isAuthenticated) {
-      toast.error('Vous devez être connecté pour ajouter aux favoris');
+      };
+      
+      checkFavoriteStatus();
+    }
+  }, [user, id, initialIsFavorite]);
+  
+  const handleContact = async () => {
+    if (!isAuthenticated || !user) {
+      setShowAuthDialog(true);
       return;
     }
     
     try {
-      setLoading(true);
-      const result = await toggleFavoriteFournisseur(user!.id, supplier.id);
-      setFavorite(result.isFavorite);
-      
-      if (onFavoriteToggle) {
-        onFavoriteToggle();
-      }
+      setIsLoading(true);
+      // Use the enhanced createSupplierConversation function
+      const conversationId = await createSupplierConversation(user.id, id);
+      navigate(`/conversations/${conversationId}`);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast.error('Erreur lors de la création de la conversation');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated || !user) {
+      setShowAuthDialog(true);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const result = await toggleFavoriteFournisseur(user.id, id);
+      setIsFavorite(result.isFavorite);
       
       toast.success(
-        result.isFavorite
-          ? 'Ajouté aux favoris'
-          : 'Retiré des favoris'
+        result.isFavorite 
+          ? `${name} ajouté aux favoris` 
+          : `${name} retiré des favoris`
       );
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      toast.error('Une erreur s\'est produite');
+      toast.error('Erreur lors de la mise à jour des favoris');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleContactClick = () => {
-    if (!isAuthenticated) {
-      toast.error('Vous devez être connecté pour contacter un fournisseur');
+  const handleRateSupplier = () => {
+    if (!isAuthenticated || !user) {
+      setShowAuthDialog(true);
       return;
     }
     
-    if (!supplier.user_id) {
-      toast.error('Ce fournisseur n\'est pas disponible pour la messagerie');
-      return;
-    }
-    
-    // Navigate to create conversation page
-    navigate(`/conversations/create/${supplier.user_id}`);
+    setShowRatingDialog(true);
   };
-
+  
   return (
-    <Card className="h-full flex flex-col transition-shadow hover:shadow-md">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={supplier.avatar} alt={supplier.name} />
-              <AvatarFallback>{supplier.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="font-semibold text-lg">{supplier.name}</h3>
-              <StarRating rating={supplier.rating} />
-            </div>
+    <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+      <CardHeader className="p-0">
+        <div className="relative h-48 overflow-hidden bg-gray-200">
+          <img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute top-2 right-2 flex gap-2">
+            <Badge className="bg-white text-gray-800 hover:bg-gray-100">
+              {category}
+            </Badge>
+            <Badge 
+              className="bg-yellow-400 text-gray-800 hover:bg-yellow-500 flex items-center cursor-pointer" 
+              onClick={handleRateSupplier}
+            >
+              <Star className="h-3 w-3 mr-1 fill-current" />
+              {rating}
+            </Badge>
           </div>
           
           <Button
-            size="icon"
             variant="ghost"
-            onClick={handleFavoriteToggle}
-            disabled={loading}
-            className={
-              favorite
-                ? "text-red-500 hover:text-red-600 hover:bg-red-50"
-                : "text-gray-400 hover:text-red-500 hover:bg-red-50"
-            }
+            size="icon"
+            className={`absolute top-2 left-2 rounded-full bg-white/80 hover:bg-white ${
+              isFavorite ? 'text-red-500' : 'text-gray-500'
+            }`}
+            onClick={handleToggleFavorite}
+            disabled={isLoading}
           >
-            <Heart
-              className={
-                favorite ? "fill-current" : "fill-none"
-              }
-            />
+            <Heart className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} />
           </Button>
         </div>
       </CardHeader>
       
-      <CardContent className="flex-grow">
-        <div className="space-y-2">
-          {supplier.category && (
-            <Badge variant="outline" className="bg-agri-green-50">
-              {supplier.category}
-            </Badge>
-          )}
-          
-          {supplier.location && (
-            <div className="flex items-center mt-2 text-sm text-gray-500">
-              <MapPin className="w-4 h-4 mr-1" />
-              {supplier.location}
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold mb-1">{name}</h3>
+            <p className="text-gray-500 text-sm flex items-center">
+              <MapPin className="h-3 w-3 mr-1" />
+              {location}
+            </p>
+          </div>
+          <Avatar className="h-14 w-14 border-2 border-white shadow-md -mt-12">
+            <AvatarImage src={avatar || image} alt={name} />
+            <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </div>
+        
+        <div className="mt-4 space-y-2">
+          {phone && (
+            <div className="flex items-center text-sm">
+              <Phone className="h-4 w-4 mr-2 text-gray-500" />
+              <span>{phone}</span>
             </div>
           )}
-          
-          {supplier.phone && (
-            <div className="flex items-center text-sm text-gray-500">
-              <Phone className="w-4 h-4 mr-1" />
-              {supplier.phone}
-            </div>
-          )}
-          
-          {supplier.email && (
-            <div className="flex items-center text-sm text-gray-500">
-              <Mail className="w-4 h-4 mr-1" />
-              <span className="truncate">{supplier.email}</span>
-            </div>
-          )}
-          
-          {supplier.products && supplier.products.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs text-gray-500 mb-1">Produits:</p>
-              <div className="flex flex-wrap gap-1">
-                {supplier.products.slice(0, 3).map((product, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-xs">
-                    {product}
-                  </Badge>
-                ))}
-                {supplier.products.length > 3 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{supplier.products.length - 3}
-                  </Badge>
-                )}
-              </div>
+          {email && (
+            <div className="flex items-center text-sm">
+              <Mail className="h-4 w-4 mr-2 text-gray-500" />
+              <span>{email}</span>
             </div>
           )}
         </div>
+        
+        <div className="mt-4">
+          <p className="text-sm text-gray-600 mb-2">Produits et services:</p>
+          <div className="flex flex-wrap gap-1">
+            {products.map((product, index) => (
+              <Badge key={index} variant="outline" className="bg-gray-50">
+                {product}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mt-5 flex justify-center">
+          <Button
+            onClick={handleContact}
+            className="w-full bg-agri-green-500 hover:bg-agri-green-600"
+            disabled={isLoading}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Contacter
+          </Button>
+        </div>
       </CardContent>
       
-      <CardFooter className="flex gap-2 pt-0">
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-1"
-          onClick={handleContactClick}
-        >
-          Contacter
-        </Button>
-        
-        <Link 
-          to={`/suppliers/${supplier.id}`}
-          className="flex-1"
-        >
-          <Button
-            variant="default"
-            size="sm"
-            className="w-full bg-agri-green-500 hover:bg-agri-green-600"
-          >
-            Voir profil
-          </Button>
-        </Link>
-      </CardFooter>
+      <AuthDialog
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        initialView="login"
+      />
+
+      {user && (
+        <RatingDialog
+          open={showRatingDialog}
+          onOpenChange={setShowRatingDialog}
+          userId={user.id}
+          fournisseurId={user_id} // Use user_id instead of id to get the correct fournisseur id
+          fournisseurName={name}
+          onRatingSubmitted={() => {
+            // Refresh ratings if needed
+          }}
+        />
+      )}
     </Card>
   );
 };

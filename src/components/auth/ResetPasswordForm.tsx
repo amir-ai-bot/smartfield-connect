@@ -1,139 +1,211 @@
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Loader2 } from 'lucide-react';
-import { resetPassword } from '@/services/authService';
-import { ResetPasswordFormData } from '@/types/auth';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NewPasswordFormData } from '@/types/auth';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Loader2, Lock, ArrowLeft } from 'lucide-react';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
-interface ResetPasswordFormProps {
-  onSuccess: () => void;
-  onBackToLogin: () => void;
-}
+type ResetPasswordFormProps = {
+  onSuccess?: () => void;
+  onBackToLogin?: () => void;
+};
 
-const resetPasswordSchema = z.object({
-  email: z.string().email('Email invalide'),
-  token: z.string().min(1, 'Le token est requis'),
-  password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
-  confirmPassword: z.string().min(6, 'La confirmation du mot de passe doit contenir au moins 6 caractères')
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Les mots de passe ne correspondent pas',
-  path: ['confirmPassword']
-});
-
-export function ResetPasswordForm({ onSuccess, onBackToLogin }: ResetPasswordFormProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { register, handleSubmit, formState: { errors } } = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      email: '',
-      token: '',
-      password: '',
-      confirmPassword: ''
+const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ 
+  onSuccess,
+  onBackToLogin
+}) => {
+  const { confirmPasswordReset } = useAuth();
+  const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<NewPasswordFormData>();
+  const [code, setCode] = useState('');
+  const [useDirectInput, setUseDirectInput] = useState(false);
+  
+  // Auto-fill code from URL parameter
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code');
+    if (codeFromUrl) {
+      console.log("Code found in URL:", codeFromUrl);
+      setCode(codeFromUrl);
+      setValue('code', codeFromUrl);
     }
-  });
+  }, [searchParams, setValue]);
 
-  const onSubmit = async (data: ResetPasswordFormData) => {
-    setIsLoading(true);
-    setError(null);
+  const onSubmit = async (data: NewPasswordFormData) => {
     try {
-      const { error: resetError } = await resetPassword(data);
-      if (resetError) {
-        setError(resetError.message);
-      } else {
-        onSuccess();
+      if (!data.code || data.code.length !== 6) {
+        toast.error(t('codeMustBe6Digits'));
+        return;
       }
-    } catch (err) {
-      setError('Une erreur est survenue lors de la réinitialisation du mot de passe');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      
+      console.log("Submitting reset with code:", data.code);
+      await confirmPasswordReset(data.code, data.password);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      // Error is handled in the auth context
+      console.error('Password reset error:', error);
+      toast.error(t('resetPasswordFailed'));
+    }
+  };
+
+  const handleOTPChange = (value: string) => {
+    try {
+      setCode(value);
+      setValue('code', value);
+    } catch (error) {
+      console.error('OTP change error:', error);
     }
   };
 
   return (
-    <div className="space-y-4 py-2 pb-4">
-      <div className="text-center mb-4">
-        <h2 className="text-lg font-medium">Réinitialiser le mot de passe</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Entrez votre nouveau mot de passe
-        </p>
-      </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-4">
+        <div className="text-center mb-4">
+          <h3 className="text-lg font-medium">{t('createNewPassword')}</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {t('enterCodeAndNewPassword')}
+          </p>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="code" className="block text-center">{t('resetCode')}</Label>
+          
+          {!useDirectInput ? (
+            <>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={code}
+                  onChange={handleOTPChange}
+                  render={({ slots }) => (
+                    <InputOTPGroup className="gap-2">
+                      {slots.map((slot, index) => (
+                        <InputOTPSlot key={index} {...slot} index={index} className="w-10 h-12" />
+                      ))}
+                    </InputOTPGroup>
+                  )}
+                />
+              </div>
+              
+              <div className="text-center mt-2">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-xs p-0"
+                  onClick={() => setUseDirectInput(true)}
+                >
+                  Problèmes avec le champ? Cliquez ici pour saisir manuellement
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-center">
+              <Input
+                className="text-center w-full max-w-[250px]"
+                placeholder="Entrez le code à 6 chiffres"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCode(value);
+                  setValue('code', value);
+                }}
+              />
+            </div>
+          )}
+          
+          <input 
+            type="hidden" 
+            {...register('code', { 
+              required: t('codeRequired'),
+              pattern: {
+                value: /^\d{6}$/,
+                message: t('codeMustBe6Digits')
+              }
+            })} 
+          />
+          
+          {errors.code && (
+            <p className="text-destructive text-sm text-center mt-2">{errors.code.message}</p>
+          )}
+        </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
-          <Input
-            id="email"
-            type="email"
-            placeholder="Email"
-            disabled={isLoading}
-            {...register('email')}
-          />
-          {errors.email && (
-            <p className="text-sm text-red-500">{errors.email.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Input
-            id="token"
-            placeholder="Token"
-            disabled={isLoading}
-            {...register('token')}
-          />
-          {errors.token && (
-            <p className="text-sm text-red-500">{errors.token.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Input
-            id="password"
-            type="password"
-            placeholder="Nouveau mot de passe"
-            disabled={isLoading}
-            {...register('password')}
-          />
+          <Label htmlFor="password">{t('newPassword')}</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              id="password"
+              type="password"
+              className="pl-10"
+              placeholder={t('newPassword')}
+              {...register('password', { 
+                required: t('passwordRequired'),
+                minLength: { value: 6, message: t('passwordMinLength') }
+              })}
+            />
+          </div>
           {errors.password && (
-            <p className="text-sm text-red-500">{errors.password.message}</p>
+            <p className="text-destructive text-sm">{errors.password.message}</p>
           )}
         </div>
+
         <div className="space-y-2">
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="Confirmer le mot de passe"
-            disabled={isLoading}
-            {...register('confirmPassword')}
-          />
+          <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              id="confirmPassword"
+              type="password"
+              className="pl-10"
+              placeholder={t('confirmPassword')}
+              {...register('confirmPassword', { 
+                required: t('confirmPasswordRequired'),
+                validate: value => value === watch('password') || t('passwordsDoNotMatch')
+              })}
+            />
+          </div>
           {errors.confirmPassword && (
-            <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+            <p className="text-destructive text-sm">{errors.confirmPassword.message}</p>
           )}
         </div>
-        <div className="space-y-4 pt-2">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Réinitialiser
+
+        <div className="pt-4 flex flex-col space-y-4">
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('resetting')}
+              </>
+            ) : (
+              t('resetPassword')
+            )}
+          </Button>
+          
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onBackToLogin}
+            className="w-full"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t('backToLogin')}
           </Button>
         </div>
-      </form>
-      <div className="text-center text-sm">
-        <Button variant="link" onClick={onBackToLogin} disabled={isLoading} className="mt-2">
-          Retourner à la connexion
-        </Button>
       </div>
-    </div>
+    </form>
   );
-}
+};
 
 export default ResetPasswordForm;

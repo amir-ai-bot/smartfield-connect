@@ -1,6 +1,8 @@
 
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,89 +11,126 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LogIn, User as UserIcon, Settings, LogOut } from 'lucide-react';
-import { signOut } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
+import { LogOut, User, Settings, MessageSquare, HelpCircle, Heart } from 'lucide-react';
+import AuthDialog from './AuthDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-interface UserProfileButtonProps {
-  onOpenAuthDialog?: () => void;
-}
-
-export function UserProfileButton({ onOpenAuthDialog }: UserProfileButtonProps) {
-  const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await signOut();
-      navigate('/');
-      window.location.reload(); // Force reload to reset all state
-    } catch (error) {
-      console.error('Error during logout:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
-  // Return Login button if not authenticated
-  if (!isAuthenticated) {
+const UserProfileButton = () => {
+  const { user, logout, isAdmin } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  if (!user) {
     return (
-      <Button variant="outline" onClick={onOpenAuthDialog} className="flex items-center">
-        <LogIn className="mr-2 h-4 w-4" />
-        <span>Connexion</span>
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size={isMobile ? "sm" : "default"}
+          onClick={() => setShowAuthDialog(true)}
+          className="whitespace-nowrap"
+        >
+          Se connecter
+        </Button>
+        <AuthDialog
+          open={showAuthDialog}
+          onOpenChange={setShowAuthDialog}
+          initialView="login"
+        />
+      </div>
     );
   }
 
-  // Return user dropdown if authenticated
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.avatar} alt={(user?.display_name || user?.name || "User") + ' profile'} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {(user?.display_name || user?.name || 'U').charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span className="font-medium">{user?.display_name || user?.name || user?.email}</span>
-            <span className="text-xs text-gray-500 truncate">{user?.email}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <Link to="/profile">
-          <DropdownMenuItem className="cursor-pointer">
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+    <div ref={dropdownRef}>
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+            <Avatar>
+              <AvatarImage src={user.avatar || undefined} alt={user.name} />
+              <AvatarFallback>{user.name?.charAt(0) || "?"}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 z-50">
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user.name}</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/profile" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Mon profil</span>
+            </Link>
           </DropdownMenuItem>
-        </Link>
-        <Link to="/dashboard">
-          <DropdownMenuItem className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
+          <DropdownMenuItem asChild>
+            <Link to="/conversations" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span>Mes conversations</span>
+            </Link>
           </DropdownMenuItem>
-        </Link>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={handleLogout} 
-          disabled={isLoggingOut} 
-          className="cursor-pointer"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{isLoggingOut ? 'Déconnexion...' : 'Déconnexion'}</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          
+          <DropdownMenuItem asChild>
+            <Link to="/favorites" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+              <Heart className="mr-2 h-4 w-4" />
+              <span>Fournisseurs favoris</span>
+            </Link>
+          </DropdownMenuItem>
+          
+          {isAdmin() && (
+            <DropdownMenuItem asChild>
+              <Link to="/admin" className="cursor-pointer" onClick={() => setDropdownOpen(false)}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Administration</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuItem asChild>
+            <a 
+              href="mailto:yassindhibi100@gmail.com" 
+              className="cursor-pointer"
+              onClick={() => setDropdownOpen(false)}
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Support</span>
+            </a>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={() => {
+              logout();
+              setDropdownOpen(false);
+            }}
+            className="cursor-pointer text-red-600 focus:text-red-600"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Se déconnecter</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
-}
+};
 
 export default UserProfileButton;

@@ -1,90 +1,77 @@
 
-export interface User {
+// Media item type for messages
+export interface MediaItem {
   id: string;
-  email: string;
-  display_name: string;
-  avatar?: string;
-  role: "user" | "admin" | "fournisseur" | "pending_fournisseur";
-  bio?: string;
-  address?: string;
-  phone_number?: string;
+  message_id: string;
+  media_type: "image" | "document" | "audio";
+  media_url: string;
   created_at: string;
-  updated_at: string;
 }
 
-export interface Supplier {
+// User profile type
+export interface Profile {
   id: string;
   name: string;
-  category: string;
-  description?: string;
-  location: string;
-  phone: string;
   email?: string;
-  website?: string;
-  products?: string[];
   avatar?: string;
-  user_id?: string;
-  rating?: number;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-export interface Rating {
-  id: string;
-  user_id: string;
-  supplier_id: string;
-  rating: number;
-  comment?: string;
-  created_at?: string;
-  updated_at?: string;
-  user?: {
-    id: string;
-    name: string;
-    avatar?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
   };
 }
 
-export interface ProjectData {
+// User type
+export interface User {
   id: string;
   name: string;
-  title?: string;
-  description?: string;
-  status: string;
+  email: string;
+  avatar?: string;
+  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
+  phone_number?: string;
+  email_verified?: boolean;
+  address?: string;
+  bio?: string;
+  preferences?: {
+    language?: 'fr' | 'en' | 'ar';
+    notifications?: {
+      email?: boolean;
+      app?: boolean;
+    };
+    theme?: 'light' | 'dark' | 'system';
+  };
+}
+
+// Supplier type
+export interface Supplier {
+  id: string;
+  user_id?: string;
+  name: string;
+  category: string;
+  location: string;
+  phone: string;
+  products: string[];
+  rating: number;
+  avatar?: string;
+  email?: string;
   image?: string;
-  owner_id: string;
-  crop?: string;
-  location?: string;
-  progress?: number;
-  start_date?: string;
-  startDate?: string;
-  end_date?: string;
-  endDate?: string;
-  is_public?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  user_name?: string;
-  user_avatar?: string;
+  isFavorite?: boolean;
 }
 
-export interface Json {
-  [key: string]: any;
-}
-
-export interface Message {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  created_at: string;
-  updated_at?: string;
-  read?: boolean;
-}
-
-export interface Conversation {
-  id: string;
-  participant1_id: string;
-  participant2_id: string;
-  last_message_at: string;
-  created_at: string;
+// Profile query error guard type
+export interface SelectQueryError<T> {
+  code: string;
+  details: string;
+  hint: string;
+  message: T;
 }

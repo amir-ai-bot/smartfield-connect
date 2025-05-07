@@ -1,217 +1,226 @@
 
-import React, { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import React from 'react';
+import { User } from '@/types/auth';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { User } from '@/types/auth';
-import { Label } from '@/components/ui/label';
-import { Edit, Loader2, Mail, Phone, MapPin } from 'lucide-react';
-import { uploadImage } from '@/services/storageService';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
+import AvatarSelector from './AvatarSelector';
+import { uploadAvatar } from '@/services/storageService';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
-export interface ProfileInfoProps {
+interface ProfileInfoProps {
   user: User;
-  onUpdate: (data: Partial<User>) => void;
+  onUpdate?: (updatedUser: User) => void;
+  onBack?: () => void;
 }
 
-export const ProfileInfo: React.FC<ProfileInfoProps> = ({ user, onUpdate }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: user.name || user.display_name || '',
-    bio: user.bio || '',
-    phone_number: user.phone_number || '',
-    address: user.address || '',
-  });
+const ProfileInfo = ({ user, onUpdate, onBack }: ProfileInfoProps) => {
+  const { updateProfile } = useAuth();
+  const [name, setName] = React.useState(user.name || '');
+  const [email, setEmail] = React.useState(user.email || '');
+  const [phone, setPhone] = React.useState(user.phone_number || '');
+  const [address, setAddress] = React.useState(user.address || '');
+  const [bio, setBio] = React.useState(user.bio || '');
+  const [avatar, setAvatar] = React.useState(user.avatar || '');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [hasChanges, setHasChanges] = React.useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  // Track changes
+  React.useEffect(() => {
+    const changes = 
+      name !== user.name || 
+      email !== user.email || 
+      phone !== (user.phone_number || '') || 
+      address !== (user.address || '') || 
+      bio !== (user.bio || '') || 
+      avatar !== (user.avatar || '');
+    
+    setHasChanges(changes);
+  }, [name, email, phone, address, bio, avatar, user]);
+
+  // Reset form when user changes
+  React.useEffect(() => {
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setPhone(user.phone_number || '');
+    setAddress(user.address || '');
+    setBio(user.bio || '');
+    setAvatar(user.avatar || '');
+  }, [user]);
+
+  const handleSelectAvatar = (newAvatar: string) => {
+    setAvatar(newAvatar);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  const handleAvatarUpload = async (file: File) => {
     try {
-      setIsUploading(true);
-      const imageUrl = await uploadImage(file, 'avatars');
-      
-      if (imageUrl) {
-        await onUpdate({ avatar: imageUrl });
-        toast.success('Photo de profil mise à jour');
-      } else {
-        toast.error('Erreur lors du téléchargement de l\'image');
-      }
+      setIsLoading(true);
+      const avatarUrl = await uploadAvatar(file, user.id);
+      setAvatar(avatarUrl);
+      toast.success('Photo de profil téléchargée avec succès');
     } catch (error) {
-      console.error('Error uploading profile image:', error);
-      toast.error('Erreur lors du téléchargement de l\'image');
+      toast.error('Erreur lors du téléchargement de la photo');
+      console.error(error);
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
-    await onUpdate(formData);
-    setIsEditing(false);
+    try {
+      setIsLoading(true);
+      const updatedUser = await updateProfile({
+        name,
+        email,
+        phone_number: phone,
+        address,
+        bio,
+        avatar
+      });
+      
+      toast.success('Profil mis à jour avec succès');
+      
+      // Call onUpdate if provided
+      if (onUpdate) {
+        onUpdate(updatedUser);
+      }
+      
+      setHasChanges(false);
+    } catch (error) {
+      let errorMessage = 'Erreur lors de la mise à jour du profil';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset to original values
+    setName(user.name || '');
+    setEmail(user.email || '');
+    setPhone(user.phone_number || '');
+    setAddress(user.address || '');
+    setBio(user.bio || '');
+    setAvatar(user.avatar || '');
+    setHasChanges(false);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-center gap-6">
-        <div className="relative group">
-          <Avatar className="w-24 h-24 border-2 border-white shadow-md">
-            <AvatarImage src={user.avatar} alt={user.name || user.display_name || user.email} />
-            <AvatarFallback className="text-2xl">
-              {(user.name || user.display_name || user.email || 'U').charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+    <Card className="shadow-card mb-6">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-xl font-display">Informations personnelles</CardTitle>
+          <CardDescription>Gérez vos informations personnelles et de contact</CardDescription>
+        </div>
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack} className="h-8 px-2">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Retour
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          <AvatarSelector 
+            currentAvatar={avatar} 
+            onSelect={handleSelectAvatar} 
+            onUpload={handleAvatarUpload} 
+          />
           
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-full flex items-center justify-center transition-all">
-            <label 
-              htmlFor="avatar-upload" 
-              className="cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center w-full h-full rounded-full"
-            >
-              <Edit className="h-6 w-6 text-white" />
-              <span className="sr-only">Changer l'avatar</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="name">
+                Nom complet
+              </label>
+              <Input 
+                id="name" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="email">
+                Adresse e-mail
+              </label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="phone">
+              Téléphone
             </label>
-            <input 
-              id="avatar-upload" 
-              type="file" 
-              accept="image/*" 
-              className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploading}
+            <Input 
+              id="phone" 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              placeholder="+216 XX XXX XXX"
             />
           </div>
           
-          {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-              <Loader2 className="h-6 w-6 text-white animate-spin" />
-            </div>
-          )}
-        </div>
-        
-        <div>
-          <h2 className="text-2xl font-bold">
-            {user.name || user.display_name || 'Utilisateur'}
-          </h2>
-          <div className="text-gray-500 flex items-center mt-1">
-            <Mail className="h-4 w-4 mr-1" />
-            <span>{user.email}</span>
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="address">
+              Adresse
+            </label>
+            <Input 
+              id="address" 
+              value={address} 
+              onChange={(e) => setAddress(e.target.value)} 
+              placeholder="Votre adresse"
+            />
           </div>
-          <div className="mt-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              {user.role || 'Utilisateur'}
-            </span>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="bio">
+              Bio
+            </label>
+            <Textarea 
+              id="bio" 
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Parlez-nous de vous..."
+            />
           </div>
         </div>
-        
-        <div className="md:ml-auto">
-          {isEditing ? (
-            <div className="space-x-2">
-              <Button 
-                variant="ghost" 
-                onClick={() => setIsEditing(false)}
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleSave}
-              >
-                Enregistrer
-              </Button>
-            </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditing(true)}
-            >
-              Modifier le profil
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      <div className="border-t border-gray-200 pt-6 space-y-4">
-        {isEditing ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nom</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone_number">Téléphone</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="phone_number"
-                    name="phone_number"
-                    className="pl-10"
-                    placeholder="+216 00 000 000"
-                    value={formData.phone_number}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address">Adresse</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="address"
-                  name="address"
-                  className="pl-10"
-                  placeholder="Votre adresse"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                placeholder="Parlez-nous de vous..."
-                value={formData.bio}
-                onChange={handleInputChange}
-                rows={4}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Téléphone</h3>
-                <p className="mt-1">{user.phone_number || 'Non renseigné'}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Adresse</h3>
-                <p className="mt-1">{user.address || 'Non renseignée'}</p>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Bio</h3>
-              <p className="mt-1 whitespace-pre-wrap">{user.bio || 'Aucune bio renseignée'}</p>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+      </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        <Button 
+          variant="outline" 
+          onClick={handleCancel}
+          disabled={isLoading || !hasChanges}
+        >
+          Annuler
+        </Button>
+        <Button 
+          className="bg-agri-green-500 hover:bg-agri-green-600"
+          onClick={handleSave}
+          disabled={isLoading || !hasChanges}
+        >
+          {isLoading ? 'Enregistrement...' : 'Enregistrer'}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
+
+export default ProfileInfo;

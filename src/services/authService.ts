@@ -1,239 +1,31 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { User, UserRole, AuthResponse, UserPreferences, ResetPasswordFormData } from '@/types/auth';
 import { toast } from 'sonner';
+import { User, Profile } from '@/types/auth';
 
-// Map profile data to User type
-const mapProfileToUser = (profile: any, user: any): User => {
-  let userPreferences: UserPreferences = {
-    language: 'fr',
-    notifications: {
-      email: true,
-      app: true
-    },
-    theme: 'light'
-  };
-
-  // Handle preferences correctly based on the type
-  if (profile.preferences) {
-    if (typeof profile.preferences === 'object') {
-      // Directly assign if it's already an object with the right structure
-      userPreferences = {
-        language: (profile.preferences.language || 'fr') as 'fr' | 'en' | 'ar',
-        notifications: {
-          email: profile.preferences.notifications?.email ?? true,
-          app: profile.preferences.notifications?.app ?? true
-        },
-        theme: (profile.preferences.theme || 'light') as 'light' | 'dark' | 'system'
-      };
-    }
-  }
-
-  return {
-    id: profile.id,
-    email: profile.email || user.email,
-    name: profile.display_name || '',
-    role: (profile.role as UserRole) || 'user',
-    avatar: profile.avatar,
-    phone_number: profile.phone_number,
-    email_verified: user.email_confirmed_at ? true : false,
-    address: profile.address,
-    bio: profile.bio,
-    created_at: profile.created_at,
-    updated_at: profile.updated_at,
-    preferences: userPreferences
-  };
-};
-
-// Sign up a new user
-export const signUp = async (
-  name: string,
-  email: string,
-  password: string,
-  phone_number?: string
-): Promise<AuthResponse> => {
-  try {
-    console.log("Signing up user via authService:", { name, email, phone_number });
-
-    // Step 1: Create the user in auth.users
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          display_name: name,
-          phone_number,
-          role: 'user'
-        }
-      }
-    });
-
-    if (error) {
-      console.error("Signup error details:", error);
-      throw error;
-    }
-
-    console.log("Auth signup successful, user data:", data);
-
-    // Step 2: Ensure the profile exists
-    if (data.user) {
-      try {
-        // First check if profile already exists
-        const { data: existingProfile, error: checkError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
-
-        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means not found, which is expected
-          console.error("Error checking for existing profile:", checkError);
-        }
-
-        // If profile doesn't exist, create it
-        if (!existingProfile) {
-          console.log("Creating profile for user:", data.user.id);
-
-          // Try using RPC call for more direct database access
-          const { error: rpcError } = await supabase.rpc('create_user_profile', {
-            user_id: data.user.id,
-            user_email: email,
-            user_name: name,
-            user_role: 'user',
-            user_phone: phone_number || null
-          });
-
-          if (rpcError) {
-            console.error("RPC error creating profile:", rpcError);
-
-            // Fallback to regular insert
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: data.user.id,
-                email: email,
-                display_name: name,
-                name: name,
-                role: 'user',
-                phone_number: phone_number || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-
-            if (insertError) {
-              console.error("Error creating profile via insert:", insertError);
-
-              // Last resort: try a direct SQL query
-              const sqlError = await supabase
-                .from('profiles')
-                .insert({
-                  id: data.user.id,
-                  email: email,
-                  display_name: name,
-                  name: name,
-                  role: 'user',
-                  phone_number: phone_number || null,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                })
-                .select();
-
-              if (sqlError.error) {
-                console.error("SQL error creating profile:", sqlError.error);
-                throw new Error(`Failed to create profile: ${sqlError.error.message}`);
-              }
-            }
-          }
-        }
-      } catch (profileErr) {
-        console.error("Exception creating profile:", profileErr);
-        // Continue anyway - we'll try to fix the profile later if needed
-      }
-
-      toast.success('Inscription réussie! Veuillez vérifier votre email.');
-      return { user: null, session: data.session, error: null }; // Return null user until email verification
-    } else {
-      return { user: null, session: null, error: new Error('Erreur lors de l\'inscription') };
-    }
-  } catch (error) {
-    console.error('Signup error:', error);
-    toast.error(`Erreur d'inscription: ${error.message}`);
-    return { user: null, session: null, error };
-  }
-};
-
-// Sign in a user
-export const signIn = async (email: string, password: string): Promise<AuthResponse> => {
+// Authentication functions
+export const signIn = async (email: string, password: string): Promise<User | null> => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
 
-    if (error) throw error;
-
-    if (data.user) {
-      // Get the user's profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
+    if (error) {
+      if (error.message.includes('Invalid login')) {
+        toast.error('Email ou mot de passe incorrect');
+      } else {
+        toast.error(error.message || 'Une erreur est survenue lors de la connexion');
       }
-
-      const userData = mapProfileToUser(profileData || {}, data.user);
-      toast.success(`Bienvenue, ${userData.name || email}!`);
-      return { user: userData, session: data.session, error: null };
-    } else {
-      return { user: null, session: null, error: new Error('Erreur lors de la connexion') };
+      throw error;
     }
-  } catch (error) {
-    console.error('Sign in error:', error);
-    toast.error(`Erreur de connexion: ${error.message}`);
-    return { user: null, session: null, error };
-  }
-};
 
-// Reset password
-export const resetPassword = async (data: ResetPasswordFormData): Promise<{ error?: any }> => {
-  try {
-    const { token, email, password } = data;
+    if (!data.user) {
+      toast.error('Utilisateur non trouvé');
+      return null;
+    }
 
-    // Use the token to reset the password
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password?token=${token}`,
-    });
-
-    if (error) throw error;
-
-    return { error: null };
-  } catch (error) {
-    console.error('Reset password error:', error);
-    return { error };
-  }
-};
-
-// Sign out the current user
-export const signOut = async (): Promise<void> => {
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    toast.success('Déconnexion réussie');
-  } catch (error) {
-    console.error('Sign out error:', error);
-    toast.error(`Erreur de déconnexion: ${error.message}`);
-  }
-};
-
-// Get the current user
-export const getCurrentUser = async (): Promise<User | null> => {
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data?.user) return null;
-
-    // Get the user's profile
+    // Get user profile data
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -241,96 +33,455 @@ export const getCurrentUser = async (): Promise<User | null> => {
       .single();
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError);
+      console.error('Error fetching user profile:', profileError);
+    }
+
+    // Ensure role is a valid enum value
+    const roleValue = profileData?.role || 'user';
+    const role = (roleValue === 'admin' || 
+                  roleValue === 'user' || 
+                  roleValue === 'fournisseur' || 
+                  roleValue === 'pending_fournisseur') 
+                  ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
+                  : "user";
+
+    // Ensure preferences has the right type
+    let preferences;
+    if (profileData?.preferences) {
+      if (typeof profileData.preferences === 'object') {
+        const prefs = profileData.preferences as any;
+        preferences = {
+          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
+            ? prefs.language 
+            : 'fr',
+          notifications: {
+            email: !!prefs.notifications?.email,
+            app: !!prefs.notifications?.app
+          },
+          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
+            ? prefs.theme
+            : 'light'
+        };
+      } else {
+        preferences = {
+          language: 'fr',
+          notifications: { email: true, app: true },
+          theme: 'light'
+        };
+      }
+    } else {
+      preferences = {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      };
+    }
+
+    // Combine auth user with profile data
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email || '',
+      name: profileData?.name || data.user.user_metadata?.name || '',
+      role: role,
+      avatar: profileData?.avatar || undefined,
+      phone_number: profileData?.phone_number || undefined,
+      email_verified: !!data.user.email_confirmed_at,
+      address: profileData?.address || undefined,
+      bio: profileData?.bio || undefined,
+      preferences: preferences
+    };
+
+    toast.success('Connexion réussie!');
+    return user;
+  } catch (error) {
+    console.error('Sign in error:', error);
+    return null;
+  }
+};
+
+export const signUp = async (
+  name: string,
+  email: string,
+  password: string,
+  phone_number?: string
+): Promise<User | null> => {
+  try {
+    // First check if email already exists
+    const { data: existingUsers, error: emailCheckError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+    
+    if (emailCheckError) {
+      console.error('Error checking existing email:', emailCheckError);
+    }
+    
+    if (existingUsers) {
+      toast.error('Cette adresse email est déjà utilisée');
+      return null;
+    }
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name,
+          phone_number: phone_number || '',
+        },
+      },
+    });
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast.error('Cette adresse email est déjà utilisée');
+      } else {
+        toast.error(error.message || 'Une erreur est survenue lors de l\'inscription');
+      }
+      throw error;
+    }
+
+    if (!data.user) {
+      toast.error('Erreur lors de la création du compte');
       return null;
     }
 
-    return mapProfileToUser(profileData, data.user);
+    // Create a profile for the user
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        email: email.toLowerCase(),
+        name: name,
+        phone_number: phone_number || '',
+        role: 'user' as "admin" | "user" | "fournisseur" | "pending_fournisseur",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.error('Error creating user profile:', profileError);
+    }
+
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email || '',
+      name: name,
+      role: 'user',
+      phone_number: phone_number,
+      email_verified: false
+    };
+
+    toast.success('Compte créé avec succès!');
+    return user;
+  } catch (error) {
+    console.error('Sign up error:', error);
+    return null;
+  }
+};
+
+export const signOut = async (): Promise<boolean> => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
+    toast.success('Déconnexion réussie');
+    return true;
+  } catch (error: any) {
+    toast.error(error.message || 'Une erreur est survenue lors de la déconnexion');
+    console.error('Sign out error:', error);
+    return false;
+  }
+};
+
+export const getCurrentUser = async (): Promise<User | null> => {
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser();
+    
+    if (error || !authUser) {
+      return null;
+    }
+
+    // Get user profile data
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+    }
+
+    // Ensure role is a valid enum value
+    const roleValue = profileData?.role || 'user';
+    const role = (roleValue === 'admin' || 
+                 roleValue === 'user' || 
+                 roleValue === 'fournisseur' || 
+                 roleValue === 'pending_fournisseur') 
+                 ? roleValue as "admin" | "user" | "fournisseur" | "pending_fournisseur"
+                 : "user";
+
+    // Ensure preferences has the right type
+    let preferences;
+    if (profileData?.preferences) {
+      if (typeof profileData.preferences === 'object') {
+        const prefs = profileData.preferences as any;
+        preferences = {
+          language: (prefs.language === 'fr' || prefs.language === 'en' || prefs.language === 'ar') 
+            ? prefs.language 
+            : 'fr',
+          notifications: {
+            email: !!prefs.notifications?.email,
+            app: !!prefs.notifications?.app
+          },
+          theme: (prefs.theme === 'light' || prefs.theme === 'dark' || prefs.theme === 'system')
+            ? prefs.theme
+            : 'light'
+        };
+      } else {
+        preferences = {
+          language: 'fr',
+          notifications: { email: true, app: true },
+          theme: 'light'
+        };
+      }
+    } else {
+      preferences = {
+        language: 'fr',
+        notifications: { email: true, app: true },
+        theme: 'light'
+      };
+    }
+
+    // Combine auth user with profile data
+    const user: User = {
+      id: authUser.id,
+      email: authUser.email || '',
+      name: profileData?.name || authUser.user_metadata?.name || '',
+      role: role,
+      avatar: profileData?.avatar || undefined,
+      phone_number: profileData?.phone_number || undefined,
+      email_verified: !!authUser.email_confirmed_at,
+      address: profileData?.address || undefined,
+      bio: profileData?.bio || undefined,
+      preferences: preferences
+    };
+
+    return user;
   } catch (error) {
     console.error('Get current user error:', error);
     return null;
   }
 };
 
-// Request password reset
-export const requestPasswordReset = async (email: string): Promise<void> => {
+export const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<User | null> => {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
-    toast.success('Instructions de réinitialisation du mot de passe envoyées à votre email');
-  } catch (error) {
-    console.error('Password reset request error:', error);
-    toast.error(`Erreur de demande de réinitialisation: ${error.message}`);
-  }
-};
-
-// Confirm password reset
-export const confirmPasswordReset = async (
-  token: string,
-  newPassword: string
-): Promise<void> => {
-  try {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
-
-    if (error) throw error;
-    toast.success('Mot de passe réinitialisé avec succès');
-  } catch (error) {
-    console.error('Password reset confirmation error:', error);
-    toast.error(`Erreur de réinitialisation: ${error.message}`);
-  }
-};
-
-// Verify email
-export const verifyEmail = async (email: string, token: string): Promise<void> => {
-  try {
-    // This is handled automatically by Supabase when the user clicks the verification link
-    toast.success('Email vérifié avec succès');
-  } catch (error) {
-    console.error('Email verification error:', error);
-    toast.error(`Erreur de vérification d'email: ${error.message}`);
-  }
-};
-
-// Update user profile
-export const updateUserProfile = async (
-  userId: string,
-  profileData: Partial<User>
-): Promise<User | null> => {
-  try {
-    // Prepare the data for update
-    const updateData: any = {};
-    if (profileData.name !== undefined) updateData.display_name = profileData.name;
-    if (profileData.avatar !== undefined) updateData.avatar = profileData.avatar;
-    if (profileData.phone_number !== undefined) updateData.phone_number = profileData.phone_number;
-    if (profileData.address !== undefined) updateData.address = profileData.address;
-    if (profileData.bio !== undefined) updateData.bio = profileData.bio;
-    if (profileData.preferences !== undefined) updateData.preferences = profileData.preferences;
-
-    // Update the profile
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('profiles')
-      .update(updateData)
-      .eq('id', userId)
-      .select()
-      .single();
+      .update({
+        name: updates.name,
+        phone_number: updates.phone_number,
+        address: updates.address,
+        bio: updates.bio,
+        avatar: updates.avatar,
+        updated_at: new Date().toISOString(),
+        ...(updates.preferences && { preferences: updates.preferences })
+      })
+      .eq('id', userId);
 
-    if (error) throw error;
-
-    // Get the current auth user
-    const { data: userData } = await supabase.auth.getUser();
-
-    if (!userData?.user) {
-      throw new Error('User not found');
+    if (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Erreur lors de la mise à jour du profil');
+      throw error;
     }
 
-    const updatedUser = mapProfileToUser(data, userData.user);
+    // Get updated user data
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching updated profile:', profileError);
+      toast.error('Erreur lors de la récupération du profil mis à jour');
+      throw profileError;
+    }
+
+    // Get auth user data
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !authUser) {
+      console.error('Error fetching auth user:', authError);
+      toast.error('Erreur lors de la récupération des données d\'authentification');
+      throw authError || new Error('User not found');
+    }
+
+    // Combine auth user with updated profile data
+    const updatedUser: User = {
+      id: authUser.id,
+      email: authUser.email || '',
+      name: profileData?.name || authUser.user_metadata?.name || '',
+      role: profileData?.role as "admin" | "user" | "fournisseur" | "pending_fournisseur" || "user",
+      avatar: profileData?.avatar || undefined,
+      phone_number: profileData?.phone_number || undefined,
+      email_verified: !!authUser.email_confirmed_at,
+      address: profileData?.address || undefined,
+      bio: profileData?.bio || undefined,
+      preferences: profileData?.preferences ? 
+        (typeof profileData.preferences === 'object' ? 
+          profileData.preferences as {
+            language?: "fr" | "en" | "ar";
+            notifications?: { email?: boolean; app?: boolean; };
+            theme?: "light" | "dark" | "system";
+          } : 
+          {
+            language: "fr",
+            notifications: { email: true, app: true },
+            theme: "light" 
+          }
+        ) : 
+        {
+          language: "fr",
+          notifications: { email: true, app: true },
+          theme: "light" 
+        }
+    };
+
     toast.success('Profil mis à jour avec succès');
     return updatedUser;
   } catch (error) {
-    console.error('Update profile error:', error);
-    toast.error(`Erreur de mise à jour du profil: ${error.message}`);
+    console.error('Update user profile error:', error);
     return null;
+  }
+};
+
+export const requestPasswordReset = async (email: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    
+    if (error) {
+      console.error('Reset password error:', error);
+      toast.error('Erreur lors de la demande de réinitialisation');
+      throw error;
+    }
+    
+    toast.success('Instructions de réinitialisation envoyées à votre email');
+    return true;
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    return false;
+  }
+};
+
+export const confirmPasswordReset = async (code: string, password: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: code,
+      type: 'recovery',
+    });
+    
+    if (error) {
+      console.error('Verify OTP error:', error);
+      toast.error('Code de réinitialisation invalide');
+      throw error;
+    }
+    
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+    });
+    
+    if (updateError) {
+      console.error('Update password error:', updateError);
+      toast.error('Erreur lors de la mise à jour du mot de passe');
+      throw updateError;
+    }
+    
+    toast.success('Mot de passe réinitialisé avec succès');
+    return true;
+  } catch (error) {
+    console.error('Confirm reset error:', error);
+    return false;
+  }
+};
+
+export const verifyEmail = async (email: string, code: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'email',
+    });
+    
+    if (error) {
+      console.error('Email verification error:', error);
+      toast.error('Erreur lors de la vérification de l\'email');
+      throw error;
+    }
+    
+    toast.success('Email vérifié avec succès');
+    return true;
+  } catch (error) {
+    console.error('Email verification error:', error);
+    return false;
+  }
+};
+
+export const becomeFournisseur = async (userId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        role: 'pending_fournisseur',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error becoming supplier:', error);
+      toast.error('Erreur lors de la demande pour devenir fournisseur');
+      throw error;
+    }
+    
+    toast.success('Demande pour devenir fournisseur envoyée');
+    return true;
+  } catch (error) {
+    console.error('Error becoming supplier:', error);
+    return false;
+  }
+};
+
+// Backward compatibility aliases
+export const login = signIn;
+export const logout = signOut;
+export const signup = signUp;
+export const updateProfile = updateUserProfile;
+
+/**
+ * Creates an admin account
+ * @param email Admin email
+ * @param password Admin password
+ * @param name Admin name
+ */
+export const createAdminAccount = async (email: string, password: string, name: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-create-user', {
+      body: { email, password, name, role: 'admin' }
+    });
+    
+    if (error) {
+      console.error('Error creating admin account:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error creating admin account:', error);
+    return { success: false, error };
   }
 };

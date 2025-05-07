@@ -2,10 +2,9 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AuthDialog from '@/components/auth/AuthDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
-import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -16,7 +15,7 @@ const ProtectedRoute = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <LoadingSpinner />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
   }
@@ -30,7 +29,7 @@ const ProtectedRoute = () => {
           <AuthDialog
             open={true}
             onOpenChange={setShowAuthDialog}
-            defaultTab="login"
+            initialView="login"
           />
         </>
       );

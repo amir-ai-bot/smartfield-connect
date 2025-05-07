@@ -4,8 +4,7 @@ import App from './App';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import Suppliers from './pages/Suppliers';
-import WeatherPage from './pages/WeatherPage';
-import ModernWeather from './pages/ModernWeather';
+import Weather from './pages/Weather';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Admin from './pages/Admin';
@@ -15,7 +14,6 @@ import Favorites from './pages/Favorites';
 import SupplierProfilePage from './pages/SupplierProfilePage';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
-import CreateProject from './pages/CreateProject';
 
 const router = createBrowserRouter([
   {
@@ -59,12 +57,8 @@ const router = createBrowserRouter([
         element: <Profile />
       },
       {
-        path: "/meteo",
-        element: <WeatherPage />
-      },
-      {
         path: "/weather",
-        element: <ModernWeather />
+        element: <Weather />
       },
       {
         path: "/verify-email",
@@ -88,7 +82,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/projects/create",
-        element: <CreateProject />
+        element: <Projects />
       },
       {
         path: "/projects/:id",
