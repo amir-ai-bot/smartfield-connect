@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, User } from '@/types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 
 // Create context with a default value
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -23,7 +23,7 @@ const mapUser = (user: any, profile?: any): User => {
     id: user.id,
     display_name: profile?.display_name || user?.user_metadata?.name || 'User',
     email: user.email ?? '',
-    role: (profile?.role || user?.user_metadata?.role || 'user') as 'user' | 'admin' | 'fournisseur' | 'pending_fournisseur',
+    role: (profile?.role || user?.user_metadata?.role || 'user') as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
     avatar: profile?.avatar || null,
     phone_number: profile?.phone_number || null,
     address: profile?.address || null,
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Set up auth state listener FIRST
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event: AuthChangeEvent, currentSession: Session | null) => {
+        async (event, currentSession) => {
           if (currentSession?.user) {
             // Only update synchronized auth state
             setSession(currentSession);
@@ -271,8 +271,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Confirm password reset
   const confirmPasswordReset = async (code: string, password: string): Promise<void> => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(code, {
-        password
+      const { error } = await supabase.auth.updateUser({ 
+        password: password 
       });
       
       if (error) {
@@ -309,7 +309,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data, error } = await supabase
         .from('profiles')
         .update({
-          role: 'pending_fournisseur',
+          role: 'pending_fournisseur' as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur',
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -322,7 +322,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Update local state
-      const updatedUser = { ...user, role: 'pending_fournisseur' };
+      const updatedUser = { ...user, role: 'pending_fournisseur' as 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur' };
       setUser(updatedUser);
       
       toast.success('Votre demande pour devenir fournisseur a été envoyée avec succès');

@@ -1,7 +1,7 @@
 
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 export interface UserLocation {
   latitude: number;
@@ -14,8 +14,11 @@ export const getCurrentLocation = async (): Promise<UserLocation | null> => {
     const permissions = await Geolocation.checkPermissions();
     
     if (permissions.location !== 'granted') {
+      toast.info('Autorisation de localisation requise. Veuillez autoriser l\'accès à votre position.');
+      
       const request = await Geolocation.requestPermissions();
       if (request.location !== 'granted') {
+        toast.error('Autorisation de localisation refusée. Certaines fonctionnalités ne seront pas disponibles.');
         console.error('Location permission not granted');
         return null;
       }
@@ -32,6 +35,7 @@ export const getCurrentLocation = async (): Promise<UserLocation | null> => {
     };
   } catch (error) {
     console.error('Error getting current location:', error);
+    toast.error('Impossible d\'accéder à votre position. Veuillez vérifier vos paramètres de localisation.');
     return null;
   }
 };

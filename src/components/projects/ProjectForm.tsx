@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { CROP_TYPES, ProjectData } from '@/types/auth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import MobileFriendlyDatePicker from '@/components/projects/MobileFriendlyDatePicker';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 
 export interface ProjectFormProps {
   initialData?: Partial<ProjectData>;
@@ -43,14 +43,24 @@ const ProjectForm = ({ initialData, onSubmit, onCancel, isSubmitting = false }: 
     path: ["end_date"],
   });
 
+  const formatDateForForm = (dateString?: string): string => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'yyyy-MM-dd');
+    } catch (e) {
+      console.error('Invalid date format:', dateString);
+      return '';
+    }
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || initialData?.title || "",
       crop: initialData?.crop || "",
       location: initialData?.location || "",
-      start_date: initialData?.start_date || initialData?.startDate || "",
-      end_date: initialData?.end_date || initialData?.endDate || "",
+      start_date: formatDateForForm(initialData?.start_date || initialData?.startDate),
+      end_date: formatDateForForm(initialData?.end_date || initialData?.endDate),
       description: initialData?.description || "",
       is_public: initialData?.is_public ?? false,
     },
@@ -127,10 +137,13 @@ const ProjectForm = ({ initialData, onSubmit, onCancel, isSubmitting = false }: 
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Date de début</FormLabel>
-                <MobileFriendlyDatePicker
-                  value={field.value}
-                  onChange={field.onChange}
-                />
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    {...field}
+                    onChange={(e) => field.onChange(e.target.value)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -142,10 +155,13 @@ const ProjectForm = ({ initialData, onSubmit, onCancel, isSubmitting = false }: 
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Date de fin</FormLabel>
-                <MobileFriendlyDatePicker
-                  value={field.value}
-                  onChange={field.onChange}
-                />
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    {...field}
+                    onChange={(e) => field.onChange(e.target.value)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
