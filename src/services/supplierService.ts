@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Supplier {
@@ -54,6 +55,7 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
 
 export const getAllSuppliers = getSuppliers; // Export alias for getSuppliers
 
+// Function to initialize default suppliers if none exist
 export const initializeDefaultSuppliers = async (): Promise<boolean> => {
   try {
     // Check if there are any existing suppliers

@@ -1,131 +1,85 @@
 
-import React, { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Camera, Upload, User } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { ChangeEvent, useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Camera, Trash2 } from "lucide-react";
 
-// Default avatar selection options
-const defaultAvatars = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Lily",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Max",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Zoe",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie",
-  "https://api.dicebear.com/7.x/fun-emoji/svg?seed=farmer",
-  "https://api.dicebear.com/7.x/fun-emoji/svg?seed=gardener",
-  "https://api.dicebear.com/7.x/bottts/svg?seed=farm",
-  "https://api.dicebear.com/7.x/bottts/svg?seed=garden",
-  "https://api.dicebear.com/7.x/thumbs/svg?seed=green",
-  "https://api.dicebear.com/7.x/initials/svg?seed=CC"
-];
-
-interface AvatarSelectorProps {
+export interface AvatarSelectorProps {
   currentAvatar?: string;
-  onSelect: (avatar: string) => void;
-  onUpload?: (file: File) => Promise<void>;
+  initialName?: string;
+  onChange: (file: File, preview: string) => void;
+  onRemove?: () => void;
 }
 
-const AvatarSelector = ({ currentAvatar, onSelect, onUpload }: AvatarSelectorProps) => {
-  const [open, setOpen] = useState(false);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+const AvatarSelector = ({ 
+  currentAvatar, 
+  initialName = '', 
+  onChange, 
+  onRemove 
+}: AvatarSelectorProps) => {
+  const [preview, setPreview] = useState<string | null>(currentAvatar || null);
+  
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !onUpload) return;
-    
-    try {
-      setUploadLoading(true);
-      await onUpload(file);
-      setOpen(false);
-    } catch (error) {
-      console.error('Error uploading file:', error);
-    } finally {
-      setUploadLoading(false);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imagePreview = reader.result as string;
+        setPreview(imagePreview);
+        onChange(file, imagePreview);
+      };
+      reader.readAsDataURL(file);
     }
   };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  
+  const handleRemoveAvatar = () => {
+    setPreview(null);
+    if (onRemove) {
+      onRemove();
+    }
   };
-
+  
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+  
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative mb-4">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="relative">
         <Avatar className="h-24 w-24">
-          {currentAvatar ? (
-            <AvatarImage src={currentAvatar} alt="Profile" />
-          ) : (
-            <AvatarFallback>
-              <User className="h-12 w-12 text-gray-400" />
-            </AvatarFallback>
-          )}
+          <AvatarImage src={preview || currentAvatar || ''} />
+          <AvatarFallback className="text-lg bg-agri-terra-500 text-white">
+            {getInitials(initialName)}
+          </AvatarFallback>
         </Avatar>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              size="sm" 
-              className="absolute -bottom-2 -right-2 rounded-full p-1.5 h-auto" 
-              variant="outline"
-            >
-              <Camera className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Choisir un avatar</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4 py-4">
-              {defaultAvatars.map((avatar, index) => (
-                <Avatar 
-                  key={index} 
-                  className="h-16 w-16 cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-gray-300 transition-all"
-                  onClick={() => {
-                    onSelect(avatar);
-                    setOpen(false);
-                  }}
-                >
-                  <AvatarImage src={avatar} alt={`Avatar ${index+1}`} />
-                </Avatar>
-              ))}
-            </div>
-            
-            {onUpload && (
-              <div className="mt-4 border-t pt-4">
-                <p className="text-sm text-gray-500 mb-3">Ou téléchargez votre propre image</p>
-                <div className="flex items-center justify-center">
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Button
-                    onClick={triggerFileInput}
-                    variant="outline"
-                    disabled={uploadLoading}
-                    className="w-full"
-                  >
-                    {uploadLoading ? 'Téléchargement...' : 'Télécharger une image'}
-                    <Upload className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        
+        <label 
+          htmlFor="avatar-upload" 
+          className="absolute bottom-0 right-0 bg-agri-green-500 p-1 rounded-full cursor-pointer hover:bg-agri-green-600 transition-colors"
+        >
+          <Camera className="h-4 w-4 text-white" />
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </label>
       </div>
-      <p className="text-sm text-gray-500 mb-4">Cliquez sur l'icône pour changer votre avatar</p>
+      
+      {(preview || currentAvatar) && onRemove && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-500 hover:text-red-700"
+          onClick={handleRemoveAvatar}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Supprimer la photo
+        </Button>
+      )}
     </div>
   );
 };

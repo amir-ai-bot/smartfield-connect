@@ -1,65 +1,28 @@
-import React, { useState, useEffect } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  getAllUsers, 
-  promoteToAdmin, 
-  demoteToUser, 
-  getAllVerificationCodes, 
-  updateUserRole, 
-  deleteUser,
-  getAnalyticsData,
-  getAllProjects,
-  deleteProject,
-  approveFournisseurRequest,
-  rejectFournisseurRequest,
-  addFournisseur
-} from '@/services/adminService';
-import Navbar from '@/components/Navbar';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Table, 
-  TableHeader, 
-  TableRow, 
-  TableHead, 
   TableBody, 
-  TableCell 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  PieChart, 
-  Pie, 
-  Cell 
-} from 'recharts';
-import { Shield, ShieldAlert, ShieldCheck, UserX, Users, List, BarChart3, Trash2, AlertCircle, Sprout, CheckCircle, XCircle, UserPlus } from 'lucide-react';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,982 +32,881 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
+import { 
+  Search, 
+  UserPlus, 
+  CheckCircle2, 
+  XCircle,
+  Trash2,
+  Edit,
+  EyeIcon,
+  Lock,
+  RefreshCcw,
+  Check,
+  X
+} from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { User } from "@/types/auth";
 
-type User = {
+interface ProjectWithUser {
   id: string;
-  email: string;
   name: string;
-  role: string;
-  avatar?: string;
+  description: string;
+  status: 'active' | 'planning' | 'completed';
+  owner_id: string;
+  image?: string;
+  crop?: string;
+  location?: string;
+  progress: number;
+  start_date: string;
+  end_date: string;
+  is_public: boolean;
   created_at: string;
-};
+  updated_at: string;
+  user_display_name: string;
+  user_email: string;
+  user_avatar?: string;
+}
 
-type VerificationCode = {
+interface VerificationCode {
   id: string;
   code: string;
-  email: string;
-  created_at: string;
+  user_id: string;
   expires_at: string;
   used: boolean;
   type: string;
-  user_id: string;
-};
+}
 
-type AnalyticsData = {
-  userCount: number;
-  projectCount: number;
-  registrationsByMonth: Record<string, number>;
-};
+const createUserSchema = z.object({
+  name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères" }),
+  email: z.string().email({ message: "L'email doit être valide" }),
+  password: z.string().min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+  role: z.enum(["user", "admin", "fournisseur"]),
+});
 
-type Project = {
-  id: string;
-  title: string;
-  crop: string;
-  location: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
-  status: 'active' | 'planning' | 'completed';
-  image?: string;
-  user_name?: string;
-  user_id: string;
-  created_at: string;
-  description?: string;
-  is_public?: boolean;
-  updated_at?: string;
-  user_email?: string;
-};
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+});
 
-type ProjectWithUser = {
-  id: string;
-  title: string;
-  crop: string;
-  location: string;
-  start_date: string;
-  end_date: string;
-  progress: number;
-  status: 'active' | 'planning' | 'completed';
-  image?: string;
-  user_name?: string;
-  user_id: string;
-  created_at: string;
-  description?: string;
-  is_public?: boolean;
-  updated_at?: string;
-  user_email?: string;
-  creator_name?: string;
-  creator_email?: string;
-  creator_avatar?: string;
-};
-
-const AdminPage: React.FC = () => {
+const Admin = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [codes, setCodes] = useState<VerificationCode[]>([]);
-  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedProject, setSelectedProject] = useState<ProjectWithUser | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
-  const [showNewFournisseurDialog, setShowNewFournisseurDialog] = useState(false);
-  const [newFournisseurForm, setNewFournisseurForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    location: 'Gafsa Centre',
-    category: 'Engrais',
-    products: '',
-    password: ''
-  });
-  const [pendingFournisseurs, setPendingFournisseurs] = useState<User[]>([]);
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) {
-        navigate('/');
-        return;
-      }
-      
-      if (user.role !== 'admin') {
-        toast.error('Access denied. Admin privileges required.');
-        navigate('/');
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        
-        const [usersData, codesData, analyticsData, projectsData] = await Promise.all([
-          getAllUsers(),
-          getAllVerificationCodes(),
-          getAnalyticsData(),
-          getAllProjects()
-        ]);
-        
-        setUsers(usersData);
-        setCodes(codesData);
-        setAnalytics(analyticsData);
-        
-        const pendingUsers = usersData.filter(u => u.role === 'pending_fournisseur');
-        setPendingFournisseurs(pendingUsers);
-        
-        const typedProjects = projectsData.map(project => ({
-          ...project,
-          user_name: project.creator_name || 'Unknown',
-          user_email: project.creator_email,
-          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
-                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
-                 'completed'
-        })) as ProjectWithUser[];
-        
-        setProjects(typedProjects);
-      } catch (error) {
-        console.error('Error fetching admin data:', error);
-        toast.error('Failed to load admin data');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAdmin();
-  }, [user, navigate]);
+  const { user, isAdmin } = useAuth();
   
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  // Loading states
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Data states
+  const [users, setUsers] = useState<User[]>([]);
+  const [pendingFournisseurs, setPendingFournisseurs] = useState<User[]>([]);
+  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
+  const [verificationCodes, setVerificationCodes] = useState<VerificationCode[]>([]);
+  
+  // Filters
+  const [userFilter, setUserFilter] = useState('');
+  const [projectFilter, setProjectFilter] = useState('');
+  
+  // Dialogs
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  const createUserForm = useForm<z.infer<typeof createUserSchema>>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "user",
+    },
+  });
+  
+  const resetPasswordForm = useForm<z.infer<typeof resetPasswordSchema>>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+    },
+  });
+  
+  useEffect(() => {
+    // Redirect if not admin
+    if (!isLoading && (!user || !isAdmin())) {
+      toast.error('Accès non autorisé');
+      navigate('/');
+    } else if (user && isAdmin()) {
+      fetchAllData();
+    }
+  }, [user, isAdmin]);
+  
+  const fetchAllData = async () => {
+    setIsLoading(true);
     try {
-      await updateUserRole(userId, newRole);
-      setUsers(users.map(u => 
-        u.id === userId 
-          ? { ...u, role: newRole } 
-          : u
-      ));
+      await Promise.all([
+        fetchUsers(),
+        fetchProjects(),
+        fetchVerificationCodes(),
+      ]);
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error fetching admin data:', error);
+      toast.error('Erreur lors du chargement des données');
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const handleDeleteUser = async (user: User) => {
-    setSelectedUser(user);
-    setIsDeleteDialogOpen(true);
+  const fetchUsers = async () => {
+    try {
+      // Get all users
+      const { data: allUsers, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const typedUsers = allUsers as User[];
+      
+      // Filter pending fournisseurs
+      const pending = typedUsers.filter(user => user.role === 'pending_fournisseur');
+      setPendingFournisseurs(pending);
+      
+      setUsers(typedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Erreur lors du chargement des utilisateurs');
+    }
   };
   
-  const confirmDeleteUser = async () => {
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          profiles:owner_id (
+            display_name,
+            email,
+            avatar
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        const projectsWithUser = data.map(project => ({
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+          owner_id: project.owner_id,
+          image: project.image,
+          crop: project.crop,
+          location: project.location,
+          progress: project.progress,
+          start_date: project.start_date,
+          end_date: project.end_date,
+          is_public: project.is_public,
+          created_at: project.created_at,
+          updated_at: project.updated_at,
+          user_display_name: project.profiles?.display_name || 'Inconnu',
+          user_email: project.profiles?.email || 'Inconnu',
+          user_avatar: project.profiles?.avatar || '',
+        }));
+        
+        setProjects(projectsWithUser);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Erreur lors du chargement des projets');
+    }
+  };
+  
+  const fetchVerificationCodes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('verification_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        setVerificationCodes(data as VerificationCode[]);
+      }
+    } catch (error) {
+      console.error('Error fetching verification codes:', error);
+    }
+  };
+  
+  const handleCreateUser = async (values: z.infer<typeof createUserSchema>) => {
+    try {
+      // Create user with Supabase auth
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
+            role: values.role
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      // The trigger will create the profile automatically,
+      // but we need to update the role
+      if (values.role !== 'user') {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ role: values.role })
+          .eq('id', data.user?.id);
+        
+        if (updateError) throw updateError;
+      }
+      
+      toast.success('Utilisateur créé avec succès');
+      setCreateDialogOpen(false);
+      createUserForm.reset();
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error(`Erreur: ${error.message || 'Création impossible'}`);
+    }
+  };
+  
+  const handleResetPassword = async (values: z.infer<typeof resetPasswordSchema>) => {
     if (!selectedUser) return;
     
     try {
-      await deleteUser(selectedUser.id);
-      setUsers(users.filter(u => u.id !== selectedUser.id));
-      setIsDeleteDialogOpen(false);
-      setSelectedUser(null);
-      toast.success(`L'utilisateur ${selectedUser.email} a été supprimé`);
-    } catch (error) {
-      console.error('Error deleting user:', error);
+      // Use the RPC function to update the password
+      const { error } = await supabase.rpc(
+        'admin_update_user_password',
+        { 
+          user_id: selectedUser.id, 
+          new_password: values.password 
+        }
+      );
+      
+      if (error) throw error;
+      
+      toast.success('Mot de passe modifié avec succès');
+      setResetPasswordDialogOpen(false);
+      resetPasswordForm.reset();
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(`Erreur: ${error.message || 'Modification impossible'}`);
     }
   };
-
-  const handleDeleteProject = async (project: ProjectWithUser) => {
-    setSelectedProject(project);
-    setIsDeleteProjectDialogOpen(true);
+  
+  const handleVerifyUser = async (userId: string, isVerified: boolean) => {
+    try {
+      if (isVerified) {
+        // Already verified, nothing to do
+        return;
+      }
+      
+      // Call verify user function
+      const { error } = await supabase.rpc(
+        'admin_verify_user',
+        { user_id: userId }
+      );
+      
+      if (error) throw error;
+      
+      toast.success('Utilisateur vérifié avec succès');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error verifying user:', error);
+      toast.error(`Erreur: ${error.message || 'Vérification impossible'}`);
+    }
   };
   
-  const confirmDeleteProject = async () => {
-    if (!selectedProject) return;
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
     
     try {
-      await deleteProject(selectedProject.id);
-      setProjects(projects.filter(p => p.id !== selectedProject.id));
-      setIsDeleteProjectDialogOpen(false);
-      setSelectedProject(null);
-      toast.success(`Le projet ${selectedProject.title} a été supprimé`);
-    } catch (error) {
-      console.error('Error deleting project:', error);
+      // Get the user's data before deletion (for confirmation messages)
+      const userEmail = selectedUser.email;
+      
+      // Call delete user function
+      const { error } = await supabase.rpc(
+        'admin_delete_user',
+        { user_id: selectedUser.id }
+      );
+      
+      if (error) throw error;
+      
+      toast.success(`Utilisateur ${userEmail} supprimé avec succès`);
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(`Erreur: ${error.message || 'Suppression impossible'}`);
     }
   };
   
-  const getRegistrationChartData = () => {
-    if (!analytics?.registrationsByMonth) return [];
-    
-    return Object.entries(analytics.registrationsByMonth)
-      .map(([month, count]) => ({ month, count }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-12);
-  };
-  
-  const shouldAllowUserDeletion = (userEmail: string, userRole: string) => {
-    if (userRole === 'admin') {
-      return false;
+  const handleUpdateUserRole = async (userId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast.success('Rôle mis à jour avec succès');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      toast.error(`Erreur: ${error.message || 'Mise à jour impossible'}`);
     }
-    return true;
   };
-  
-  const ROLES = {
-    admin: { color: 'bg-red-100 text-red-800', icon: <ShieldAlert className="h-4 w-4" /> },
-    user: { color: 'bg-green-100 text-green-800', icon: <Shield className="h-4 w-4" /> },
-    moderator: { color: 'bg-blue-100 text-blue-800', icon: <ShieldCheck className="h-4 w-4" /> }
-  };
-  
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-  
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <main className="container mx-auto flex-1 p-4 pt-20">
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
-          </div>
-        </main>
-      </div>
-    );
-  }
   
   const handleApproveFournisseur = async (userId: string) => {
     try {
-      await approveFournisseurRequest(userId);
+      // Update the user role from pending_fournisseur to fournisseur
+      await handleUpdateUserRole(userId, 'fournisseur');
       
-      setUsers(users.map(u => 
-        u.id === userId 
-          ? { ...u, role: 'fournisseur' } 
-          : u
-      ));
+      // Also create a supplier entry if it doesn't exist
+      const { data: existingSupplier } = await supabase
+        .from('suppliers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
       
-      setPendingFournisseurs(prevPending => 
-        prevPending.filter(f => f.id !== userId)
-      );
+      if (!existingSupplier) {
+        // Get user data for supplier
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('display_name, email')
+          .eq('id', userId)
+          .single();
+        
+        if (userData) {
+          await supabase
+            .from('suppliers')
+            .insert({
+              user_id: userId,
+              name: userData.display_name,
+              category: 'Divers',
+              location: 'Non spécifié',
+              phone: 'Non spécifié',
+              products: []
+            });
+        }
+      }
       
-      toast.success('Demande approuvée avec succès');
-    } catch (error) {
-      console.error('Error approving fournisseur request:', error);
-      toast.error('Erreur lors de l\'approbation de la demande');
+      toast.success('Fournisseur approuvé avec succès');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error approving supplier:', error);
+      toast.error(`Erreur: ${error.message || 'Approbation impossible'}`);
     }
   };
   
   const handleRejectFournisseur = async (userId: string) => {
     try {
-      await rejectFournisseurRequest(userId);
-      
-      setUsers(users.map(u => 
-        u.id === userId 
-          ? { ...u, role: 'user' } 
-          : u
-      ));
-      
-      setPendingFournisseurs(prevPending => 
-        prevPending.filter(f => f.id !== userId)
-      );
-      
-      toast.success('Demande rejetée avec succès');
-    } catch (error) {
-      console.error('Error rejecting fournisseur request:', error);
-      toast.error('Erreur lors du rejet de la demande');
+      // Change role back to regular user
+      await handleUpdateUserRole(userId, 'user');
+      toast.success('Demande rejetée');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error rejecting supplier:', error);
+      toast.error(`Erreur: ${error.message || 'Rejet impossible'}`);
     }
   };
-
-  const handleAddFournisseur = async () => {
-    try {
-      if (!newFournisseurForm.name || !newFournisseurForm.email || !newFournisseurForm.password) {
-        toast.error('Veuillez remplir tous les champs obligatoires.');
-        return;
-      }
-
-      const productsArray = newFournisseurForm.products
-        ? newFournisseurForm.products.split(',').map(p => p.trim())
-        : [];
-
-      await addFournisseur({
-        name: newFournisseurForm.name,
-        email: newFournisseurForm.email,
-        password: newFournisseurForm.password,
-        phone: newFournisseurForm.phone,
-        location: newFournisseurForm.location,
-        category: newFournisseurForm.category,
-        products: productsArray
-      });
-
-      setShowNewFournisseurDialog(false);
-      setNewFournisseurForm({
-        name: '',
-        email: '',
-        phone: '',
-        location: 'Gafsa Centre',
-        category: 'Engrais',
-        products: '',
-        password: ''
-      });
-
-      const updatedUsers = await getAllUsers();
-      setUsers(updatedUsers);
-      
-      toast.success('Fournisseur ajouté avec succès');
-    } catch (error) {
-      console.error('Error adding fournisseur:', error);
-      toast.error('Erreur lors de l\'ajout du fournisseur');
-    }
-  };
+  
+  const filterUsers = users.filter(user => 
+    user.display_name?.toLowerCase().includes(userFilter.toLowerCase()) || 
+    user.email?.toLowerCase().includes(userFilter.toLowerCase())
+  );
+  
+  const filterProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(projectFilter.toLowerCase()) ||
+    (project.user_email && project.user_email.toLowerCase().includes(projectFilter.toLowerCase()))
+  );
+  
+  // Check if page is loading or if user is not admin
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin h-10 w-10 border-4 border-agri-green-500 rounded-full border-t-transparent"></div>
+      </div>
+    );
+  }
+  
+  if (!user || !isAdmin()) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Accès non autorisé</h1>
+          <p className="mb-6">Vous n'avez pas les permissions nécessaires pour accéder à cette page.</p>
+          <Button onClick={() => navigate('/')}>Retourner à l'accueil</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
+    <div className="container mx-auto py-8 px-4">
+      <h1 className="text-2xl font-bold mb-6">Administration</h1>
       
-      <main className="container mx-auto flex-1 p-2 sm:p-4 pt-20 overflow-x-hidden">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Administration</h1>
-          <p className="text-gray-500">Gérer les utilisateurs et les données de l'application</p>
-        </div>
+      <Tabs defaultValue="users">
+        <TabsList className="mb-6">
+          <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+          <TabsTrigger value="fournisseurs">
+            Demandes Fournisseurs
+            {pendingFournisseurs.length > 0 && (
+              <span className="ml-2 text-xs bg-red-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center">
+                {pendingFournisseurs.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="projects">Projets</TabsTrigger>
+          <TabsTrigger value="verification">Codes de vérification</TabsTrigger>
+        </TabsList>
         
-        {analytics && (
-          <div className="grid gap-4 md:grid-cols-3 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex flex-col space-y-1">
-                  <CardTitle className="text-sm font-medium">Utilisateurs Total</CardTitle>
-                </div>
-                <Users className="h-4 w-4 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics.userCount}</div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex flex-col space-y-1">
-                  <CardTitle className="text-sm font-medium">Projets Total</CardTitle>
-                </div>
-                <List className="h-4 w-4 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics.projectCount}</div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex flex-col space-y-1">
-                  <CardTitle className="text-sm font-medium">
-                    Inscriptions ce mois
-                  </CardTitle>
-                </div>
-                <BarChart3 className="h-4 w-4 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {getRegistrationChartData().length > 0 
-                    ? getRegistrationChartData()[getRegistrationChartData().length - 1].count 
-                    : 0}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        <Tabs defaultValue="users" className="w-full overflow-x-auto">
-          <TabsList className="mb-4 flex w-full sm:w-auto overflow-x-auto">
-            <TabsTrigger value="users" className="whitespace-nowrap">Utilisateurs</TabsTrigger>
-            <TabsTrigger value="fournisseur-requests" className="whitespace-nowrap">Demandes fournisseur{pendingFournisseurs.length > 0 && 
-              <Badge variant="destructive" className="ml-1">{pendingFournisseurs.length}</Badge>
-            }</TabsTrigger>
-            <TabsTrigger value="projects" className="whitespace-nowrap">Projets</TabsTrigger>
-            <TabsTrigger value="codes" className="whitespace-nowrap">Codes vérification</TabsTrigger>
-            <TabsTrigger value="analytics" className="whitespace-nowrap">Analytiques</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestion des utilisateurs</CardTitle>
-                <CardDescription>
-                  Voir et gérer tous les utilisateurs de l'application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Utilisateur</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Rôle</TableHead>
-                        <TableHead>Date d'inscription</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-9 w-9">
-                                {user.avatar ? (
-                                  <AvatarImage src={user.avatar} alt={user.name} />
-                                ) : null}
-                                <AvatarFallback className="bg-gray-100 text-gray-700">
-                                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="font-medium">{user.name || 'Unnamed User'}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLES[user.role as keyof typeof ROLES]?.color || 'bg-gray-100 text-gray-800'}`}>
-                              {ROLES[user.role as keyof typeof ROLES]?.icon}
-                              <span className="ml-1">{user.role}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {user.created_at 
-                              ? format(new Date(user.created_at), 'dd/MM/yyyy') 
-                              : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Select
-                                value={user.role}
-                                onValueChange={(value) => handleRoleChange(user.id, value)}
-                              >
-                                <SelectTrigger className="h-8 w-28">
-                                  <SelectValue placeholder="Sélectionner" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="user">Utilisateur</SelectItem>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="fournisseur">Fournisseur</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              
-                              {shouldAllowUserDeletion(user.email, user.role) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                  onClick={() => handleDeleteUser(user)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between items-center flex-wrap gap-2">
-                <div className="text-xs text-gray-500">
-                  <p className="flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Les administrateurs ne peuvent pas être supprimés.
-                  </p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="ml-auto" 
-                  onClick={() => setShowNewFournisseurDialog(true)}
-                >
-                  <UserPlus size={16} className="mr-2" />
-                  Ajouter un fournisseur
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="fournisseur-requests">
-            <Card>
-              <CardHeader>
-                <CardTitle>Demandes de fournisseurs</CardTitle>
-                <CardDescription>
-                  Gérer les demandes d'utilisateurs qui souhaitent devenir fournisseurs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {pendingFournisseurs.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Utilisateur</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Date de demande</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingFournisseurs.map((fournisseur) => (
-                          <TableRow key={fournisseur.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                  {fournisseur.avatar ? (
-                                    <AvatarImage src={fournisseur.avatar} alt={fournisseur.name} />
-                                  ) : null}
-                                  <AvatarFallback className="bg-gray-100 text-gray-700">
-                                    {fournisseur.name ? fournisseur.name.charAt(0).toUpperCase() : 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="font-medium">{fournisseur.name || 'Unnamed User'}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>{fournisseur.email}</TableCell>
-                            <TableCell>
-                              {fournisseur.created_at 
-                                ? format(new Date(fournisseur.created_at), 'dd/MM/yyyy') 
-                                : 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => handleApproveFournisseur(fournisseur.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Approuver
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleRejectFournisseur(fournisseur.id)}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Rejeter
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Aucune demande de fournisseur en attente
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="projects">
-            <ProjectsTab />
-          </TabsContent>
-          
-          <TabsContent value="codes">
-            <Card>
-              <CardHeader>
-                <CardTitle>Codes de vérification</CardTitle>
-                <CardDescription>
-                  Voir tous les codes de vérification générés
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Créé le</TableHead>
-                        <TableHead>Expire le</TableHead>
-                        <TableHead>Statut</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {codes.map((code) => (
-                        <TableRow key={code.id}>
-                          <TableCell>{code.code}</TableCell>
-                          <TableCell>{code.type}</TableCell>
-                          <TableCell>
-                            {format(new Date(code.created_at), 'dd/MM/yyyy HH:mm')}
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(code.expires_at), 'dd/MM/yyyy HH:mm')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              code.used 
-                                ? 'secondary' 
-                                : new Date(code.expires_at) < new Date() 
-                                  ? 'destructive' 
-                                  : 'success'
-                            }>
-                              {code.used 
-                                ? 'Utilisé' 
-                                : new Date(code.expires_at) < new Date() 
-                                  ? 'Expiré' 
-                                  : 'Valide'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="analytics">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Inscriptions mensuelles</CardTitle>
-                  <CardDescription>
-                    Nombre d'utilisateurs inscrits par mois
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={getRegistrationChartData()}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Distribution des rôles</CardTitle>
-                  <CardDescription>
-                    Répartition des utilisateurs par rôle
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Admin', value: users.filter(u => u.role === 'admin').length },
-                            { name: 'User', value: users.filter(u => u.role === 'user').length },
-                            { name: 'Moderator', value: users.filter(u => u.role === 'moderator').length },
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {[
-                            { name: 'Admin', value: users.filter(u => u.role === 'admin').length },
-                            { name: 'User', value: users.filter(u => u.role === 'user').length },
-                            { name: 'Moderator', value: users.filter(u => u.role === 'moderator').length },
-                          ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Rechercher un utilisateur..."
+                className="pl-8 w-full sm:w-64"
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+              />
             </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+            
+            <Button onClick={() => setCreateDialogOpen(true)} className="bg-agri-green-500 hover:bg-agri-green-600">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Créer un utilisateur
+            </Button>
+          </div>
+          
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Rôle</TableHead>
+                  <TableHead>Vérifié</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filterUsers.length > 0 ? (
+                  filterUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.display_name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Select
+                          defaultValue={user.role}
+                          onValueChange={(value) => handleUpdateUserRole(user.id, value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue placeholder={user.role} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="user">Utilisateur</SelectItem>
+                              <SelectItem value="fournisseur">Fournisseur</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleVerifyUser(user.id, Boolean(user.email_verified))}
+                        >
+                          {user.email_verified ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setSelectedUser(user);
+                          setResetPasswordDialogOpen(true);
+                        }}>
+                          <Lock className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-500" onClick={() => {
+                          setSelectedUser(user);
+                          setDeleteDialogOpen(true);
+                        }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                      Aucun utilisateur trouvé
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="fournisseurs" className="space-y-4">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Date de demande</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingFournisseurs.length > 0 ? (
+                  pendingFournisseurs.map((fournisseur) => (
+                    <TableRow key={fournisseur.id}>
+                      <TableCell className="font-medium">{fournisseur.display_name}</TableCell>
+                      <TableCell>{fournisseur.email}</TableCell>
+                      <TableCell>{new Date(fournisseur.updated_at || '').toLocaleDateString('fr-FR')}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-green-500"
+                          onClick={() => handleApproveFournisseur(fournisseur.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500"
+                          onClick={() => handleRejectFournisseur(fournisseur.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                      Aucune demande de fournisseur en attente
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="projects" className="space-y-4">
+          <div className="relative mb-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              placeholder="Rechercher un projet..."
+              className="pl-8 w-full sm:w-64"
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+            />
+          </div>
+          
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Projet</TableHead>
+                  <TableHead>Créateur</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Visibilité</TableHead>
+                  <TableHead>Date de création</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filterProjects.length > 0 ? (
+                  filterProjects.map((project) => (
+                    <TableRow key={project.id}>
+                      <TableCell className="font-medium">{project.name}</TableCell>
+                      <TableCell>{project.user_display_name}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          project.status === 'active' ? 'bg-green-100 text-green-800' :
+                          project.status === 'planning' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {project.is_public ? (
+                          <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
+                            Public
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
+                            Privé
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{new Date(project.created_at).toLocaleDateString('fr-FR')}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate(`/projects/${project.id}`)}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                      Aucun projet trouvé
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="verification" className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <Button onClick={fetchVerificationCodes} variant="outline" size="sm">
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+          </div>
+          
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Utilisé</TableHead>
+                  <TableHead>Expiration</TableHead>
+                  <TableHead>Utilisateur</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {verificationCodes.length > 0 ? (
+                  verificationCodes.map((code) => (
+                    <TableRow key={code.id}>
+                      <TableCell className="font-medium">{code.code}</TableCell>
+                      <TableCell>{code.type}</TableCell>
+                      <TableCell>
+                        {code.used ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(code.expires_at).toLocaleString('fr-FR')}
+                      </TableCell>
+                      <TableCell>{code.user_id}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                      Aucun code de vérification trouvé
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
       
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. Toutes les données associées à {selectedUser?.email} seront définitivement supprimées.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteUser} 
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer ce projet ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. Toutes les données associées au projet "{selectedProject?.title}" seront définitivement supprimées.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteProject} 
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={showNewFournisseurDialog} onOpenChange={setShowNewFournisseurDialog}>
-        <DialogContent className="sm:max-w-md">
+      {/* Dialog for creating a user */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ajouter un nouveau fournisseur</DialogTitle>
+            <DialogTitle>Créer un utilisateur</DialogTitle>
             <DialogDescription>
-              Créez un compte fournisseur qui apparaîtra dans la liste des fournisseurs
+              Remplissez le formulaire ci-dessous pour créer un nouvel utilisateur.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="name" className="text-right text-sm font-medium">
-                Nom *
-              </label>
-              <Input
-                id="name"
-                className="col-span-3"
-                value={newFournisseurForm.name}
-                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, name: e.target.value})}
+          
+          <Form {...createUserForm}>
+            <form onSubmit={createUserForm.handleSubmit(handleCreateUser)} className="space-y-4">
+              <FormField
+                control={createUserForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nom</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="email" className="text-right text-sm font-medium">
-                Email *
-              </label>
-              <Input
-                id="email"
-                type="email" 
-                className="col-span-3"
-                value={newFournisseurForm.email}
-                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, email: e.target.value})}
+              
+              <FormField
+                control={createUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="password" className="text-right text-sm font-medium">
-                Mot de passe *
-              </label>
-              <Input
-                id="password"
-                type="password"
-                className="col-span-3"
-                value={newFournisseurForm.password}
-                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, password: e.target.value})}
+              
+              <FormField
+                control={createUserForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mot de passe</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="phone" className="text-right text-sm font-medium">
-                Téléphone
-              </label>
-              <Input
-                id="phone" 
-                className="col-span-3"
-                value={newFournisseurForm.phone}
-                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, phone: e.target.value})}
+              
+              <FormField
+                control={createUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rôle</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez un rôle" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="user">Utilisateur</SelectItem>
+                        <SelectItem value="fournisseur">Fournisseur</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="category" className="text-right text-sm font-medium">
-                Catégorie
-              </label>
-              <Select 
-                value={newFournisseurForm.category} 
-                onValueChange={(value) => setNewFournisseurForm({...newFournisseurForm, category: value})}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Engrais">Engrais</SelectItem>
-                  <SelectItem value="Semences">Semences</SelectItem>
-                  <SelectItem value="Équipement">Équipement</SelectItem>
-                  <SelectItem value="Pesticides">Pesticides</SelectItem>
-                  <SelectItem value="Machines">Machines</SelectItem>
-                  <SelectItem value="Conseil">Conseil</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="location" className="text-right text-sm font-medium">
-                Localisation
-              </label>
-              <Select 
-                value={newFournisseurForm.location} 
-                onValueChange={(value) => setNewFournisseurForm({...newFournisseurForm, location: value})}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Localisation" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Gafsa Centre">Gafsa Centre</SelectItem>
-                  <SelectItem value="Gafsa Sud">Gafsa Sud</SelectItem>
-                  <SelectItem value="Gafsa Nord">Gafsa Nord</SelectItem>
-                  <SelectItem value="Gafsa Est">Gafsa Est</SelectItem>
-                  <SelectItem value="El Guettar">El Guettar</SelectItem>
-                  <SelectItem value="Metlaoui">Metlaoui</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="products" className="text-right text-sm font-medium">
-                Produits
-              </label>
-              <Textarea
-                id="products"
-                placeholder="Séparez les produits par des virgules"
-                className="col-span-3"
-                value={newFournisseurForm.products}
-                onChange={(e) => setNewFournisseurForm({...newFournisseurForm, products: e.target.value})}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setShowNewFournisseurDialog(false)}>
-              Annuler
-            </Button>
-            <Button type="button" onClick={handleAddFournisseur}>
-              Ajouter
-            </Button>
-          </DialogFooter>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit">Créer</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
+      
+      {/* Dialog for resetting a password */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogDescription>
+              {selectedUser && (
+                <>Définir un nouveau mot de passe pour {selectedUser.email}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...resetPasswordForm}>
+            <form onSubmit={resetPasswordForm.handleSubmit(handleResetPassword)} className="space-y-4">
+              <FormField
+                control={resetPasswordForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nouveau mot de passe</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit">Réinitialiser</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Alert dialog for confirming user deletion */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedUser && (
+                <>
+                  Êtes-vous sûr de vouloir supprimer l'utilisateur {selectedUser.email} ? 
+                  Cette action est irréversible et supprimera également toutes les données associées.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-500 hover:bg-red-600">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-const ProjectsTab = () => {
-  const [projects, setProjects] = useState<ProjectWithUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setIsLoading(true);
-        const allProjects = await getAllProjects();
-        
-        const typedProjects = allProjects.map(project => ({
-          ...project,
-          user_name: project.creator_name || 'Unknown',
-          user_email: project.creator_email,
-          status: (project.status as string || 'planning').toLowerCase() === 'active' ? 'active' :
-                 (project.status as string || 'planning').toLowerCase() === 'planning' ? 'planning' : 
-                 'completed'
-        })) as ProjectWithUser[];
-        
-        setProjects(typedProjects);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchProjects();
-  }, []);
-
-  const getStatusBadgeClass = (status: string | undefined) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      case 'planning':
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gestion des projets</CardTitle>
-        <CardDescription>
-          Voir et gérer tous les projets de l'application
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Titre</TableHead>
-                <TableHead>Culture</TableHead>
-                <TableHead>Créateur</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Date de création</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium">{project.title}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Sprout className="mr-1 h-4 w-4 text-green-500" />
-                      <span>{project.crop}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{project.user_name || project.creator_name || "Utilisateur inconnu"}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={
-                        project.status === 'active' ? "success" :
-                        project.status === 'planning' ? "info" :
-                        "secondary"
-                      }
-                    >
-                      {project.status === 'active' ? "Actif" :
-                       project.status === 'planning' ? "Planification" :
-                       "Complété"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {project.created_at ? format(new Date(project.created_at), 'dd/MM/yyyy') : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                      onClick={() => deleteProject(project.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <div className="text-xs text-gray-500">
-          Total: {projects.length} projets
-        </div>
-      </CardFooter>
-    </Card>
-  );
-};
-
-export default AdminPage;
+export default Admin;

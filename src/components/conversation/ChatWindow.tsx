@@ -1,446 +1,430 @@
-import { useState, useEffect, useRef } from 'react';
-import { User } from '@/types/auth';
-import { getConversationMessages, sendMessage, markMessagesAsRead, sendMessageWithFiles, sendVoiceMessage } from '@/services/conversationService';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Send, Mic, X, Image, Paperclip, FilesIcon, StopCircle } from 'lucide-react';
-import { timeAgo } from '@/lib/utils';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Paperclip, Send, Image as ImageIcon, File, X, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { 
+  getConversation, 
+  getMessages, 
+  sendMessage as sendMessageApi,
+  markMessagesAsRead
+} from '@/services/conversationService';
+import { Message, Conversation } from '@/types/auth';
 
-interface Message {
-  id: string;
-  content: string;
-  created_at: string;
-  read: boolean;
-  sender_id: string;
-  profiles: {
-    name: string;
-    avatar: string | null;
-  };
-  media?: {
-    id: string;
-    media_type: string;
-    media_url: string;
-  }[];
-}
-
-interface ChatWindowProps {
-  conversationId: string;
-  currentUser: User;
-  otherUser: {
-    id: string;
-    name: string;
-    avatar?: string | null;
-  };
-}
-
-const ChatWindow = ({ conversationId, currentUser, otherUser }: ChatWindowProps) => {
+const ChatWindow: React.FC = () => {
+  const { id: conversationId } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
-  const recordingTimerRef = useRef<number | null>(null);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
-    const fetchMessages = async () => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Load conversation and messages
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const fetchConversationData = async () => {
       try {
-        const data = await getConversationMessages(conversationId);
-        setMessages(data as unknown as Message[]);
-        
-        await markMessagesAsRead(conversationId, currentUser.id);
-        
-        setInitialLoadComplete(true);
+        setIsLoading(true);
+        const conv = await getConversation(conversationId);
+        setConversation(conv);
+
+        const msgs = await getMessages(conversationId);
+        setMessages(msgs);
+
+        // Mark messages from other user as read
+        const unreadMessages = msgs
+          .filter(msg => msg.sender_id !== user.id && !msg.read)
+          .map(msg => msg.id);
+
+        if (unreadMessages.length > 0) {
+          await markMessagesAsRead(unreadMessages);
+        }
       } catch (error) {
-        console.error('Error fetching messages:', error);
-        toast.error('Erreur lors du chargement des messages');
+        console.error('Error fetching conversation:', error);
+        toast.error('Erreur lors du chargement de la conversation');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchMessages();
+    fetchConversationData();
 
-    const subscription = supabase
-      .channel(`messages:${conversationId}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
+    // Set up real-time updates
+    const channel = supabase
+      .channel('conversation-updates')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
         table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-      }, async (payload) => {
-        const data = await getConversationMessages(conversationId);
-        setMessages(data as unknown as Message[]);
+        filter: `conversation_id=eq.${conversationId}`,
+      }, payload => {
+        const newMsg = payload.new as Message;
         
-        await markMessagesAsRead(conversationId, currentUser.id);
+        setMessages(prev => {
+          // Check if we already have this message to avoid duplication
+          if (prev.some(msg => msg.id === newMsg.id)) {
+            return prev;
+          }
+          return [...prev, newMsg];
+        });
+
+        // Mark message as read if it's from the other user
+        if (newMsg.sender_id !== user.id) {
+          markMessagesAsRead([newMsg.id]);
+        }
       })
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
-      if (recordingTimerRef.current) {
-        window.clearInterval(recordingTimerRef.current);
-      }
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
+      supabase.removeChannel(channel);
     };
-  }, [conversationId, currentUser.id]);
+  }, [conversationId, user]);
 
-  useEffect(() => {
-    if (initialLoadComplete && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleAttachment = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Limit to 5 attachments
+    if (attachments.length + files.length > 5) {
+      toast.error('Maximum 5 pièces jointes autorisées');
+      return;
     }
-  }, [messages, initialLoadComplete]);
 
-  const handleSend = async () => {
-    if (!newMessage.trim() && selectedFiles.length === 0) return;
-    
-    setSending(true);
-    
-    try {
-      if (selectedFiles.length > 0) {
-        await sendMessageWithFiles(
-          conversationId, 
-          newMessage.trim() || `📎 ${selectedFiles.length} fichier(s)`, 
-          currentUser.id,
-          selectedFiles
-        );
-      } else {
-        await sendMessage(
-          conversationId, 
-          newMessage.trim(), 
-          currentUser.id
-        );
+    setAttachments(prev => [...prev, ...files]);
+
+    // Create previews for images
+    const newPreviews = files.map(file => {
+      if (file.type.startsWith('image/')) {
+        return URL.createObjectURL(file);
       }
+      return '';
+    });
+
+    setAttachmentPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+    
+    // Revoke URL to prevent memory leaks
+    if (attachmentPreviews[index]) {
+      URL.revokeObjectURL(attachmentPreviews[index]);
+    }
+    
+    setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const sendMessage = async () => {
+    if ((!newMessage.trim() && attachments.length === 0) || !conversationId || !user) return;
+
+    try {
+      setIsSending(true);
+
+      const otherUserId = conversation?.participant1_id === user.id 
+        ? conversation?.participant2_id 
+        : conversation?.participant1_id;
+
+      if (!otherUserId) {
+        throw new Error('Recipient not found');
+      }
+
+      // Upload attachments first if any
+      const uploadPromises = attachments.map(async file => {
+        const fileName = `${Date.now()}_${file.name}`;
+        const filePath = `conversations/${conversationId}/${fileName}`;
+
+        const { data, error } = await supabase.storage
+          .from('attachments')
+          .upload(filePath, file);
+
+        if (error) {
+          throw error;
+        }
+
+        return {
+          url: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/attachments/${filePath}`,
+          type: file.type.startsWith('image/') ? 'image' : 'file',
+          name: file.name
+        };
+      });
+
+      let uploadedAttachments: any[] = [];
+      if (attachments.length > 0) {
+        uploadedAttachments = await Promise.all(uploadPromises);
+      }
+
+      // Send message with attachments
+      await sendMessageApi(
+        conversationId, 
+        user.id, 
+        otherUserId, 
+        newMessage.trim(),
+        uploadedAttachments
+      );
+
+      // Clear form
       setNewMessage('');
-      setSelectedFiles([]);
+      setAttachments([]);
+      setAttachmentPreviews([]);
+
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Erreur lors de l\'envoi du message');
     } finally {
-      setSending(false);
+      setIsSending(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      sendMessage();
     }
   };
 
-  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...filesArray]);
-    }
-  };
+  const getOtherUser = () => {
+    if (!conversation || !user) return null;
 
-  const removeSelectedFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      setMediaRecorder(recorder);
-      
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          setAudioChunks(prev => [...prev, e.data]);
-        }
-      };
-      
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        if (audioBlob.size > 0) {
-          try {
-            setSending(true);
-            await sendVoiceMessage(conversationId, currentUser.id, audioBlob);
-          } catch (error) {
-            console.error('Error sending voice message:', error);
-            toast.error('Erreur lors de l\'envoi du message vocal');
-          } finally {
-            setSending(false);
+    return conversation.participant1_id === user.id
+      ? conversation.participant2_id 
+        ? { 
+            id: conversation.participant2_id,
+            display_name: conversation.fournisseur?.display_name || 'Fournisseur',
+            avatar: conversation.fournisseur?.avatar || ''
           }
-        }
-        
-        setAudioChunks([]);
-        setRecordingTime(0);
-        setIsRecording(false);
-        
-        stream.getTracks().forEach(track => track.stop());
-      };
-      
-      recorder.start();
-      setIsRecording(true);
-      
-      recordingTimerRef.current = window.setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast.error('Erreur lors de l\'accès au microphone. Veuillez vérifier les permissions.');
-    }
+        : null
+      : conversation.participant1_id
+        ? {
+            id: conversation.participant1_id,
+            display_name: conversation.user?.display_name || 'Utilisateur',
+            avatar: conversation.user?.avatar || ''
+          }
+        : null;
   };
 
-  const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
-    
-    if (recordingTimerRef.current) {
-      window.clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  };
+  const otherUser = getOtherUser();
 
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const renderMediaContent = (media: any) => {
-    const { media_type, media_url } = media;
-    
-    if (media_type.startsWith('image/')) {
-      return (
-        <a href={media_url} target="_blank" rel="noopener noreferrer" className="block">
-          <img 
-            src={media_url} 
-            alt="Image" 
-            className="max-w-[200px] max-h-[200px] rounded-md object-cover"
-          />
-        </a>
-      );
-    } else if (media_type.startsWith('audio/')) {
-      return (
-        <audio controls className="max-w-[200px]">
-          <source src={media_url} type={media_type} />
-          Votre navigateur ne supporte pas le format audio.
-        </audio>
-      );
-    } else if (media_type.startsWith('video/')) {
-      return (
-        <video controls className="max-w-[200px] max-h-[200px]">
-          <source src={media_url} type={media_type} />
-          Votre navigateur ne supporte pas le format vidéo.
-        </video>
-      );
-    } else {
-      return (
-        <a 
-          href={media_url} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-blue-600 underline"
-        >
-          <FilesIcon size={16} />
-          Télécharger le fichier
-        </a>
-      );
+  // Group messages by date
+  const groupedMessages = messages.reduce<{
+    [date: string]: Message[];
+  }>((groups, message) => {
+    const date = new Date(message.created_at).toLocaleDateString('fr-FR');
+    if (!groups[date]) {
+      groups[date] = [];
     }
-  };
+    groups[date].push(message);
+    return groups;
+  }, {});
 
-  const renderMessageBubble = (message: Message, isCurrentUser: boolean) => (
-    <div 
-      key={message.id}
-      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}
-    >
-      {!isCurrentUser && (
-        <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-          <AvatarImage src={otherUser.avatar || undefined} alt={otherUser.name} />
-          <AvatarFallback className="bg-agri-green-100 text-agri-green-700">
-            {otherUser.name.substring(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      )}
-      
-      <div
-        className={`max-w-[75%] px-4 py-2 rounded-lg ${
-          isCurrentUser 
-            ? 'bg-agri-green-500 text-white rounded-tr-none' 
-            : 'bg-gray-100 text-gray-800 rounded-tl-none'
-        }`}
-      >
-        <div className="text-sm whitespace-pre-wrap break-words">{message.content}</div>
-        
-        {message.media && message.media.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {message.media.map((item) => (
-              <div key={item.id} className="rounded overflow-hidden">
-                {renderMediaContent(item)}
+  if (!conversationId) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-500">Sélectionnez une conversation pour commencer</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b flex items-center">
+        {isLoading ? (
+          <div className="flex items-center">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="ml-3">
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={otherUser?.avatar || ''} />
+              <AvatarFallback className="bg-agri-green-100 text-agri-green-800">
+                {otherUser?.display_name?.charAt(0) || '?'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="ml-3">
+              <h3 className="font-medium">{otherUser?.display_name || 'Utilisateur inconnu'}</h3>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                <div className={`max-w-[70%] ${i % 2 === 0 ? 'mr-auto' : 'ml-auto'}`}>
+                  <Skeleton className="h-20 w-64 rounded-lg" />
+                </div>
               </div>
             ))}
           </div>
-        )}
-        
-        <div className={`text-xs mt-1 ${isCurrentUser ? 'text-green-100' : 'text-gray-500'}`}>
-          {timeAgo(message.created_at)}
-          {isCurrentUser && (
-            <span className="ml-2">
-              {message.read ? '✓✓' : '✓'}
-            </span>
-          )}
-        </div>
-      </div>
-      
-      {isCurrentUser && (
-        <Avatar className="h-8 w-8 ml-2 flex-shrink-0">
-          <AvatarImage src={currentUser.avatar || undefined} alt={currentUser.name} />
-          <AvatarFallback className="bg-agri-green-100 text-agri-green-700">
-            {currentUser.name.substring(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      )}
-    </div>
-  );
-
-  return (
-    <div className="bg-white border rounded-lg shadow-sm h-[60vh] md:h-[70vh] flex flex-col">
-      <div className="border-b p-3 flex justify-between items-center">
-        <div className="flex items-center">
-          <Avatar className="h-8 w-8 mr-2">
-            <AvatarImage src={otherUser.avatar || undefined} alt={otherUser.name} />
-            <AvatarFallback className="bg-agri-green-100 text-agri-green-700">
-              {otherUser.name.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-medium">{otherUser.name}</h3>
-            <p className="text-xs text-gray-500">
-              {messages.length > 0 
-                ? `Dernière activité: ${timeAgo(messages[messages.length - 1]?.created_at)}` 
-                : 'Nouvelle conversation'}
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      <ScrollArea className="flex-1 p-4">
-        {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-gray-500">
-            Commencez la conversation en envoyant un message...
+        ) : messages.length === 0 ? (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-500">Aucun message pour le moment</p>
           </div>
         ) : (
-          <>
-            {messages.map((message) => 
-              renderMessageBubble(message, message.sender_id === currentUser.id)
-            )}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </ScrollArea>
-      
-      {selectedFiles.length > 0 && (
-        <div className="border-t p-2 flex flex-wrap gap-2">
-          {selectedFiles.map((file, index) => (
-            <div key={index} className="relative bg-gray-100 rounded p-1 flex items-center">
-              <span className="text-xs truncate max-w-[100px]">{file.name}</span>
-              <button 
-                className="ml-1 text-gray-500 hover:text-red-500"
-                onClick={() => removeSelectedFile(index)}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {isRecording && (
-        <div className="border-t p-3 flex items-center justify-between bg-red-50">
-          <div className="flex items-center text-red-600">
-            <div className="animate-pulse mr-2 h-2 w-2 rounded-full bg-red-600"></div>
-            <span>Enregistrement en cours {formatRecordingTime(recordingTime)}</span>
-          </div>
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={stopRecording}
-            className="rounded-full"
-          >
-            <StopCircle size={18} />
-          </Button>
-        </div>
-      )}
-      
-      <div className="border-t p-3">
-        <div className="flex gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelection}
-            multiple
-            className="hidden"
-          />
-          
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="rounded-full"
-                disabled={isRecording || sending}
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" side="top">
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Image className="h-4 w-4 mr-2" />
-                  Photos & Fichiers
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={startRecording}
-                  disabled={isRecording}
-                >
-                  <Mic className="h-4 w-4 mr-2" />
-                  Audio
-                </Button>
+          Object.entries(groupedMessages).map(([date, dateMessages]) => (
+            <div key={date} className="space-y-4">
+              <div className="flex justify-center">
+                <div className="bg-gray-100 rounded-full px-3 py-1 text-xs text-gray-600">
+                  {date}
+                </div>
               </div>
-            </PopoverContent>
-          </Popover>
-          
-          <Textarea
+              
+              {dateMessages.map((message) => {
+                const isSentByMe = message.sender_id === user?.id;
+                
+                return (
+                  <div 
+                    key={message.id} 
+                    className={`flex ${isSentByMe ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className="flex items-end gap-2 max-w-[70%]">
+                      {!isSentByMe && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={otherUser?.avatar || ''} />
+                          <AvatarFallback className="bg-agri-green-100 text-agri-green-800">
+                            {otherUser?.display_name?.charAt(0) || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      
+                      <div
+                        className={`
+                          rounded-lg p-3 
+                          ${isSentByMe 
+                            ? 'bg-agri-green-500 text-white' 
+                            : 'bg-gray-100 text-gray-800'
+                          }
+                        `}
+                      >
+                        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                        
+                        <div className="text-xs mt-1 text-right">
+                          {formatDistanceToNow(new Date(message.created_at), { 
+                            addSuffix: true, 
+                            locale: fr 
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Attachments preview */}
+      {attachments.length > 0 && (
+        <div className="p-2 border-t">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {attachments.map((file, index) => (
+              <div 
+                key={index} 
+                className="relative bg-gray-100 rounded-lg p-2 min-w-20 h-20 flex items-center justify-center"
+              >
+                {file.type.startsWith('image/') ? (
+                  <div className="w-full h-full">
+                    <img 
+                      src={attachmentPreviews[index]} 
+                      alt={file.name} 
+                      className="h-full w-full object-cover rounded" 
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-center">
+                    <File className="h-6 w-6 text-gray-500" />
+                    <span className="text-xs text-gray-600 truncate w-full">{file.name}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => removeAttachment(index)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-4 border-t">
+        <div className="flex items-center space-x-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleAttachment}
+            disabled={isSending}
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
+          <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Écrivez votre message..."
-            className="resize-none"
-            rows={2}
-            disabled={isRecording || sending}
+            placeholder="Tapez votre message..."
+            disabled={isSending}
+            className="flex-1"
           />
-          
-          <Button 
-            onClick={handleSend} 
-            disabled={(!newMessage.trim() && selectedFiles.length === 0) || sending || isRecording}
-            className="bg-agri-green-500 hover:bg-agri-green-600 rounded-full"
+          <Button
+            type="button"
+            variant="default"
+            size="icon"
+            onClick={sendMessage}
+            disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
           >
-            <Send className="h-5 w-5" />
+            {isSending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
         </div>
+        <input
+          type="file"
+          multiple
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+        />
       </div>
     </div>
   );

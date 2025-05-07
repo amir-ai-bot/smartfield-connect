@@ -1,4 +1,3 @@
-
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -72,7 +71,6 @@ export const saveUserLocation = async (userId: string, location: UserLocation): 
 export const getLocationFromAddress = async (address: string): Promise<UserLocation | null> => {
   try {
     // This is a placeholder. In a real app, you would use a geocoding service
-    // like Google Maps Geocoding API or Mapbox Geocoding API
     console.log('Getting location for address:', address);
     
     // For now, return a dummy location for demo purposes
