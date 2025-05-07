@@ -1,163 +1,212 @@
-
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import SupplierCard from '@/components/SupplierCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import SupplierCard from '@/components/SupplierCard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Plus, Filter, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSuppliers } from '@/services/supplierService';
-import { Search, Filter, UserPlus, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import AuthDialog from '@/components/auth/AuthDialog';
 import { toast } from 'sonner';
-import BecomeSupplierDialog from '@/components/suppliers/BecomeSupplierDialog';
+import { getAllSuppliers, initializeDefaultSuppliers } from '@/services/supplierService';
 
 const Suppliers = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [filteredSuppliers, setFilteredSuppliers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, user, becomeFournisseur, isPendingFournisseur } = useAuth();
+  const [suppliersData, setSuppliersData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showBecomeSupplierDialog, setShowBecomeSupplierDialog] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    document.title = 'Fournisseurs | AgriSmart';
-    
-    const loadSuppliers = async () => {
+    const fetchSuppliers = async () => {
       try {
         setIsLoading(true);
-        const allSuppliers = await getSuppliers();
-        setSuppliers(allSuppliers);
-        setFilteredSuppliers(allSuppliers);
+        setError(null);
+        
+        await initializeDefaultSuppliers();
+        
+        const suppliers = await getAllSuppliers();
+        
+        setSuppliersData(suppliers || []);
+        
+        if (!suppliers || suppliers.length === 0) {
+          setError('Aucun fournisseur trouvé. Veuillez réessayer plus tard.');
+        }
       } catch (error) {
-        console.error('Error loading suppliers:', error);
+        console.error('Error fetching suppliers:', error);
+        setError('Erreur lors du chargement des fournisseurs. Veuillez réessayer plus tard.');
         toast.error('Erreur lors du chargement des fournisseurs');
       } finally {
         setIsLoading(false);
       }
     };
     
-    loadSuppliers();
+    fetchSuppliers();
   }, []);
   
-  useEffect(() => {
-    if (!searchQuery) {
-      setFilteredSuppliers(suppliers);
+  const filteredSuppliers = suppliersData.filter(supplier => {
+    const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         supplier.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         supplier.products.some(product => product.toLowerCase().includes(searchQuery.toLowerCase()));
+                         
+    const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
+    const matchesTab = activeTab === 'all' || 
+                      (activeTab === 'favorites' && [1, 3, 5].includes(Number(supplier.id))) ||
+                      (activeTab === 'recent' && [2, 4, 6].includes(Number(supplier.id)));
+    
+    return matchesSearch && matchesCategory && matchesTab;
+  });
+  
+  const uniqueCategories = Array.from(new Set(suppliersData.map(supplier => supplier.category)));
+  
+  const handleBecomeFournisseur = async () => {
+    if (!isAuthenticated) {
+      setAuthDialogOpen(true);
       return;
     }
     
-    const query = searchQuery.toLowerCase();
-    const filtered = suppliers.filter(supplier => {
-      return (
-        supplier.name.toLowerCase().includes(query) ||
-        supplier.category.toLowerCase().includes(query) ||
-        supplier.location.toLowerCase().includes(query) ||
-        (supplier.products && supplier.products.some((product: string) => product.toLowerCase().includes(query)))
-      );
-    });
-    
-    setFilteredSuppliers(filtered);
-  }, [searchQuery, suppliers]);
-  
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    try {
+      setIsLoading(true);
+      await becomeFournisseur();
+    } catch (error) {
+      console.error('Error becoming fournisseur:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-
+  
+  const getButtonText = () => {
+    if (user?.role === 'fournisseur') {
+      return 'Vous êtes fournisseur';
+    } else if (isPendingFournisseur()) {
+      return 'Demande en attente';
+    } else {
+      return 'Devenir fournisseur';
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
       <main className="container mx-auto px-4 pt-24 pb-16">
-        <div className="flex flex-col space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Fournisseurs</h1>
-              <p className="text-gray-600 mt-1">
-                Trouvez des fournisseurs de semences, d'équipements et plus encore
-              </p>
-            </div>
-            
-            {isAuthenticated && user?.role !== 'admin' && user?.role !== 'fournisseur' && user?.role !== 'pending_fournisseur' && (
-              <Button 
-                onClick={() => setShowBecomeSupplierDialog(true)}
-                className="whitespace-nowrap bg-agri-green-500 hover:bg-agri-green-600"
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Devenir fournisseur
-              </Button>
-            )}
-            
-            {user?.role === 'pending_fournisseur' && (
-              <div className="flex items-center bg-yellow-50 text-yellow-800 px-4 py-2 rounded-md">
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                <span className="text-sm">Votre demande est en cours d'examen</span>
-              </div>
-            )}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Fournisseurs</h1>
+            <p className="text-gray-600">Trouvez et contactez les meilleurs fournisseurs de la région</p>
           </div>
           
+          <Button 
+            className="mt-4 md:mt-0 bg-agri-blue-500 hover:bg-agri-blue-600 text-white flex items-center"
+            onClick={handleBecomeFournisseur}
+            disabled={user?.role === 'fournisseur' || isPendingFournisseur() || isLoading}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {getButtonText()}
+          </Button>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-card mb-8 p-4 animate-slide-up">
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Rechercher par nom, catégorie, produit..."
-                className="pl-9"
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input 
+                placeholder="Rechercher des fournisseurs ou produits..." 
                 value={searchQuery}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 border-gray-200"
               />
             </div>
             
-            <Button variant="outline" className="md:w-auto">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtrer
+            <div className="w-full md:w-60">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger id="category" className="border-gray-200">
+                  <div className="flex items-center">
+                    <Filter className="h-4 w-4 mr-2 text-gray-500" />
+                    <SelectValue placeholder="Catégorie" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les catégories</SelectItem>
+                  {uniqueCategories.map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8 animate-slide-up">
+          <TabsList className="grid grid-cols-3 w-full sm:w-80">
+            <TabsTrigger value="all">Tous</TabsTrigger>
+            <TabsTrigger value="favorites">Favoris</TabsTrigger>
+            <TabsTrigger value="recent">Récents</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all"></TabsContent>
+          <TabsContent value="favorites"></TabsContent>
+          <TabsContent value="recent"></TabsContent>
+        </Tabs>
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl shadow-card p-8 text-center animate-slide-up">
+            <div className="h-16 w-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="font-display text-lg font-semibold mb-2">Erreur</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Réessayer
             </Button>
           </div>
-          
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-agri-green-500"></div>
-            </div>
-          ) : filteredSuppliers.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredSuppliers.map((supplier) => (
-                <Link 
-                  key={supplier.id} 
-                  to={`/suppliers/${supplier.id}`}
-                  className="transition-transform hover:scale-[1.02]"
-                >
-                  <SupplierCard 
-                    id={supplier.id}
-                    name={supplier.name}
-                    category={supplier.category}
-                    rating={supplier.rating || 4.5}
-                    location={supplier.location}
-                    phone={supplier.phone}
-                    products={supplier.products}
-                    avatar={supplier.avatar}
-                  />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <Search className="h-8 w-8 text-gray-400" />
+        ) : filteredSuppliers.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSuppliers.map((supplier, index) => (
+              <div 
+                key={supplier.id} 
+                className="animate-slide-up" 
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <SupplierCard {...supplier} />
               </div>
-              <h3 className="font-display text-lg font-semibold mb-2">Aucun résultat trouvé</h3>
-              <p className="text-gray-600">
-                Aucun fournisseur ne correspond à votre recherche. Essayez avec d'autres termes.
-              </p>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-card p-8 text-center animate-slide-up">
+            <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Search className="h-8 w-8 text-gray-400" />
             </div>
-          )}
-        </div>
+            <h3 className="font-display text-lg font-semibold mb-2">Aucun fournisseur trouvé</h3>
+            <p className="text-gray-600 mb-4">Aucun fournisseur ne correspond à vos critères de recherche.</p>
+            <Button onClick={() => {
+              setSearchQuery('');
+              setCategoryFilter('all');
+            }}>
+              Réinitialiser les filtres
+            </Button>
+          </div>
+        )}
       </main>
+
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen}
+        initialView="login"
+      />
       
       <Footer />
-      
-      <BecomeSupplierDialog
-        open={showBecomeSupplierDialog}
-        onOpenChange={setShowBecomeSupplierDialog}
-      />
     </div>
   );
 };
