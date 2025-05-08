@@ -1,8 +1,15 @@
 {
-  "appId": "app.AgriSmart.ysn",
-  "appName": "AgriSmart",
+  "appId": "com.smartfield.connect",
+  "appName": "SmartfieldConnect",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
   }
 }

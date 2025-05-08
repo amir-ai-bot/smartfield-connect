@@ -43,12 +43,14 @@ export interface DashboardData {
 // Modified ProjectData interface to match database schema
 export interface ProjectData {
   id: string;
+  // Database field names
+  name?: string;
   title: string;
   crop: string;
   location: string;
-  // Map directly to database field names
   start_date?: string;
-  end_date?: string; 
+  end_date?: string;
+  owner_id?: string;
   // Keep the camelCase versions for backward compatibility
   startDate?: string;
   endDate?: string;
@@ -64,6 +66,10 @@ export interface ProjectData {
   // UI-specific fields
   user_name?: string;
   user_avatar?: string;
+  // Fields from projects_with_users view
+  creator_name?: string;
+  creator_email?: string;
+  creator_avatar?: string;
 }
 
 export interface DashboardContextType {

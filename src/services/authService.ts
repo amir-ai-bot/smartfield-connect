@@ -23,7 +23,7 @@ export const login = async (email: string, password: string): Promise<User> => {
 
     // Fetch profile data
     const profile = await fetchUserProfile(data.user.id);
-    
+
     if (!profile) {
       throw new Error('Profile not found');
     }
@@ -31,7 +31,7 @@ export const login = async (email: string, password: string): Promise<User> => {
     return profile;
   } catch (error: any) {
     console.error('Error in login function:', error);
-    
+
     // Check if the user exists by email
     try {
       const { data: userByEmail } = await supabase
@@ -39,7 +39,7 @@ export const login = async (email: string, password: string): Promise<User> => {
         .select('email')
         .eq('email', email)
         .maybeSingle();
-        
+
       if (userByEmail) {
         throw new Error('Mot de passe incorrect. Veuillez réessayer.');
       } else {
@@ -55,8 +55,8 @@ export const login = async (email: string, password: string): Promise<User> => {
 
 // Function to signup a new user
 export const signup = async (
-  name: string, 
-  email: string, 
+  name: string,
+  email: string,
   password: string,
   phone_number?: string
 ): Promise<User> => {
@@ -103,7 +103,7 @@ export const signup = async (
         .from('profiles')
         .insert({
           id: data.user.id,
-          name,
+          display_name: name,
           email,
           phone_number,
           role: 'user'
@@ -116,7 +116,7 @@ export const signup = async (
 
     // Now fetch the profile safely
     const profile = await fetchUserProfile(data.user.id);
-    
+
     if (!profile) {
       throw new Error('Failed to create or fetch profile');
     }
@@ -157,7 +157,7 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
     // Generate a random code
     const code = generateRandomCode(6);
     console.log('Generated verification code:', code);
-    
+
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
 
@@ -212,11 +212,11 @@ export const generateEmailVerificationCode = async (userId: string): Promise<str
     }
 
     console.log('Verification email sent successfully with code:', code);
-    
+
     toast.success(`Un code de vérification a été envoyé à votre adresse email.`, {
       duration: 6000
     });
-    
+
     return code;
   } catch (error: any) {
     console.error('Error in generateEmailVerificationCode:', error);
@@ -304,10 +304,10 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     // Generate a 6-digit code for password reset
     const code = generateRandomCode(6);
     console.log('Generated password reset code:', code);
-    
+
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // Code expires in 24 hours
-    
+
     // Get user by email
     const { data: userData, error: userError } = await supabase
       .from('profiles')
@@ -319,9 +319,9 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
       console.error('User not found:', userError);
       throw new Error('User not found');
     }
-    
+
     console.log('Found user for password reset:', userData.id);
-    
+
     // Store the verification code
     const { data: insertData, error: insertError } = await supabase
       .from('verification_codes')
@@ -342,9 +342,9 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 
     // Send the password reset email using Supabase's built-in method with updated options
     const resetLink = `${window.location.origin}/reset-password?code=${code}&email=${encodeURIComponent(email)}`;
-    
+
     console.log('Reset link generated:', resetLink);
-    
+
     const { error: emailError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: resetLink
     });
@@ -355,7 +355,7 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     }
 
     console.log('Password reset email sent successfully with code:', code);
-    
+
     toast.success(`Un code de réinitialisation a été envoyé à votre adresse email.`, {
       duration: 6000
     });
@@ -369,7 +369,7 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
 export const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
   try {
     console.log('Confirming password reset with code:', code);
-    
+
     // Verify the code
     const { data: codeData, error: codeError } = await supabase
       .from('verification_codes')
@@ -425,7 +425,7 @@ export const confirmPasswordReset = async (code: string, newPassword: string): P
       console.error('Error updating password:', error);
       throw new Error(error.message);
     }
-    
+
     console.log('Password reset successfully');
     toast.success('Mot de passe réinitialisé avec succès');
   } catch (error: any) {
@@ -476,7 +476,7 @@ export const createAdminAccount = async (
 
     // Fetch the updated profile
     const profile = await fetchUserProfile(data.user.id);
-    
+
     return profile;
   } catch (error: any) {
     console.error('Error creating admin account:', error);
@@ -485,13 +485,13 @@ export const createAdminAccount = async (
 };
 
 // Re-export functions from userService, projectService, conversationService
-export { 
-  fetchUserProfile, 
-  updateUserProfile, 
-  becomeFournisseur 
+export {
+  fetchUserProfile,
+  updateUserProfile,
+  becomeFournisseur
 } from './userService';
 
-export { 
+export {
   createProject,
   getUserProjects,
   getPublicProjects,
@@ -524,7 +524,7 @@ export const verifyTableStructure = async () => {
       console.error('Error checking table structure:', error);
       throw new Error('Verification codes table does not exist. Please create it using the SQL editor.');
     }
-    
+
     console.log('Table structure verified:', data);
   } catch (error) {
     console.error('Error in verifyTableStructure:', error);
@@ -570,7 +570,7 @@ export const debugShowAllCodes = async (): Promise<void> => {
       console.error('Error fetching codes:', error);
       return;
     }
-    
+
     console.log('All verification codes in database:', data);
   } catch (error) {
     console.error('Error in debugShowAllCodes:', error);

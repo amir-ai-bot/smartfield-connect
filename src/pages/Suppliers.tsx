@@ -21,19 +21,19 @@ const Suppliers = () => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         await initializeDefaultSuppliers();
-        
+
         const suppliers = await getAllSuppliers();
-        
+
         setSuppliersData(suppliers || []);
-        
+
         if (!suppliers || suppliers.length === 0) {
           setError('Aucun fournisseur trouvé. Veuillez réessayer plus tard.');
         }
@@ -45,31 +45,37 @@ const Suppliers = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchSuppliers();
   }, []);
-  
+
   const filteredSuppliers = suppliersData.filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          supplier.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          supplier.products.some(product => product.toLowerCase().includes(searchQuery.toLowerCase()));
-                         
+
     const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
-    const matchesTab = activeTab === 'all' || 
+    const matchesTab = activeTab === 'all' ||
                       (activeTab === 'favorites' && [1, 3, 5].includes(Number(supplier.id))) ||
                       (activeTab === 'recent' && [2, 4, 6].includes(Number(supplier.id)));
-    
+
     return matchesSearch && matchesCategory && matchesTab;
   });
-  
+
   const uniqueCategories = Array.from(new Set(suppliersData.map(supplier => supplier.category)));
-  
+
   const handleBecomeFournisseur = async () => {
     if (!isAuthenticated) {
       setAuthDialogOpen(true);
       return;
     }
-    
+
+    // Si l'utilisateur est un administrateur, rediriger vers la page d'administration des fournisseurs
+    if (user?.role === 'admin') {
+      window.location.href = '/admin?tab=fournisseurs';
+      return;
+    }
+
     try {
       setIsLoading(true);
       await becomeFournisseur();
@@ -79,50 +85,52 @@ const Suppliers = () => {
       setIsLoading(false);
     }
   };
-  
+
   const getButtonText = () => {
-    if (user?.role === 'fournisseur') {
+    if (user?.role === 'fournisseur' || user?.role === 'admin_fournisseur') {
       return 'Vous êtes fournisseur';
     } else if (isPendingFournisseur()) {
       return 'Demande en attente';
+    } else if (user?.role === 'admin') {
+      return 'Vérifier les fournisseurs';
     } else {
       return 'Devenir fournisseur';
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Fournisseurs</h1>
             <p className="text-gray-600">Trouvez et contactez les meilleurs fournisseurs de la région</p>
           </div>
-          
-          <Button 
+
+          <Button
             className="mt-4 md:mt-0 bg-agri-blue-500 hover:bg-agri-blue-600 text-white flex items-center"
             onClick={handleBecomeFournisseur}
-            disabled={user?.role === 'fournisseur' || isPendingFournisseur() || isLoading}
+            disabled={user?.role === 'fournisseur' || user?.role === 'admin_fournisseur' || isPendingFournisseur() || isLoading}
           >
             <Plus className="h-4 w-4 mr-2" />
             {getButtonText()}
           </Button>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-card mb-8 p-4 animate-slide-up">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input 
-                placeholder="Rechercher des fournisseurs ou produits..." 
+              <Input
+                placeholder="Rechercher des fournisseurs ou produits..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 border-gray-200"
               />
             </div>
-            
+
             <div className="w-full md:w-60">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger id="category" className="border-gray-200">
@@ -143,19 +151,19 @@ const Suppliers = () => {
             </div>
           </div>
         </div>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8 animate-slide-up">
           <TabsList className="grid grid-cols-3 w-full sm:w-80">
             <TabsTrigger value="all">Tous</TabsTrigger>
             <TabsTrigger value="favorites">Favoris</TabsTrigger>
             <TabsTrigger value="recent">Récents</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="all"></TabsContent>
           <TabsContent value="favorites"></TabsContent>
           <TabsContent value="recent"></TabsContent>
         </Tabs>
-        
+
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
@@ -174,9 +182,9 @@ const Suppliers = () => {
         ) : filteredSuppliers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSuppliers.map((supplier, index) => (
-              <div 
-                key={supplier.id} 
-                className="animate-slide-up" 
+              <div
+                key={supplier.id}
+                className="animate-slide-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <SupplierCard {...supplier} />
@@ -200,12 +208,12 @@ const Suppliers = () => {
         )}
       </main>
 
-      <AuthDialog 
-        open={authDialogOpen} 
+      <AuthDialog
+        open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
         initialView="login"
       />
-      
+
       <Footer />
     </div>
   );

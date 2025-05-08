@@ -27,7 +27,7 @@ export const fetchUserProfile = async (userId: string): Promise<User> => {
     // Convert to our User type - we'll add email_verified later
     const user: User = {
       id: data.id,
-      name: data.name,
+      name: data.display_name || data.name, // Handle both display_name and name
       email: data.email,
       avatar: data.avatar,
       role: data.role as 'admin' | 'user' | 'fournisseur',
@@ -82,7 +82,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
           .select('avatar')
           .eq('id', userId)
           .single();
-        
+
         if (currentUser?.avatar && currentUser.avatar !== updates.avatar) {
           await deleteAvatar(currentUser.avatar);
         }
@@ -90,10 +90,10 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
         console.error('Error deleting old avatar:', error);
       }
     }
-    
+
     // Filter out non-profile fields and undefined values
     const profileUpdates: any = {
-      name: updates.name,
+      display_name: updates.name, // Use display_name instead of name
       phone_number: updates.phone_number,
       avatar: updates.avatar,
       role: updates.role,
@@ -101,39 +101,39 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
       bio: updates.bio,
       preferences: updates.preferences,
     };
-    
+
     // Remove undefined values
-    Object.keys(profileUpdates).forEach(key => 
+    Object.keys(profileUpdates).forEach(key =>
       profileUpdates[key] === undefined && delete profileUpdates[key]
     );
-    
+
     // Only update if there are valid profile updates
     if (Object.keys(profileUpdates).length > 0) {
       const { error } = await supabase
         .from('profiles')
         .update(profileUpdates)
         .eq('id', userId);
-    
+
       if (error) {
         console.error('Error updating profile:', error.message);
         toast.error("Erreur lors de la mise à jour du profil");
         throw new Error(error.message);
       }
     }
-    
+
     // If email is being updated, update auth credentials
     if (updates.email) {
       const { error } = await supabase.auth.updateUser({
         email: updates.email,
       });
-    
+
       if (error) {
         console.error('Error updating email:', error.message);
         toast.error("Erreur lors de la mise à jour de l'email");
         throw new Error(error.message);
       }
     }
-    
+
     // Return updated profile
     return await fetchUserProfile(userId);
   } catch (error) {
@@ -145,27 +145,57 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>):
 // Function to become a fournisseur
 export const becomeFournisseur = async (userId: string): Promise<User> => {
   try {
-    // Check if user is admin before allowing role change
+    // Get current user role
     const { data: userData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .single();
-      
+
+    // Determine the new role based on current role
+    let newRole = 'pending_fournisseur';
+
+    // If user is already an admin, we'll keep their admin privileges
+    // by setting a special role that indicates both admin and fournisseur
     if (userData?.role === 'admin') {
-      toast.error("Un administrateur ne peut pas devenir fournisseur");
-      throw new Error("Admin cannot become fournisseur");
+      newRole = 'admin_fournisseur';
+      console.log('Admin becoming fournisseur with role:', newRole);
     }
-    
+
+    // Update the user's role
     const { error } = await supabase
       .from('profiles')
-      .update({ role: 'fournisseur' })
+      .update({ role: newRole })
       .eq('id', userId);
 
     if (error) {
       console.error('Error becoming fournisseur:', error.message);
       toast.error("Erreur lors du changement de rôle");
       throw new Error(error.message);
+    }
+
+    // If the user is an admin, we need to create a supplier entry for them
+    if (userData?.role === 'admin') {
+      try {
+        // Import the addSupplier function from supplierService
+        const { addSupplier } = await import('./supplierService');
+
+        // Create a supplier entry for the admin
+        await addSupplier(
+          userId,
+          'Administration', // Default category for admin suppliers
+          'Non spécifié', // Default location
+          ['Services administratifs'], // Default products
+          undefined // No phone number by default
+        );
+
+        toast.success("Vous êtes maintenant un fournisseur avec privilèges d'administrateur");
+      } catch (supplierError) {
+        console.error('Error creating supplier entry for admin:', supplierError);
+        // Continue even if there's an error creating the supplier entry
+      }
+    } else {
+      toast.success("Votre demande a été soumise et est en attente d'approbation");
     }
 
     return fetchUserProfile(userId);

@@ -58,7 +58,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const availableCrops = [
     "Oliviers",
     "Palmiers",
@@ -104,16 +104,16 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
       setImagePreview(URL.createObjectURL(file));
     }
   };
-  
+
   const onSubmit = async (values: FormValues) => {
     if (!user) {
       toast.error("Vous devez être connecté pour créer un projet");
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
-      
+
       let imageUrl = '';
       if (selectedImage) {
         try {
@@ -125,9 +125,10 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
           imageUrl = '';
         }
       }
-      
+
       const projectData = {
-        title: values.title,
+        name: values.title, // Use 'name' instead of 'title' to match database schema
+        title: values.title, // Keep 'title' for backward compatibility
         crop: values.crop,
         location: values.location,
         start_date: format(values.startDate, 'yyyy-MM-dd'),
@@ -138,11 +139,11 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
         status: 'planning' as 'planning' | 'active' | 'completed',
         progress: 0
       };
-      
+
       console.log('Creating project with data:', projectData);
-      
+
       await onProjectCreated(projectData);
-      
+
       form.reset();
       setSelectedImage(null);
       setImagePreview(null);
@@ -153,7 +154,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -163,7 +164,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
             Ajoutez les détails de votre nouveau projet agricole.
           </DialogDescription>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -179,7 +180,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 </FormItem>
               )}
             />
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -187,8 +188,8 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Culture principale</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value || ""}
                     >
                       <FormControl>
@@ -208,7 +209,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="location"
@@ -223,7 +224,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 )}
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -241,7 +242,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="endDate"
@@ -259,7 +260,7 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 )}
               />
             </div>
-            
+
             <FormField
               control={form.control}
               name="description"
@@ -267,18 +268,18 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Décrivez votre projet..." 
-                      className="resize-none" 
-                      rows={4} 
-                      {...field} 
+                    <Textarea
+                      placeholder="Décrivez votre projet..."
+                      className="resize-none"
+                      rows={4}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <div className="space-y-3">
               <label className="block text-sm font-medium">Image du projet</label>
               <div className="flex items-center gap-4">
@@ -300,16 +301,16 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 />
                 {imagePreview && (
                   <div className="relative h-16 w-16 rounded overflow-hidden">
-                    <img 
-                      src={imagePreview} 
-                      alt="Aperçu" 
+                    <img
+                      src={imagePreview}
+                      alt="Aperçu"
                       className="h-full w-full object-cover"
                     />
                   </div>
                 )}
               </div>
             </div>
-            
+
             <FormField
               control={form.control}
               name="isPublic"
@@ -330,17 +331,17 @@ const CreateProjectDialog = ({ open, onOpenChange, onProjectCreated }: CreatePro
                 </FormItem>
               )}
             />
-            
+
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
               >
                 Annuler
               </Button>
-              <Button 
+              <Button
                 type="submit"
                 className="bg-agri-green-500 hover:bg-agri-green-600"
                 disabled={isSubmitting}

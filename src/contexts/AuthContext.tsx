@@ -19,22 +19,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session);
-        
+
         if (session) {
           // Defer profile fetch to avoid auth deadlock
           setTimeout(async () => {
             try {
               const profile = await authService.fetchUserProfile(session.user.id);
-              
+
               if (profile) {
                 setState({
                   user: profile,
                   isAuthenticated: true,
                   isLoading: false,
                 });
-                
+
                 localStorage.setItem('agrismart_user', JSON.stringify(profile));
-                
+
                 if (event === 'SIGNED_IN') {
                   toast.success('Connexion réussie');
                 }
@@ -69,17 +69,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session) {
           const profile = await authService.fetchUserProfile(session.user.id);
-          
+
           if (profile) {
             setState({
               user: profile,
               isAuthenticated: true,
               isLoading: false,
             });
-            
+
             localStorage.setItem('agrismart_user', JSON.stringify(profile));
           } else {
             setState({
@@ -158,14 +158,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<User>) => {
     try {
       if (!state.user) throw new Error('Not authenticated');
-      
+
       const updatedUser = await authService.updateUserProfile(state.user.id, updates);
-      
+
       setState(prev => ({
         ...prev,
         user: updatedUser
       }));
-      
+
       toast.success('Profil mis à jour avec succès');
       return updatedUser;
     } catch (error) {
@@ -177,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyEmail = async (email: string, code: string) => {
     try {
       await authService.verifyEmail(email, code);
-      
+
       if (state.user) {
         setState(prev => ({
           ...prev,
@@ -187,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }));
       }
-      
+
       toast.success('Email vérifié avec succès');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erreur lors de la vérification de l\'email');
@@ -222,16 +222,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const becomeFournisseur = async (): Promise<void> => {
     try {
       if (!state.user) throw new Error('Not authenticated');
-      
-      // Create a pending request instead of immediately becoming a fournisseur
-      const updatedUser = await authService.updateUserProfile(state.user.id, { role: 'pending_fournisseur' });
-      
+
+      // Import the becomeFournisseur function from userService
+      const { becomeFournisseur } = await import('@/services/userService');
+
+      // Use the updated function that handles admin users correctly
+      const updatedUser = await becomeFournisseur(state.user.id);
+
       setState(prev => ({
         ...prev,
         user: updatedUser
       }));
-      
-      toast.success('Votre demande a été envoyée! Un administrateur l\'examinera prochainement.');
+
+      // Toast message is now handled in the userService function
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'envoi de la demande');
       throw error;
@@ -239,11 +242,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    return state.user?.role === 'admin';
+    return state.user?.role === 'admin' || state.user?.role === 'admin_fournisseur';
   };
 
   const isFournisseur = () => {
-    return state.user?.role === 'fournisseur';
+    return state.user?.role === 'fournisseur' || state.user?.role === 'admin_fournisseur';
   };
 
   const isPendingFournisseur = () => {

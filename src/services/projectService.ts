@@ -14,11 +14,25 @@ export const createProject = async (
   isPublic: boolean = false
 ): Promise<ProjectData> => {
   try {
+    console.log('Creating project with the following data:', {
+      owner_id: userId,
+      name: title,
+      crop,
+      location,
+      start_date: startDate,
+      end_date: endDate,
+      description,
+      image,
+      is_public: isPublic,
+      status: 'planning',
+      progress: 0
+    });
+
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        user_id: userId,
-        title,
+        owner_id: userId,
+        name: title,
         crop,
         location,
         start_date: startDate,
@@ -26,7 +40,7 @@ export const createProject = async (
         description,
         image,
         is_public: isPublic,
-        status: 'planning' as 'planning' | 'active' | 'completed',
+        status: 'planning',
         progress: 0
       })
       .select()
@@ -37,10 +51,12 @@ export const createProject = async (
       throw new Error(error.message);
     }
 
+    console.log('Project created successfully:', data);
+
     // Transform response to match ProjectData type
     return {
       id: data.id,
-      title: data.title,
+      title: data.name, // Use name from database as title
       crop: data.crop,
       location: data.location,
       startDate: data.start_date,
@@ -49,7 +65,7 @@ export const createProject = async (
       status: data.status as 'planning' | 'active' | 'completed',
       image: data.image,
       description: data.description,
-      user_id: data.user_id,
+      user_id: data.owner_id, // Use owner_id from database as user_id
       isPublic: data.is_public
     };
   } catch (error) {
@@ -60,19 +76,23 @@ export const createProject = async (
 
 // Function to get a user's projects
 export const getUserProjects = async (userId: string): Promise<ProjectData[]> => {
+  console.log('Fetching projects for user:', userId);
+
   const { data, error } = await supabase
     .from('projects')
     .select('*')
-    .eq('user_id', userId);
+    .eq('owner_id', userId);
 
   if (error) {
     throw new Error(error.message);
   }
 
+  console.log('User projects fetched:', data);
+
   // Transform data to match ProjectData type
   return (data || []).map(item => ({
     id: item.id,
-    title: item.title,
+    title: item.name, // Use name from database as title
     crop: item.crop,
     location: item.location,
     startDate: item.start_date,
@@ -81,7 +101,7 @@ export const getUserProjects = async (userId: string): Promise<ProjectData[]> =>
     status: item.status as 'planning' | 'active' | 'completed',
     image: item.image,
     description: item.description,
-    user_id: item.user_id,
+    user_id: item.owner_id, // Use owner_id from database as user_id
     isPublic: item.is_public
   }));
 };
@@ -97,10 +117,12 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
     throw new Error(error.message);
   }
 
+  console.log('Public projects fetched:', data);
+
   // Transform data to match ProjectData type
   return (data || []).map(item => ({
     id: item.id,
-    title: item.title,
+    title: item.name, // Use name from database as title
     crop: item.crop,
     location: item.location,
     startDate: item.start_date,
@@ -109,7 +131,7 @@ export const getPublicProjects = async (): Promise<ProjectData[]> => {
     status: item.status as 'planning' | 'active' | 'completed',
     image: item.image,
     description: item.description,
-    user_id: item.user_id,
+    user_id: item.owner_id, // Use owner_id from database as user_id
     isPublic: item.is_public
   }));
 };
@@ -132,7 +154,7 @@ export const updateProject = async (
 ): Promise<ProjectData> => {
   // Prepare updates with Supabase column names
   const projectUpdates: any = {
-    title: updates.title,
+    name: updates.title, // Use title as name
     crop: updates.crop,
     location: updates.location,
     start_date: updates.startDate,
@@ -143,9 +165,9 @@ export const updateProject = async (
     status: updates.status,
     progress: updates.progress
   };
-  
+
   // Remove undefined values
-  Object.keys(projectUpdates).forEach(key => 
+  Object.keys(projectUpdates).forEach(key =>
     projectUpdates[key] === undefined && delete projectUpdates[key]
   );
 
@@ -160,10 +182,12 @@ export const updateProject = async (
     throw new Error(error.message);
   }
 
+  console.log('Project updated successfully:', data);
+
   // Transform to match ProjectData type
   return {
     id: data.id,
-    title: data.title,
+    title: data.name, // Use name from database as title
     crop: data.crop,
     location: data.location,
     startDate: data.start_date,
@@ -172,7 +196,7 @@ export const updateProject = async (
     status: data.status as 'planning' | 'active' | 'completed',
     image: data.image,
     description: data.description,
-    user_id: data.user_id,
+    user_id: data.owner_id, // Use owner_id from database as user_id
     isPublic: data.is_public
   };
 };
