@@ -14,11 +14,14 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
+// Define the mapper function to transform database fields to our ProjectData interface
 const mapDbProjectToProjectData = (dbProject: any): ProjectData => {
+  // Ensure the image URL is properly formatted
   const imageUrl = dbProject.image ? 
     (dbProject.image.startsWith('http') ? dbProject.image : `https://iqilhrbsamcahdmklbnp.supabase.co/storage/v1/object/public/project-images/${dbProject.image}`) : 
     null;
 
+  // Calculate progress based on current date and project dates
   const calculateProgress = () => {
     if (!dbProject.start_date || !dbProject.end_date) return 0;
     
@@ -41,6 +44,7 @@ const mapDbProjectToProjectData = (dbProject: any): ProjectData => {
     location: dbProject.location || '',
     start_date: dbProject.start_date,
     end_date: dbProject.end_date,
+    // For backward compatibility
     startDate: dbProject.start_date,
     endDate: dbProject.end_date,
     progress: dbProject.progress || calculateProgress(),
@@ -79,6 +83,7 @@ const Projects = () => {
     setIsLoading(true);
     
     try {
+      // Fetch user's projects
       let userProjectsData: ProjectData[] = [];
       if (user) {
         const { data: userProjectsResult, error } = await supabase
@@ -92,6 +97,7 @@ const Projects = () => {
         setProjects(userProjectsData);
       }
       
+      // Fetch public projects using the projects view
       const { data: publicProjectsData, error: publicError } = await supabase
         .from('public_projects_view')
         .select('*')
@@ -100,9 +106,11 @@ const Projects = () => {
         
       if (publicError) throw publicError;
       
+      // Map the projects with our helper function
       const mappedPublicProjects = (publicProjectsData || []).map(mapDbProjectToProjectData);
       setPublicProjects(mappedPublicProjects);
       
+      // Extract unique crops for filter
       const allProjects = [...userProjectsData, ...mappedPublicProjects];
       const crops = [...new Set(allProjects.map(p => p.crop))].filter(Boolean);
       setAvailableCrops(crops);
@@ -138,16 +146,18 @@ const Projects = () => {
         return;
       }
 
+      // Ensure dates are properly formatted
       const formattedProjectData = {
         ...projectData,
         start_date: projectData.startDate || projectData.start_date,
         end_date: projectData.endDate || projectData.end_date,
         user_id: user.id,
         status: 'planning',
-        progress: 0,
+        progress: 0, // Initial progress will be calculated in mapDbProjectToProjectData
         is_public: projectData.is_public || false
       };
 
+      // Remove the camelCase date fields to avoid confusion
       delete formattedProjectData.startDate;
       delete formattedProjectData.endDate;
 
@@ -165,6 +175,7 @@ const Projects = () => {
         return;
       }
 
+      // Map the created project to ensure proper formatting
       const mappedProject = mapDbProjectToProjectData(data);
       setProjects(prev => [mappedProject, ...prev]);
       toast.success("Projet créé avec succès");
@@ -182,6 +193,7 @@ const Projects = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 pt-24 pb-16">
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">{t('projects')}</h1>
           
@@ -196,6 +208,7 @@ const Projects = () => {
           )}
         </div>
         
+        {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
             <div className="w-full md:w-1/3">
@@ -260,6 +273,7 @@ const Projects = () => {
           </div>
         </div>
         
+        {/* Projects Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -288,7 +302,7 @@ const Projects = () => {
                   image={project.image}
                   user_name={project.user_name}
                   user_avatar={project.user_avatar}
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => navigate(`/dashboard?projectId=${project.id}`)}
                 />
               ))}
             </div>
@@ -310,6 +324,7 @@ const Projects = () => {
         )}
       </main>
       
+      {/* Create Project Dialog */}
       <CreateProjectDialog 
         open={isCreateDialogOpen} 
         onOpenChange={setIsCreateDialogOpen}

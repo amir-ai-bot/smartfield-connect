@@ -1,69 +1,51 @@
 
-// Media item type for messages
-export interface MediaItem {
+import { Database } from '@/integrations/supabase/types';
+
+// Extend the Supabase types with our custom table
+export interface ConversationMedia {
   id: string;
   message_id: string;
-  media_type: "image" | "document" | "audio";
+  media_type: string;
   media_url: string;
   created_at: string;
 }
 
-// User profile type
-export interface Profile {
+export interface Rating {
   id: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
-  phone_number?: string;
-  email_verified?: boolean;
-  address?: string;
-  bio?: string;
-  created_at?: string;
-  updated_at?: string;
-  preferences?: {
-    language?: 'fr' | 'en' | 'ar';
-    notifications?: {
-      email?: boolean;
-      app?: boolean;
-    };
-    theme?: 'light' | 'dark' | 'system';
-  };
-}
-
-// User type
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  role: 'admin' | 'user' | 'fournisseur' | 'pending_fournisseur';
-  phone_number?: string;
-  email_verified?: boolean;
-  address?: string;
-  bio?: string;
-  preferences?: {
-    language?: 'fr' | 'en' | 'ar';
-    notifications?: {
-      email?: boolean;
-      app?: boolean;
-    };
-    theme?: 'light' | 'dark' | 'system';
-  };
-}
-
-// Supplier type
-export interface Supplier {
-  id: string;
-  user_id?: string;
-  name: string;
-  category: string;
-  location: string;
-  phone: string;
-  products: string[];
   rating: number;
-  avatar?: string;
-  email?: string;
-  image?: string;
-  isFavorite?: boolean;
+  comment: string;
+  created_at: string;
+  profiles: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+}
+
+export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type Message = Database['public']['Tables']['messages']['Row'];
+export type Conversation = Database['public']['Tables']['conversations']['Row'];
+export type Project = Database['public']['Tables']['projects']['Row'];
+
+// Define ProjectWithUser type that matches the projects_with_users view
+export interface ProjectWithUser {
+  id: string;
+  user_id: string;
+  title: string;
+  crop: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  image: string;
+  is_public: boolean;
+  status: string;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  creator_name: string;
+  creator_email: string;
+  creator_avatar: string;
+  // Compatibility field to match the Admin component's expected structure
+  user_name?: string;
 }

@@ -13,7 +13,6 @@ import ConversationDetail from './pages/ConversationDetail';
 import Favorites from './pages/Favorites';
 import SupplierProfilePage from './pages/SupplierProfilePage';
 import Projects from './pages/Projects';
-import ProjectDetail from './pages/ProjectDetail';
 
 const router = createBrowserRouter([
   {
@@ -86,7 +85,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/projects/:id",
-        element: <ProjectDetail />
+        element: <Projects />
       },
       {
         path: "/projects",
@@ -107,10 +106,6 @@ const router = createBrowserRouter([
       {
         path: "/favorites",
         element: <Favorites />
-      },
-      {
-        path: "*",
-        element: <NotFound />
       }
     ]
   }
