@@ -1,5 +1,7 @@
 # SmartField Connect
 
+[![CI](https://github.com/amir-ai-bot/smartfield-connect/actions/workflows/ci.yml/badge.svg)](https://github.com/amir-ai-bot/smartfield-connect/actions/workflows/ci.yml)
+
 SmartField Connect is a web and mobile-ready application for agricultural field operations. It centralizes projects, tasks, supplier interactions, dashboards, and user workflows for teams working around farms and field activities.
 
 The repository is useful as a portfolio project because it shows React, TypeScript, Supabase, authentication flows, dashboard UI, and mobile packaging with Capacitor.
